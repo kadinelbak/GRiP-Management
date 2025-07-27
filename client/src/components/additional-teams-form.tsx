@@ -46,6 +46,7 @@ export default function AdditionalTeamsForm() {
     defaultValues: {
       fullName: "",
       email: "",
+      ufid: "",
       selectedTeams: [],
     },
   });
@@ -110,7 +111,7 @@ export default function AdditionalTeamsForm() {
                         <FormControl>
                           <Input {...field} placeholder="Enter your full name" />
                         </FormControl>
-                        <FormMessage />
+                        <FormMessage className="text-red-600" />
                       </FormItem>
                     )}
                   />
@@ -124,7 +125,21 @@ export default function AdditionalTeamsForm() {
                         <FormControl>
                           <Input {...field} type="email" placeholder="example@ufl.edu" />
                         </FormControl>
-                        <FormMessage />
+                        <FormMessage className="text-red-600" />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="ufid"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>UFID *</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="12345678" maxLength={8} />
+                        </FormControl>
+                        <FormMessage className="text-red-600" />
                       </FormItem>
                     )}
                   />

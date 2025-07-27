@@ -183,7 +183,7 @@ export default function MemberForm() {
                       <FormControl>
                         <Input {...field} placeholder="Enter your full name" />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-red-600" />
                     </FormItem>
                   )}
                 />
@@ -198,7 +198,7 @@ export default function MemberForm() {
                         <Input {...field} type="email" placeholder="example@ufl.edu" />
                       </FormControl>
                       <p className="text-xs text-slate-500">Must use approved domain (configured by admin)</p>
-                      <FormMessage />
+                      <FormMessage className="text-red-600" />
                     </FormItem>
                   )}
                 />
@@ -212,7 +212,7 @@ export default function MemberForm() {
                       <FormControl>
                         <Input {...field} placeholder="12345678" />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-red-600" />
                     </FormItem>
                   )}
                 />
@@ -343,7 +343,7 @@ export default function MemberForm() {
                             placeholder="Describe any additional skills or experience..."
                           />
                         </FormControl>
-                        <FormMessage />
+                        <FormMessage className="text-red-600" />
                       </FormItem>
                     )}
                   />
@@ -479,7 +479,7 @@ export default function MemberForm() {
                             <FormLabel className="text-sm text-slate-700 font-normal">
                               {text}
                             </FormLabel>
-                            <FormMessage />
+                            <FormMessage className="text-red-600" />
                           </div>
                         </FormItem>
                       )}

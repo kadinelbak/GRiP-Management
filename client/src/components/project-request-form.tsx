@@ -116,7 +116,7 @@ export default function ProjectRequestForm() {
                         <FormControl>
                           <Input {...field} placeholder="Enter your full name" />
                         </FormControl>
-                        <FormMessage />
+                        <FormMessage className="text-red-600" />
                       </FormItem>
                     )}
                   />
@@ -130,7 +130,7 @@ export default function ProjectRequestForm() {
                         <FormControl>
                           <Input {...field} type="email" placeholder="your.email@example.com" />
                         </FormControl>
-                        <FormMessage />
+                        <FormMessage className="text-red-600" />
                       </FormItem>
                     )}
                   />
@@ -145,7 +145,7 @@ export default function ProjectRequestForm() {
                       <FormControl>
                         <Input {...field} type="tel" placeholder="(555) 123-4567" />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-red-600" />
                     </FormItem>
                   )}
                 />
@@ -159,7 +159,7 @@ export default function ProjectRequestForm() {
                       <FormControl>
                         <Input {...field} placeholder="Your address (optional)" />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-red-600" />
                     </FormItem>
                   )}
                 />
@@ -191,7 +191,7 @@ export default function ProjectRequestForm() {
                           ))}
                         </SelectContent>
                       </Select>
-                      <FormMessage />
+                      <FormMessage className="text-red-600" />
                     </FormItem>
                   )}
                 />
@@ -205,7 +205,7 @@ export default function ProjectRequestForm() {
                       <FormControl>
                         <Input {...field} placeholder="Brief title for your project" />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-red-600" />
                     </FormItem>
                   )}
                 />
@@ -223,7 +223,7 @@ export default function ProjectRequestForm() {
                           placeholder="Please provide a detailed description of what you need, including:&#10;- What tasks do you want to accomplish?&#10;- Any specific requirements or constraints?&#10;- Current limitations you're facing?&#10;- Any previous solutions you've tried?"
                         />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-red-600" />
                     </FormItem>
                   )}
                 />
@@ -248,7 +248,7 @@ export default function ProjectRequestForm() {
                           ))}
                         </SelectContent>
                       </Select>
-                      <FormMessage />
+                      <FormMessage className="text-red-600" />
                     </FormItem>
                   )}
                 />
@@ -266,7 +266,7 @@ export default function ProjectRequestForm() {
                           placeholder="Any budget constraints or funding information we should know about?"
                         />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-red-600" />
                     </FormItem>
                   )}
                 />
@@ -298,7 +298,7 @@ export default function ProjectRequestForm() {
                           ))}
                         </SelectContent>
                       </Select>
-                      <FormMessage />
+                      <FormMessage className="text-red-600" />
                     </FormItem>
                   )}
                 />
@@ -318,7 +318,7 @@ export default function ProjectRequestForm() {
                         <FormLabel className="text-sm text-slate-700 font-normal">
                           I consent to being contacted by GRiP team members regarding this project request and understand that project completion is not guaranteed.
                         </FormLabel>
-                        <FormMessage />
+                        <FormMessage className="text-red-600" />
                       </div>
                     </FormItem>
                   )}

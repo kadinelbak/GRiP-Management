@@ -83,6 +83,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createApplication(insertApplication: InsertApplication): Promise<Application> {
+    // Check for duplicate UFID in applications
+    const existingApplication = await db.select().from(applications).where(eq(applications.ufid, insertApplication.ufid));
+    if (existingApplication.length > 0) {
+      throw new Error("A technical team application with this UFID already exists. You cannot submit multiple technical team applications.");
+    }
+
     const [application] = await db.insert(applications).values(insertApplication).returning();
     return application;
   }
@@ -101,6 +107,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createAdditionalTeamSignup(insertSignup: InsertAdditionalTeamSignup): Promise<AdditionalTeamSignup> {
+    // Check for duplicate UFID in additional team signups  
+    const existingSignup = await db.select().from(additionalTeamSignups).where(eq(additionalTeamSignups.ufid, insertSignup.ufid));
+    if (existingSignup.length > 0) {
+      throw new Error("You have already signed up for additional teams with this UFID. You cannot submit multiple additional team signups.");
+    }
+
     const [signup] = await db.insert(additionalTeamSignups).values(insertSignup).returning();
     return signup;
   }

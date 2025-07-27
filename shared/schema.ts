@@ -35,6 +35,7 @@ export const additionalTeamSignups = pgTable("additional_team_signups", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   fullName: text("full_name").notNull(),
   email: text("email").notNull(),
+  ufid: text("ufid").notNull(),
   selectedTeams: json("selected_teams").$type<string[]>().notNull(),
   submittedAt: timestamp("submitted_at").notNull().defaultNow(),
 });
@@ -91,7 +92,7 @@ export const insertApplicationSchema = createInsertSchema(applications).omit({
   submittedAt: true,
 }).extend({
   email: z.string().email("Invalid email format"),
-  ufid: z.string().min(8, "UFID must be at least 8 characters"),
+  ufid: z.string().regex(/^\d{8}$/, "UFID must be exactly 8 digits"),
   teamPreferences: z.array(z.string()).min(1, "At least one team preference required").max(9, "Maximum 9 team preferences allowed"),
   timeAvailability: z.array(z.object({
     day: z.string(),
@@ -106,6 +107,7 @@ export const insertAdditionalTeamSignupSchema = createInsertSchema(additionalTea
   submittedAt: true,
 }).extend({
   email: z.string().email("Invalid email format"),
+  ufid: z.string().regex(/^\d{8}$/, "UFID must be exactly 8 digits"),
   selectedTeams: z.array(z.string()).min(1, "At least one team must be selected"),
 });
 
