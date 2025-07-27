@@ -22,6 +22,7 @@ export interface IStorage {
   createApplication(application: InsertApplication): Promise<Application>;
   updateApplication(id: string, updates: Partial<Application>): Promise<Application>;
   getApplicationsByTeam(teamId: string): Promise<Application[]>;
+  deleteApplication(id: string): Promise<void>;
 
   // Additional Team Signups
   getAdditionalTeamSignups(): Promise<AdditionalTeamSignup[]>;
@@ -40,7 +41,7 @@ export interface IStorage {
 
   // Team Assignment
   assignTeamsAutomatically(): Promise<{ assignments: Array<{ applicationId: string; studentName: string; assignedTeam: string | null; reason: string }> }>;
-  
+
   // Team membership
   getTeamMembers(teamId: string): Promise<Application[]>;
 }
@@ -96,6 +97,10 @@ export class DatabaseStorage implements IStorage {
   async updateApplication(id: string, updates: Partial<Application>): Promise<Application> {
     const [application] = await db.update(applications).set(updates).where(eq(applications.id, id)).returning();
     return application;
+  }
+
+  async deleteApplication(id: string): Promise<void> {
+    await db.delete(applications).where(eq(applications.id, id));
   }
 
   async getApplicationsByTeam(teamId: string): Promise<Application[]> {
@@ -179,7 +184,7 @@ export class DatabaseStorage implements IStorage {
     for (const application of pendingApplications) {
       let assignedTeamId: string | null = null;
       let reason = "";
-      
+
       // Check if application has complete information
       if (!application.teamPreferences || application.teamPreferences.length === 0) {
         reason = "No team preferences provided - moved to waitlist";
@@ -215,7 +220,7 @@ export class DatabaseStorage implements IStorage {
       for (let i = 0; i < application.teamPreferences.length; i++) {
         const preferredTeamId = application.teamPreferences[i];
         const teamCapacity = teamCapacities.get(preferredTeamId);
-        
+
         if (!teamCapacity) {
           continue; // Team doesn't exist
         }
@@ -223,7 +228,7 @@ export class DatabaseStorage implements IStorage {
         if (teamCapacity.available > 0) {
           assignedTeamId = preferredTeamId;
           reason = `Assigned to preference #${i + 1}: ${teamCapacity.name} (${teamCapacity.available} slots available)`;
-          
+
           // Update application
           await this.updateApplication(application.id, {
             assignedTeamId,
@@ -235,14 +240,14 @@ export class DatabaseStorage implements IStorage {
           await this.updateTeam(preferredTeamId, {
             currentSize: teamCapacity.currentSize + 1
           });
-          
+
           // Update our local capacity tracking
           teamCapacities.set(preferredTeamId, {
             ...teamCapacity,
             available: teamCapacity.available - 1,
             currentSize: teamCapacity.currentSize + 1
           });
-          
+
           break;
         }
       }
@@ -253,7 +258,7 @@ export class DatabaseStorage implements IStorage {
           .map(id => teamCapacities.get(id)?.name || "Unknown")
           .join(", ");
         reason = `All preferred teams full: ${preferredTeamNames} - moved to waitlist`;
-        
+
         await this.updateApplication(application.id, {
           status: "waitlisted",
           assignmentReason: reason
@@ -267,7 +272,7 @@ export class DatabaseStorage implements IStorage {
         reason
       });
     }
-    
+
     return { assignments };
   }
 

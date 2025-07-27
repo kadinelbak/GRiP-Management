@@ -197,6 +197,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/applications/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteApplication(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete application" });
+    }
+  });
+
   app.post("/api/applications/assign-teams", async (_req, res) => {
     try {
       const result = await storage.assignTeamsAutomatically();

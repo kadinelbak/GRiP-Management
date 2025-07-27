@@ -386,24 +386,24 @@ export default function MemberForm() {
                 </p>
                 
                 <div className="overflow-x-auto">
-                  <div className="min-w-[600px]">
-                    {/* Header row with time slots */}
+                  <div className="min-w-[900px]">
+                    {/* Header row with days */}
                     <div className="grid grid-cols-8 gap-1 mb-2">
                       <div className="p-2"></div> {/* Empty corner */}
-                      {timeSlots.map((time) => (
-                        <div key={time} className="p-2 text-xs font-medium text-center text-slate-600 bg-slate-50 rounded">
-                          {time}
+                      {daysOfWeek.map((day) => (
+                        <div key={day} className="p-2 text-xs font-medium text-center text-slate-600 bg-slate-50 rounded">
+                          {day.slice(0, 3)}
                         </div>
                       ))}
                     </div>
                     
-                    {/* Days and time grid */}
-                    {daysOfWeek.map((day) => (
-                      <div key={day} className="grid grid-cols-8 gap-1 mb-1">
-                        <div className="p-2 text-sm font-medium text-slate-700 bg-slate-50 rounded flex items-center">
-                          {day.slice(0, 3)}
+                    {/* Time slots and availability grid */}
+                    {timeSlots.map((time) => (
+                      <div key={time} className="grid grid-cols-8 gap-1 mb-1">
+                        <div className="p-2 text-sm font-medium text-slate-700 bg-slate-50 rounded flex items-center justify-end pr-3">
+                          {time}
                         </div>
-                        {timeSlots.map((time) => (
+                        {daysOfWeek.map((day) => (
                           <button
                             key={`${day}-${time}`}
                             type="button"

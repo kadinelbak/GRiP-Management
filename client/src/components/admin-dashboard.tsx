@@ -36,6 +36,7 @@ export default function AdminDashboard() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("overview");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const form = useForm<TeamFormData>({
     resolver: zodResolver(insertTeamSchema),
@@ -76,6 +77,18 @@ export default function AdminDashboard() {
       toast({ title: "Team assignments completed successfully!" });
       queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/assignment-report"] });
+    },
+  });
+
+  const deleteApplicationMutation = useMutation({
+    mutationFn: (applicationId: string) => apiRequest("DELETE", `/api/applications/${applicationId}`, {}),
+    onSuccess: () => {
+      toast({ title: "Application deleted successfully!" });
+      queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete application", variant: "destructive" });
     },
   });
 
@@ -525,6 +538,17 @@ export default function AdminDashboard() {
               </div>
             </div>
 
+            <div className="flex items-center space-x-4">
+              <div className="flex-1">
+                <Input
+                  placeholder="Search by name or email..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="max-w-sm"
+                />
+              </div>
+            </div>
+
             <Card>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
@@ -540,12 +564,19 @@ export default function AdminDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {applications.map((app) => (
+                      {applications
+                        .filter((app) => 
+                          searchTerm === "" || 
+                          app.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          app.email.toLowerCase().includes(searchTerm.toLowerCase())
+                        )
+                        .map((app) => (
                         <TableRow key={app.id}>
                           <TableCell>
                             <div>
                               <div className="font-medium">{app.fullName}</div>
                               <div className="text-sm text-slate-500">{app.email}</div>
+                              <div className="text-xs text-slate-400">UFID: {app.ufid}</div>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -570,19 +601,27 @@ export default function AdminDashboard() {
                               <Button variant="ghost" size="sm">
                                 <Eye className="w-4 h-4" />
                               </Button>
-                              {app.status === "pending" && (
-                                <Button variant="ghost" size="sm">
-                                  Assign
-                                </Button>
-                              )}
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => deleteApplicationMutation.mutate(app.id)}
+                                disabled={deleteApplicationMutation.isPending}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
                       ))}
-                      {applications.length === 0 && (
+                      {applications.filter((app) => 
+                          searchTerm === "" || 
+                          app.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          app.email.toLowerCase().includes(searchTerm.toLowerCase())
+                        ).length === 0 && (
                         <TableRow>
                           <TableCell colSpan={6} className="text-center py-8 text-slate-500">
-                            No applications submitted yet
+                            {searchTerm ? "No applications match your search" : "No applications submitted yet"}
                           </TableCell>
                         </TableRow>
                       )}
