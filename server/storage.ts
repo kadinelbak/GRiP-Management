@@ -289,6 +289,75 @@ export class DatabaseStorage implements IStorage {
   async getTeamMembers(teamId: string): Promise<Application[]> {
     return await db.select().from(applications).where(eq(applications.assignedTeamId, teamId));
   }
+
+  async removeUserFromTeam(applicationId: string): Promise<void> {
+    const application = await db.select().from(applications).where(eq(applications.id, applicationId)).limit(1);
+    
+    if (application.length > 0 && application[0].assignedTeamId) {
+      const teamId = application[0].assignedTeamId;
+      
+      // Remove user from team
+      await db.update(applications)
+        .set({ 
+          assignedTeamId: null, 
+          status: "pending",
+          assignmentReason: null 
+        })
+        .where(eq(applications.id, applicationId));
+      
+      // Update team current size
+      await db.update(teams)
+        .set({ currentSize: sql`${teams.currentSize} - 1` })
+        .where(eq(teams.id, teamId));
+    }
+  }
+
+  async removeAllMembers(): Promise<void> {
+    // Reset all applications
+    await db.update(applications)
+      .set({ 
+        assignedTeamId: null, 
+        status: "pending",
+        assignmentReason: null 
+      });
+    
+    // Reset all team sizes
+    await db.update(teams)
+      .set({ currentSize: 0 });
+
+    // Clear all absences
+    await db.delete(absences);
+  }
+
+  async createAbsence(absenceData: any): Promise<Absence> {
+    const [absence] = await db.insert(absences).values({
+      ...absenceData,
+      startDate: new Date(absenceData.startDate),
+      endDate: absenceData.endDate ? new Date(absenceData.endDate) : null,
+    }).returning();
+    return absence;
+  }
+
+  async getAbsences(): Promise<Absence[]> {
+    return await db.select().from(absences).orderBy(desc(absences.createdAt));
+  }
+
+  async getAbsencesByApplication(applicationId: string): Promise<Absence[]> {
+    return await db.select().from(absences)
+      .where(and(eq(absences.applicationId, applicationId), eq(absences.isActive, true)));
+  }
+
+  async clearAbsence(absenceId: string): Promise<void> {
+    await db.update(absences)
+      .set({ isActive: false })
+      .where(eq(absences.id, absenceId));
+  }
+
+  async clearAllAbsencesForUser(applicationId: string): Promise<void> {
+    await db.update(absences)
+      .set({ isActive: false })
+      .where(eq(absences.applicationId, applicationId));
+  }
 }
 
 export const storage = new DatabaseStorage();

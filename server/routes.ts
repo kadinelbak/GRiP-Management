@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { 
   insertTeamSchema, insertApplicationSchema, insertAdditionalTeamSignupSchema, 
-  insertProjectRequestSchema, insertAdminSettingSchema 
+  insertProjectRequestSchema, insertAdminSettingSchema, insertAbsenceSchema 
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -227,6 +227,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Remove user from team
+  app.delete("/api/teams/members/:applicationId", async (req, res) => {
+    try {
+      const { applicationId } = req.params;
+      await storage.removeUserFromTeam(applicationId);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to remove user from team" });
+    }
+  });
+
+  // Remove all members from all teams
+  app.delete("/api/admin/remove-all-members", async (_req, res) => {
+    try {
+      await storage.removeAllMembers();
+      res.json({ message: "All members removed from teams successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to remove all members" });
+    }
+  });
+
   // CSV Export
   app.get("/api/applications/export", async (_req, res) => {
     try {
@@ -410,6 +431,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(stats);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch admin stats" });
+    }
+  });
+
+  // Absences API
+  app.get("/api/absences", async (_req, res) => {
+    try {
+      const absences = await storage.getAbsences();
+      res.json(absences);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch absences" });
+    }
+  });
+
+  app.post("/api/absences", async (req, res) => {
+    try {
+      const absenceData = insertAbsenceSchema.parse(req.body);
+      const absence = await storage.createAbsence(absenceData);
+      res.status(201).json(absence);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid absence data", errors: error.errors });
+      } else {
+        res.status(500).json({ message: "Failed to create absence" });
+      }
+    }
+  });
+
+  app.get("/api/absences/user/:applicationId", async (req, res) => {
+    try {
+      const { applicationId } = req.params;
+      const absences = await storage.getAbsencesByApplication(applicationId);
+      res.json(absences);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch user absences" });
+    }
+  });
+
+  app.delete("/api/absences/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.clearAbsence(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to clear absence" });
+    }
+  });
+
+  app.delete("/api/absences/user/:applicationId", async (req, res) => {
+    try {
+      const { applicationId } = req.params;
+      await storage.clearAllAbsencesForUser(applicationId);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to clear user absences" });
     }
   });
 

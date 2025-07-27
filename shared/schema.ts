@@ -66,16 +66,34 @@ export const adminSettings = pgTable("admin_settings", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+export const absences = pgTable("absences", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  applicationId: varchar("application_id").notNull().references(() => applications.id),
+  reason: text("reason"),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Relations
 export const teamsRelations = relations(teams, ({ many }) => ({
   applications: many(applications),
   assignedApplications: many(applications),
 }));
 
-export const applicationsRelations = relations(applications, ({ one }) => ({
+export const applicationsRelations = relations(applications, ({ one, many }) => ({
   assignedTeam: one(teams, {
     fields: [applications.assignedTeamId],
     references: [teams.id],
+  }),
+  absences: many(absences),
+}));
+
+export const absencesRelations = relations(absences, ({ one }) => ({
+  application: one(applications, {
+    fields: [absences.applicationId],
+    references: [applications.id],
   }),
 }));
 
@@ -129,15 +147,25 @@ export const insertAdminSettingSchema = createInsertSchema(adminSettings).omit({
   updatedAt: true,
 });
 
+export const insertAbsenceSchema = createInsertSchema(absences).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  applicationId: z.string().min(1, "Application ID is required"),
+  startDate: z.string().min(1, "Start date is required"),
+});
+
 // Types
 export type Team = typeof teams.$inferSelect;
 export type Application = typeof applications.$inferSelect;
 export type AdditionalTeamSignup = typeof additionalTeamSignups.$inferSelect;
 export type ProjectRequest = typeof projectRequests.$inferSelect;
 export type AdminSetting = typeof adminSettings.$inferSelect;
+export type Absence = typeof absences.$inferSelect;
 
 export type InsertTeam = z.infer<typeof insertTeamSchema>;
 export type InsertApplication = z.infer<typeof insertApplicationSchema>;
 export type InsertAdditionalTeamSignup = z.infer<typeof insertAdditionalTeamSignupSchema>;
 export type InsertProjectRequest = z.infer<typeof insertProjectRequestSchema>;
 export type InsertAdminSetting = z.infer<typeof insertAdminSettingSchema>;
+export type InsertAbsence = z.infer<typeof insertAbsenceSchema>;

@@ -20,6 +20,19 @@ async function migrate() {
       ADD COLUMN IF NOT EXISTS address TEXT
     `);
     
+    // Create absences table if it doesn't exist
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS absences (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        application_id VARCHAR NOT NULL REFERENCES applications(id),
+        reason TEXT,
+        start_date TIMESTAMP NOT NULL,
+        end_date TIMESTAMP,
+        is_active BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
+    
     console.log("Database migration completed successfully!");
   } catch (error) {
     console.error("Migration failed:", error);

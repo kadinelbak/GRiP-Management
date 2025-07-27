@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   BarChart3, Users, Inbox, Settings, Plus, Download, 
-  Wand2, Eye, Edit, Trash2, CheckCircle, Clock 
+  Wand2, Eye, Edit, Trash2, CheckCircle, Clock, UserMinus, Calendar, CalendarX
 } from "lucide-react";
 import type { Team, Application, ProjectRequest } from "@shared/schema";
 import type { z } from "zod";
@@ -38,6 +38,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const [searchTerm, setSearchTerm] = useState("");
   const [teamSearchTerm, setTeamSearchTerm] = useState("");
+  const [selectedUser, setSelectedUser] = useState<string | null>(null);
 
   const form = useForm<TeamFormData>({
     resolver: zodResolver(insertTeamSchema),
@@ -118,7 +119,45 @@ export default function AdminDashboard() {
     },
   });
 
+  const removeFromTeamMutation = useMutation({
+    mutationFn: (applicationId: string) => apiRequest("POST", `/api/admin/remove-from-team/${applicationId}`, {}),
+    onSuccess: () => {
+      toast({ title: "Member removed from team successfully!" });
+      queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/assignment-report"] });
+    },
+    onError: () => {
+      toast({ title: "Failed to remove member from team", variant: "destructive" });
+    },
+  });
 
+  const giveUserAbsenceMutation = useMutation({
+    mutationFn: (applicationId: string) => apiRequest("POST", `/api/admin/give-absence/${applicationId}`, {}),
+    onSuccess: () => {
+      toast({ title: "Absence added successfully!" });
+      queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
+    },
+    onError: () => {
+      toast({ title: "Failed to add absence", variant: "destructive" });
+    },
+  });
+
+  const clearUserAbsencesMutation = useMutation({
+    mutationFn: (applicationId: string) => apiRequest("POST", `/api/admin/clear-absences/${applicationId}`, {}),
+    onSuccess: () => {
+      toast({ title: "Absences cleared successfully!" });
+      queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
+    },
+    onError: () => {
+      toast({ title: "Failed to clear absences", variant: "destructive" });
+    },
+  });
+
+  const getUserAbsences = (applicationId: string) => {
+    // Mock absence data or fetch it from an API endpoint
+    // Replace this with your actual implementation
+    return [];
+  };
 
   const exportApplications = () => {
     window.open("/api/applications/export", "_blank");
@@ -152,7 +191,7 @@ export default function AdminDashboard() {
       <CardHeader>
         <CardTitle className="text-2xl font-bold text-slate-900">Admin Dashboard</CardTitle>
       </CardHeader>
-      
+
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-5">
@@ -503,7 +542,7 @@ export default function AdminDashboard() {
                           {assignmentReport.assignments.map((assignment: any) => {
                             const application = applications.find(app => app.id === assignment.applicationId);
                             const team = teams.find(t => t.id === assignment.assignedTeamId);
-                            
+
                             return (
                               <TableRow key={assignment.applicationId}>
                                 <TableCell>
@@ -616,9 +655,21 @@ export default function AdminDashboard() {
                         <TableRow key={app.id}>
                           <TableCell>
                             <div>
-                              <div className="font-medium">{app.fullName}</div>
+                              <div className="font-medium flex items-center gap-2">
+                                {app.fullName}
+                                {getUserAbsences(app.id).length > 0 && (
+                                  <Badge variant="outline" className="text-orange-600 border-orange-600">
+                                    Absent
+                                  </Badge>
+                                )}
+                              </div>
                               <div className="text-sm text-slate-500">{app.email}</div>
                               <div className="text-xs text-slate-400">UFID: {app.ufid}</div>
+                              {app.assignedTeamId && (
+                                <div className="text-xs text-blue-600">
+                                  Team: {teams.find(t => t.id === app.assignedTeamId)?.name}
+                                </div>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell>
@@ -639,10 +690,43 @@ export default function AdminDashboard() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <div className="flex space-x-2">
+                            <div className="flex space-x-1">
                               <Button variant="ghost" size="sm">
                                 <Eye className="w-4 h-4" />
                               </Button>
+                              {app.assignedTeamId && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => removeFromTeamMutation.mutate(app.id)}
+                                  disabled={removeFromTeamMutation.isPending}
+                                  className="text-orange-600 hover:text-orange-700"
+                                  title="Remove from team"
+                                >
+                                  <UserMinus className="w-4 h-4" />
+                                </Button>
+                              )}
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => setSelectedUser(app.id)}
+                                className="text-blue-600 hover:text-blue-700"
+                                title="Mark absent"
+                              >
+                                <Calendar className="w-4 h-4" />
+                              </Button>
+                              {getUserAbsences(app.id).length > 0 && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => clearUserAbsencesMutation.mutate(app.id)}
+                                  disabled={clearUserAbsencesMutation.isPending}
+                                  className="text-green-600 hover:text-green-700"
+                                  title="Clear absences"
+                                >
+                                  <CalendarX className="w-4 h-4" />
+                                </Button>
+                              )}
                               <Button 
                                 variant="ghost" 
                                 size="sm"
@@ -723,7 +807,7 @@ export default function AdminDashboard() {
           {/* Settings Tab */}
           <TabsContent value="settings" className="space-y-6">
             <h3 className="text-lg font-semibold text-slate-900">Platform Settings</h3>
-            
+
             <div className="space-y-6">
               <Card>
                 <CardHeader>
@@ -734,6 +818,8 @@ export default function AdminDashboard() {
                     <label className="block text-sm font-medium text-slate-700 mb-2">Allowed Email Domains</label>
                     <div className="flex space-x-2">
                       <Input className="flex-1" placeholder="@ufl.edu" defaultValue="@ufl.edu" />
+                      ```text
+
                       <Button className="grip-primary text-white">
                         <Plus className="w-4 h-4" />
                       </Button>
