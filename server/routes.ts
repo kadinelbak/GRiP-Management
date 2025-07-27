@@ -171,6 +171,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Check for duplicate email or name
+      const existingApplications = await storage.getApplications();
+      const fullName = `${req.body.firstName} ${req.body.lastName}`.trim();
+      
+      const isDuplicate = existingApplications.some((app: any) => 
+        app.email.toLowerCase() === req.body.email.toLowerCase() || 
+        app.fullName.toLowerCase() === fullName.toLowerCase()
+      );
+
+      if (isDuplicate) {
+        return res.status(400).json({ 
+          message: "An application with this email address or name already exists." 
+        });
+      }
+
       const applicationData = insertApplicationSchema.parse(req.body);
       const application = await storage.createApplication(applicationData);
       res.status(201).json(application);

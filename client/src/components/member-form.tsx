@@ -65,6 +65,8 @@ export default function MemberForm() {
     resolver: zodResolver(insertApplicationSchema),
     defaultValues: {
       fullName: "",
+      firstName: "",
+      lastName: "",
       email: "",
       ufid: "",
       teamPreferences: [],
@@ -79,9 +81,24 @@ export default function MemberForm() {
     queryKey: ["/api/teams/type/technical"],
   });
 
+  const { data: existingApplications = [] } = useQuery({
+    queryKey: ["/api/applications"],
+  });
+
   const submitMutation = useMutation({
-    mutationFn: (data: ApplicationFormData) => 
-      apiRequest("POST", "/api/applications", data),
+    mutationFn: (data: ApplicationFormData) => {
+      // Check for duplicates by email and name
+      const isDuplicate = existingApplications.some((app: any) => 
+        app.email.toLowerCase() === data.email.toLowerCase() || 
+        app.fullName.toLowerCase() === data.fullName.toLowerCase()
+      );
+      
+      if (isDuplicate) {
+        throw new Error("An application with this email address or name already exists.");
+      }
+      
+      return apiRequest("POST", "/api/applications", data);
+    },
     onSuccess: () => {
       toast({
         title: "Application Submitted!",
@@ -140,6 +157,7 @@ export default function MemberForm() {
     
     const formData = {
       ...data,
+      fullName: `${data.firstName} ${data.lastName}`.trim(),
       skills: selectedSkills,
       teamPreferences,
       timeAvailability: validTimeSlots,
@@ -174,19 +192,35 @@ export default function MemberForm() {
                   Personal Information
                 </h3>
                 
-                <FormField
-                  control={form.control}
-                  name="fullName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Full Name *</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter your full name" />
-                      </FormControl>
-                      <FormMessage className="text-red-600" />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="firstName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>First Name *</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Enter your first name" />
+                        </FormControl>
+                        <FormMessage className="text-red-600" />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="lastName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Last Name *</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Enter your last name" />
+                        </FormControl>
+                        <FormMessage className="text-red-600" />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 <FormField
                   control={form.control}

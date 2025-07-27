@@ -18,6 +18,8 @@ export const teams = pgTable("teams", {
 export const applications = pgTable("applications", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   fullName: text("full_name").notNull(),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
   email: text("email").notNull(),
   ufid: text("ufid").notNull(),
   teamPreferences: json("team_preferences").$type<string[]>().notNull().default([]), // Up to 9 ranked preferences
@@ -91,6 +93,8 @@ export const insertApplicationSchema = createInsertSchema(applications).omit({
   assignmentReason: true,
   submittedAt: true,
 }).extend({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Invalid email format"),
   ufid: z.string().regex(/^\d{8}$/, "UFID must be exactly 8 digits"),
   teamPreferences: z.array(z.string()).min(1, "At least one team preference required").max(9, "Maximum 9 team preferences allowed"),
