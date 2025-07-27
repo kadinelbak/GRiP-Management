@@ -37,6 +37,7 @@ export default function AdminDashboard() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("overview");
   const [searchTerm, setSearchTerm] = useState("");
+  const [teamSearchTerm, setTeamSearchTerm] = useState("");
 
   const form = useForm<TeamFormData>({
     resolver: zodResolver(insertTeamSchema),
@@ -102,6 +103,18 @@ export default function AdminDashboard() {
     },
     onError: () => {
       toast({ title: "Failed to create team", variant: "destructive" });
+    },
+  });
+
+  const deleteTeamMutation = useMutation({
+    mutationFn: (teamId: string) => apiRequest("DELETE", `/api/teams/${teamId}`, {}),
+    onSuccess: () => {
+      toast({ title: "Team deleted successfully!" });
+      queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete team", variant: "destructive" });
     },
   });
 
@@ -282,9 +295,25 @@ export default function AdminDashboard() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="space-y-4">
-                <h4 className="font-medium text-slate-900">Technical Division Teams</h4>
+                <div className="flex justify-between items-center">
+                  <h4 className="font-medium text-slate-900">Technical Division Teams</h4>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <Input
+                    placeholder="Search teams..."
+                    value={teamSearchTerm}
+                    onChange={(e) => setTeamSearchTerm(e.target.value)}
+                    className="max-w-sm"
+                  />
+                </div>
                 <div className="space-y-3">
-                  {teams.filter(t => t.type === "technical").map((team) => (
+                  {teams
+                    .filter(t => t.type === "technical")
+                    .filter(team => 
+                      teamSearchTerm === "" || 
+                      team.name.toLowerCase().includes(teamSearchTerm.toLowerCase())
+                    )
+                    .map((team) => (
                     <Card key={team.id}>
                       <CardContent className="p-4">
                         <div className="flex justify-between items-start mb-3">
@@ -296,7 +325,13 @@ export default function AdminDashboard() {
                             <Button variant="ghost" size="sm">
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="sm">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => deleteTeamMutation.mutate(team.id)}
+                              disabled={deleteTeamMutation.isPending}
+                              className="text-red-600 hover:text-red-700"
+                            >
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
@@ -308,8 +343,15 @@ export default function AdminDashboard() {
                       </CardContent>
                     </Card>
                   ))}
-                  {teams.filter(t => t.type === "technical").length === 0 && (
-                    <p className="text-slate-500 text-center py-8">No technical teams created yet</p>
+                  {teams
+                    .filter(t => t.type === "technical")
+                    .filter(team => 
+                      teamSearchTerm === "" || 
+                      team.name.toLowerCase().includes(teamSearchTerm.toLowerCase())
+                    ).length === 0 && (
+                    <p className="text-slate-500 text-center py-8">
+                      {teamSearchTerm ? "No teams match your search" : "No technical teams created yet"}
+                    </p>
                   )}
                 </div>
               </div>

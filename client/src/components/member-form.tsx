@@ -51,6 +51,8 @@ export default function MemberForm() {
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [teamPreferences, setTeamPreferences] = useState<string[]>([]);
   const [timeAvailability, setTimeAvailability] = useState<TimeAvailability>({});
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState<{day: string, time: string} | null>(null);
 
   const form = useForm<ApplicationFormData>({
     resolver: zodResolver(insertApplicationSchema),
@@ -121,6 +123,30 @@ export default function MemberForm() {
   const isTimeSlotSelected = (day: string, time: string) => {
     const key = `${day}-${time}`;
     return timeAvailability[key] || false;
+  };
+
+  const handleMouseDown = (day: string, time: string) => {
+    setIsDragging(true);
+    setDragStart({day, time});
+    toggleTimeSlot(day, time);
+  };
+
+  const handleMouseEnter = (day: string, time: string) => {
+    if (isDragging && dragStart) {
+      const key = `${day}-${time}`;
+      const startKey = `${dragStart.day}-${dragStart.time}`;
+      const shouldSelect = timeAvailability[startKey] || false;
+      
+      setTimeAvailability(prev => ({
+        ...prev,
+        [key]: shouldSelect
+      }));
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+    setDragStart(null);
   };
 
   const moveTeamPreference = (index: number, direction: 'up' | 'down') => {
@@ -385,8 +411,8 @@ export default function MemberForm() {
                   Select the time slots when you are available. Click on the boxes to select/deselect times.
                 </p>
                 
-                <div className="overflow-x-auto">
-                  <div className="min-w-[900px]">
+                <div className="overflow-x-auto" onMouseLeave={handleMouseUp}>
+                  <div className="min-w-[900px]" onMouseUp={handleMouseUp}>
                     {/* Header row with days */}
                     <div className="grid grid-cols-8 gap-1 mb-2">
                       <div className="p-2"></div> {/* Empty corner */}
@@ -407,12 +433,16 @@ export default function MemberForm() {
                           <button
                             key={`${day}-${time}`}
                             type="button"
-                            onClick={() => toggleTimeSlot(day, time)}
-                            className={`p-2 rounded border transition-colors ${
+                            onMouseDown={() => handleMouseDown(day, time)}
+                            onMouseEnter={() => handleMouseEnter(day, time)}
+                            onMouseUp={handleMouseUp}
+                            onClick={() => !isDragging && toggleTimeSlot(day, time)}
+                            className={`p-2 rounded border transition-colors select-none ${
                               isTimeSlotSelected(day, time)
                                 ? 'bg-blue-500 border-blue-600 text-white'
                                 : 'bg-white border-slate-200 hover:bg-slate-50'
                             }`}
+                            style={{ userSelect: 'none' }}
                           >
                             <div className="w-full h-4"></div>
                           </button>

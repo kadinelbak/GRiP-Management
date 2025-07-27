@@ -75,7 +75,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getApplications(): Promise<Application[]> {
-    return await db.select().from(applications).orderBy(asc(applications.submittedAt));
+    try {
+      return await db.select().from(applications);
+    } catch (error) {
+      console.error("Error fetching applications:", error);
+      return [];
+    }
   }
 
   async getApplicationById(id: string): Promise<Application | undefined> {
@@ -123,7 +128,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getProjectRequests(): Promise<ProjectRequest[]> {
-    return await db.select().from(projectRequests).orderBy(desc(projectRequests.submittedAt));
+    try {
+      return await db.select().from(projectRequests);
+    } catch (error) {
+      console.error("Error fetching project requests:", error);
+      return [];
+    }
   }
 
   async getProjectRequestById(id: string): Promise<ProjectRequest | undefined> {
