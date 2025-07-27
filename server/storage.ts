@@ -23,16 +23,21 @@ export interface IStorage {
   updateApplication(id: string, updates: Partial<Application>): Promise<Application>;
   getApplicationsByTeam(teamId: string): Promise<Application[]>;
   deleteApplication(id: string): Promise<void>;
+  getAcceptedMembers(): Promise<Application[]>;
+  addAbsence(applicationId: string, date: string, reason?: string): Promise<void>;
+  removeAbsence(applicationId: string, date: string): Promise<void>;
 
   // Additional Team Signups
   getAdditionalTeamSignups(): Promise<AdditionalTeamSignup[]>;
   createAdditionalTeamSignup(signup: InsertAdditionalTeamSignup): Promise<AdditionalTeamSignup>;
+  deleteAdditionalTeamSignup(id: string): Promise<void>;
 
   // Project Requests
   getProjectRequests(): Promise<ProjectRequest[]>;
   getProjectRequestById(id: string): Promise<ProjectRequest | undefined>;
   createProjectRequest(request: InsertProjectRequest): Promise<ProjectRequest>;
   updateProjectRequest(id: string, updates: Partial<ProjectRequest>): Promise<ProjectRequest>;
+  deleteProjectRequest(id: string): Promise<void>;
 
   // Admin Settings
   getAdminSetting(key: string): Promise<AdminSetting | undefined>;
@@ -112,6 +117,20 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(applications).where(eq(applications.assignedTeamId, teamId));
   }
 
+  async getAcceptedMembers(): Promise<Application[]> {
+    return await db.select().from(applications).where(eq(applications.status, "accepted")).orderBy(asc(applications.fullName));
+  }
+
+  async addAbsence(applicationId: string, date: string, reason?: string): Promise<void> {
+    // TODO: Implement absences in schema later
+    console.log(`Adding absence for ${applicationId} on ${date}: ${reason}`);
+  }
+
+  async removeAbsence(applicationId: string, date: string): Promise<void> {
+    // TODO: Implement absences in schema later
+    console.log(`Removing absence for application ${applicationId} on ${date}`);
+  }
+
   async getAdditionalTeamSignups(): Promise<AdditionalTeamSignup[]> {
     return await db.select().from(additionalTeamSignups).orderBy(desc(additionalTeamSignups.submittedAt));
   }
@@ -125,6 +144,10 @@ export class DatabaseStorage implements IStorage {
 
     const [signup] = await db.insert(additionalTeamSignups).values(insertSignup).returning();
     return signup;
+  }
+
+  async deleteAdditionalTeamSignup(id: string): Promise<void> {
+    await db.delete(additionalTeamSignups).where(eq(additionalTeamSignups.id, id));
   }
 
   async getProjectRequests(): Promise<ProjectRequest[]> {
@@ -149,6 +172,10 @@ export class DatabaseStorage implements IStorage {
   async updateProjectRequest(id: string, updates: Partial<ProjectRequest>): Promise<ProjectRequest> {
     const [request] = await db.update(projectRequests).set(updates).where(eq(projectRequests.id, id)).returning();
     return request;
+  }
+
+  async deleteProjectRequest(id: string): Promise<void> {
+    await db.delete(projectRequests).where(eq(projectRequests.id, id));
   }
 
   async getAdminSetting(key: string): Promise<AdminSetting | undefined> {

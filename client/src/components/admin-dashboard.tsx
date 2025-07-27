@@ -13,9 +13,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   BarChart3, Users, Inbox, Settings, Plus, Download, 
-  Wand2, Eye, Edit, Trash2, CheckCircle, Clock, UserMinus, Calendar, CalendarX
+  Wand2, Eye, Edit, Trash2, CheckCircle, Clock, UserMinus, Calendar, 
+  CalendarX, Search, Filter, UserCheck
 } from "lucide-react";
 import type { Team, Application, ProjectRequest } from "@shared/schema";
 import type { z } from "zod";
@@ -37,8 +39,9 @@ export default function AdminDashboard() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("overview");
   const [searchTerm, setSearchTerm] = useState("");
-  const [teamSearchTerm, setTeamSearchTerm] = useState("");
-  const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const [memberSearchTerm, setMemberSearchTerm] = useState("");
+  const [selectedMember, setSelectedMember] = useState<Application | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const form = useForm<TeamFormData>({
     resolver: zodResolver(insertTeamSchema),
@@ -64,807 +67,650 @@ export default function AdminDashboard() {
     queryKey: ["/api/applications"],
   });
 
+  const { data: acceptedMembers = [] } = useQuery<Application[]>({
+    queryKey: ["/api/accepted-members"],
+  });
+
   const { data: projectRequests = [] } = useQuery<ProjectRequest[]>({
     queryKey: ["/api/project-requests"],
   });
 
-  const { data: assignmentReport } = useQuery<any>({
-    queryKey: ["/api/admin/assignment-report"],
-    enabled: activeTab === "assignments"
-  });
-
-  const assignTeamsMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/admin/assign-teams", {}),
-    onSuccess: () => {
-      toast({ title: "Team assignments completed successfully!" });
-      queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/assignment-report"] });
-    },
-  });
-
-  const deleteApplicationMutation = useMutation({
-    mutationFn: (applicationId: string) => apiRequest("DELETE", `/api/applications/${applicationId}`, {}),
-    onSuccess: () => {
-      toast({ title: "Application deleted successfully!" });
-      queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
-    },
-    onError: () => {
-      toast({ title: "Failed to delete application", variant: "destructive" });
-    },
-  });
-
+  // Mutation for creating teams
   const createTeamMutation = useMutation({
-    mutationFn: (data: TeamFormData) => apiRequest("POST", "/api/teams", data),
+    mutationFn: (data: TeamFormData) =>
+      apiRequest("POST", "/api/teams", data),
     onSuccess: () => {
-      toast({ title: "Team created successfully!" });
+      toast({
+        title: "Team Created",
+        description: "New team has been created successfully.",
+      });
       form.reset();
       queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
     },
     onError: () => {
-      toast({ title: "Failed to create team", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to create team.",
+        variant: "destructive",
+      });
     },
   });
 
-  const deleteTeamMutation = useMutation({
-    mutationFn: (teamId: string) => apiRequest("DELETE", `/api/teams/${teamId}`, {}),
+  // Mutation for deleting applications
+  const deleteApplicationMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/applications/${id}`),
     onSuccess: () => {
-      toast({ title: "Team deleted successfully!" });
-      queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
+      toast({
+        title: "Application Deleted",
+        description: "Application has been removed.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
     },
     onError: () => {
-      toast({ title: "Failed to delete team", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to delete application.",
+        variant: "destructive",
+      });
     },
   });
 
-  const removeFromTeamMutation = useMutation({
-    mutationFn: (applicationId: string) => apiRequest("POST", `/api/admin/remove-from-team/${applicationId}`, {}),
+  // Mutation for updating application status
+  const updateApplicationMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: Partial<Application> }) =>
+      apiRequest("PUT", `/api/applications/${id}`, updates),
     onSuccess: () => {
-      toast({ title: "Member removed from team successfully!" });
+      toast({
+        title: "Application Updated",
+        description: "Application status has been updated.",
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/assignment-report"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/accepted-members"] });
     },
     onError: () => {
-      toast({ title: "Failed to remove member from team", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to update application.",
+        variant: "destructive",
+      });
     },
   });
 
-  const giveUserAbsenceMutation = useMutation({
-    mutationFn: (applicationId: string) => apiRequest("POST", `/api/admin/give-absence/${applicationId}`, {}),
+  // Mutation for deleting members
+  const deleteMemberMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/applications/${id}`),
     onSuccess: () => {
-      toast({ title: "Absence added successfully!" });
+      toast({
+        title: "Member Removed",
+        description: "Member has been removed from the system.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/accepted-members"] });
       queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
+      setSelectedMember(null);
     },
     onError: () => {
-      toast({ title: "Failed to add absence", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to remove member.",
+        variant: "destructive",
+      });
     },
   });
-
-  const clearUserAbsencesMutation = useMutation({
-    mutationFn: (applicationId: string) => apiRequest("POST", `/api/admin/clear-absences/${applicationId}`, {}),
-    onSuccess: () => {
-      toast({ title: "Absences cleared successfully!" });
-      queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
-    },
-    onError: () => {
-      toast({ title: "Failed to clear absences", variant: "destructive" });
-    },
-  });
-
-  const getUserAbsences = (applicationId: string) => {
-    // Mock absence data or fetch it from an API endpoint
-    // Replace this with your actual implementation
-    return [];
-  };
-
-  const exportApplications = () => {
-    window.open("/api/applications/export", "_blank");
-  };
 
   const onSubmit = (data: TeamFormData) => {
     createTeamMutation.mutate(data);
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "urgent": return "bg-red-100 text-red-800";
-      case "high": return "bg-orange-100 text-orange-800";
-      case "medium": return "bg-blue-100 text-blue-800";
-      case "low": return "bg-gray-100 text-gray-800";
-      default: return "bg-gray-100 text-gray-800";
+  const handleDeleteApplication = (id: string) => {
+    if (confirm("Are you sure you want to delete this application?")) {
+      deleteApplicationMutation.mutate(id);
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "assigned": return "bg-green-100 text-green-800";
-      case "pending": return "bg-yellow-100 text-yellow-800";
-      case "waitlisted": return "bg-red-100 text-red-800";
-      default: return "bg-gray-100 text-gray-800";
+  const handleUpdateApplicationStatus = (id: string, status: string) => {
+    updateApplicationMutation.mutate({ id, updates: { status } });
+  };
+
+  const handleDeleteMember = (id: string) => {
+    if (confirm("Are you sure you want to remove this member?")) {
+      deleteMemberMutation.mutate(id);
     }
+  };
+
+  const handleExportMembers = () => {
+    window.open("/api/export/members", "_blank");
+  };
+
+  const handleExportApplications = () => {
+    window.open("/api/export/applications", "_blank");
+  };
+
+  // Filter applications based on search and status
+  const filteredApplications = applications.filter(app => {
+    const matchesSearch = app.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         app.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         app.ufid.includes(searchTerm);
+    const matchesStatus = statusFilter === "all" || app.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  // Filter members based on search
+  const filteredMembers = acceptedMembers.filter(member =>
+    member.fullName.toLowerCase().includes(memberSearchTerm.toLowerCase()) ||
+    member.email.toLowerCase().includes(memberSearchTerm.toLowerCase()) ||
+    member.ufid.includes(memberSearchTerm)
+  );
+
+  const getTeamName = (teamId: string | null) => {
+    if (!teamId) return "Unassigned";
+    const team = teams.find(t => t.id === teamId);
+    return team?.name || "Unknown Team";
   };
 
   return (
-    <Card className="shadow-sm border border-slate-200">
-      <CardHeader>
-        <CardTitle className="text-2xl font-bold text-slate-900">Admin Dashboard</CardTitle>
-      </CardHeader>
+    <div className="container mx-auto p-6 space-y-6">
+      <h1 className="text-3xl font-bold text-slate-900">GRiP Admin Dashboard</h1>
+      
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="overview">
+            <BarChart3 className="w-4 h-4 mr-2" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="teams">
+            <Users className="w-4 h-4 mr-2" />
+            Teams
+          </TabsTrigger>
+          <TabsTrigger value="members">
+            <UserCheck className="w-4 h-4 mr-2" />
+            Members
+          </TabsTrigger>
+          <TabsTrigger value="submissions">
+            <Inbox className="w-4 h-4 mr-2" />
+            Submissions
+          </TabsTrigger>
+          <TabsTrigger value="settings">
+            <Settings className="w-4 h-4 mr-2" />
+            Settings
+          </TabsTrigger>
+        </TabsList>
 
-      <CardContent>
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="teams" className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              Teams
-            </TabsTrigger>
-            <TabsTrigger value="assignments" className="flex items-center gap-2">
-              <Wand2 className="w-4 h-4" />
-              Assignments
-            </TabsTrigger>
-            <TabsTrigger value="submissions" className="flex items-center gap-2">
-              <Inbox className="w-4 h-4" />
-              Submissions
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center gap-2">
-              <Settings className="w-4 h-4" />
-              Settings
-            </TabsTrigger>
-          </TabsList>
+        {/* Overview Tab */}
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Applications</CardTitle>
+                <Inbox className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats?.totalApplications || 0}</div>
+                <p className="text-xs text-muted-foreground">
+                  {stats?.assignedApplications || 0} assigned, {stats?.waitlistedApplications || 0} waitlisted
+                </p>
+              </CardContent>
+            </Card>
 
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="grip-secondary text-white">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-blue-100 text-sm">Total Applications</p>
-                      <p className="text-2xl font-bold">{stats?.totalApplications || 0}</p>
-                    </div>
-                    <Users className="w-8 h-8 text-blue-200" />
-                  </div>
-                </CardContent>
-              </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Teams</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats?.totalTeams || 0}</div>
+                <p className="text-xs text-muted-foreground">
+                  {stats?.filledTeams || 0} at capacity
+                </p>
+              </CardContent>
+            </Card>
 
-              <Card className="grip-success text-white">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-green-100 text-sm">Teams Filled</p>
-                      <p className="text-2xl font-bold">{stats?.filledTeams || 0}/{stats?.totalTeams || 0}</p>
-                    </div>
-                    <CheckCircle className="w-8 h-8 text-green-200" />
-                  </div>
-                </CardContent>
-              </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Project Requests</CardTitle>
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats?.totalProjectRequests || 0}</div>
+                <p className="text-xs text-muted-foreground">
+                  External project submissions
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
-              <Card className="grip-accent text-white">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-orange-100 text-sm">Project Requests</p>
-                      <p className="text-2xl font-bold">{stats?.totalProjectRequests || 0}</p>
-                    </div>
-                    <Settings className="w-8 h-8 text-orange-200" />
-                  </div>
-                </CardContent>
-              </Card>
+        {/* Teams Tab */}
+        <TabsContent value="teams" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Team Management</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Create Team Form */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Create New Team</h3>
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Team Name</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="e.g., Design Team" />
+                            </FormControl>
+                            <FormMessage className="text-red-600" />
+                          </FormItem>
+                        )}
+                      />
 
-              <Card className="bg-purple-500 text-white">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-purple-100 text-sm">Additional Teams</p>
-                      <p className="text-2xl font-bold">{stats?.totalAdditionalSignups || 0}</p>
-                    </div>
-                    <Users className="w-8 h-8 text-purple-200" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                      <FormField
+                        control={form.control}
+                        name="type"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Team Type</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select team type" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="technical">Technical</SelectItem>
+                                <SelectItem value="additional">Additional</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage className="text-red-600" />
+                          </FormItem>
+                        )}
+                      />
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Recent Applications</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {applications.slice(0, 3).map((app) => (
-                      <div key={app.id} className="flex items-center justify-between p-3 bg-slate-50 rounded">
-                        <div>
-                          <p className="font-medium">{app.fullName}</p>
-                          <p className="text-sm text-slate-600">
-                            {app.teamPreferences.length > 0 
-                              ? teams.find(t => t.id === app.teamPreferences[0])?.name || "No preference"
-                              : "No preferences"
-                            }
-                          </p>
-                        </div>
-                        <Badge variant="outline">{new Date(app.submittedAt).toLocaleDateString()}</Badge>
-                      </div>
-                    ))}
-                    {applications.length === 0 && (
-                      <p className="text-slate-500 text-center py-4">No applications yet</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                      <FormField
+                        control={form.control}
+                        name="maxCapacity"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Max Capacity</FormLabel>
+                            <FormControl>
+                              <Input {...field} type="number" min="1" onChange={e => field.onChange(parseInt(e.target.value))} />
+                            </FormControl>
+                            <FormMessage className="text-red-600" />
+                          </FormItem>
+                        )}
+                      />
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Team Capacity Status</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {teams.filter(t => t.type === "technical").map((team) => (
-                      <div key={team.id}>
-                        <div className="flex justify-between mb-1">
-                          <span className="text-sm font-medium">{team.name}</span>
-                          <span className="text-sm text-slate-600">{team.currentSize}/{team.maxCapacity}</span>
-                        </div>
-                        <div className="w-full bg-slate-200 rounded-full h-2">
-                          <div 
-                            className="bg-blue-600 h-2 rounded-full" 
-                            style={{ width: `${(team.currentSize / team.maxCapacity) * 100}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                    {teams.filter(t => t.type === "technical").length === 0 && (
-                      <p className="text-slate-500 text-center py-4">No technical teams configured</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+                      <FormField
+                        control={form.control}
+                        name="meetingTime"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Meeting Time</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="e.g., Tuesdays 7:00 PM - 8:30 PM" value={field.value || ""} />
+                            </FormControl>
+                            <FormMessage className="text-red-600" />
+                          </FormItem>
+                        )}
+                      />
 
-          {/* Teams Tab */}
-          <TabsContent value="teams" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-slate-900">Team Management</h3>
-            </div>
+                      <FormField
+                        control={form.control}
+                        name="description"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Description</FormLabel>
+                            <FormControl>
+                              <Textarea {...field} placeholder="Team description..." value={field.value || ""} />
+                            </FormControl>
+                            <FormMessage className="text-red-600" />
+                          </FormItem>
+                        )}
+                      />
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h4 className="font-medium text-slate-900">Technical Division Teams</h4>
+                      <Button 
+                        type="submit" 
+                        disabled={createTeamMutation.isPending}
+                        className="w-full"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        {createTeamMutation.isPending ? "Creating..." : "Create Team"}
+                      </Button>
+                    </form>
+                  </Form>
                 </div>
-                <div className="flex items-center space-x-4">
-                  <Input
-                    placeholder="Search teams..."
-                    value={teamSearchTerm}
-                    onChange={(e) => setTeamSearchTerm(e.target.value)}
-                    className="max-w-sm"
-                  />
-                </div>
-                <div className="space-y-3">
-                  {teams
-                    .filter(t => t.type === "technical")
-                    .filter(team => 
-                      teamSearchTerm === "" || 
-                      team.name.toLowerCase().includes(teamSearchTerm.toLowerCase())
-                    )
-                    .map((team) => (
-                    <Card key={team.id}>
-                      <CardContent className="p-4">
-                        <div className="flex justify-between items-start mb-3">
+
+                {/* Teams List */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Existing Teams</h3>
+                  <div className="space-y-4 max-h-96 overflow-y-auto">
+                    {teams.map((team) => (
+                      <Card key={team.id} className="p-4">
+                        <div className="flex justify-between items-start">
                           <div>
-                            <h5 className="font-medium text-slate-900">{team.name}</h5>
-                            <p className="text-sm text-slate-600">Capacity: {team.currentSize}/{team.maxCapacity} members</p>
+                            <h4 className="font-medium">{team.name}</h4>
+                            <p className="text-sm text-gray-600">{team.description}</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Capacity: {team.currentSize}/{team.maxCapacity} | {team.meetingTime}
+                            </p>
                           </div>
-                          <div className="flex space-x-2">
-                            <Button variant="ghost" size="sm">
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => deleteTeamMutation.mutate(team.id)}
-                              disabled={deleteTeamMutation.isPending}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
+                          <Badge variant={team.type === "technical" ? "default" : "secondary"}>
+                            {team.type}
+                          </Badge>
                         </div>
-                        <div className="text-sm text-slate-600 space-y-1">
-                          <p><strong>Meeting:</strong> {team.meetingTime || "Not specified"}</p>
-                          <p><strong>Skills:</strong> {team.requiredSkills || "Not specified"}</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                  {teams
-                    .filter(t => t.type === "technical")
-                    .filter(team => 
-                      teamSearchTerm === "" || 
-                      team.name.toLowerCase().includes(teamSearchTerm.toLowerCase())
-                    ).length === 0 && (
-                    <p className="text-slate-500 text-center py-8">
-                      {teamSearchTerm ? "No teams match your search" : "No technical teams created yet"}
-                    </p>
-                  )}
+                      </Card>
+                    ))}
+                  </div>
                 </div>
               </div>
+            </CardContent>
+          </Card>
 
-              <div className="space-y-4">
-                <h4 className="font-medium text-slate-900">Add New Team</h4>
-                <Card>
-                  <CardContent className="p-4">
-                    <Form {...form}>
-                      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                        <FormField
-                          control={form.control}
-                          name="name"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Team Name</FormLabel>
-                              <FormControl>
-                                <Input {...field} placeholder="Enter team name" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="maxCapacity"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Max Capacity</FormLabel>
-                              <FormControl>
-                                <Input {...field} type="number" placeholder="15" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="meetingTime"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Meeting Time</FormLabel>
-                              <FormControl>
-                                <Input {...field} value={field.value || ""} placeholder="Tuesdays 6:00 PM - 8:00 PM" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="requiredSkills"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Required Skills</FormLabel>
-                              <FormControl>
-                                <Textarea {...field} value={field.value || ""} rows={3} placeholder="List required or preferred skills..." />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <Button 
-                          type="submit" 
-                          disabled={createTeamMutation.isPending}
-                          className="w-full grip-primary text-white"
-                        >
-                          <Plus className="w-4 h-4 mr-2" />
-                          {createTeamMutation.isPending ? "Creating..." : "Create Team"}
-                        </Button>
-                      </form>
-                    </Form>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* Assignments Tab */}
-          <TabsContent value="assignments" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-slate-900">Team Assignments</h3>
-              <div className="flex space-x-3">
-                <Button 
-                  onClick={() => assignTeamsMutation.mutate()}
-                  disabled={assignTeamsMutation.isPending}
-                  className="grip-secondary text-white"
-                >
-                  <Wand2 className="w-4 h-4 mr-2" />
-                  {assignTeamsMutation.isPending ? "Assigning..." : "Run Team Assignment"}
-                </Button>
-              </div>
-            </div>
-
-            {assignmentReport && (
-              <div className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Assignment Summary</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="text-center p-4 bg-blue-50 rounded-lg">
-                        <div className="text-2xl font-bold text-blue-600">
-                          {assignmentReport.summary.totalApplications}
-                        </div>
-                        <div className="text-sm text-blue-600">Total Applications</div>
+          {/* Team Assignments - Only Accepted Members */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Team Assignments (Accepted Members Only)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4">
+                {teams.map((team) => {
+                  const teamMembers = acceptedMembers.filter(member => member.assignedTeamId === team.id);
+                  return (
+                    <Card key={team.id} className="p-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="font-medium">{team.name}</h4>
+                        <Badge variant="outline">
+                          {teamMembers.length}/{team.maxCapacity} members
+                        </Badge>
                       </div>
-                      <div className="text-center p-4 bg-green-50 rounded-lg">
-                        <div className="text-2xl font-bold text-green-600">
-                          {assignmentReport.summary.assigned}
+                      
+                      {teamMembers.length > 0 ? (
+                        <div className="space-y-2">
+                          {teamMembers.map((member) => (
+                            <div key={member.id} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded">
+                              <div>
+                                <span className="font-medium">{member.fullName}</span>
+                                <span className="text-sm text-gray-500 ml-2">({member.email})</span>
+                              </div>
+                              <span className="text-xs text-gray-500">{member.ufid}</span>
+                            </div>
+                          ))}
                         </div>
-                        <div className="text-sm text-green-600">Assigned</div>
-                      </div>
-                      <div className="text-center p-4 bg-red-50 rounded-lg">
-                        <div className="text-2xl font-bold text-red-600">
-                          {assignmentReport.summary.waitlisted}
-                        </div>
-                        <div className="text-sm text-red-600">Waitlisted</div>
-                      </div>
-                    </div>
-                    <p className="text-sm text-slate-600 mt-4">
-                      Report generated: {new Date(assignmentReport.summary.timestamp).toLocaleString()}
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Assignment Details</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Student</TableHead>
-                            <TableHead>Assigned Team</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Preference Rank</TableHead>
-                            <TableHead>Reasoning</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {assignmentReport.assignments.map((assignment: any) => {
-                            const application = applications.find(app => app.id === assignment.applicationId);
-                            const team = teams.find(t => t.id === assignment.assignedTeamId);
-
-                            return (
-                              <TableRow key={assignment.applicationId}>
-                                <TableCell>
-                                  <div>
-                                    <div className="font-medium">{application?.fullName || "Unknown"}</div>
-                                    <div className="text-sm text-slate-500">{application?.email || ""}</div>
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  {team ? team.name : "Not assigned"}
-                                </TableCell>
-                                <TableCell>
-                                  <Badge className={getStatusColor(assignment.status)}>
-                                    {assignment.status}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>
-                                  {assignment.preferenceRank ? `#${assignment.preferenceRank}` : "N/A"}
-                                </TableCell>
-                                <TableCell className="max-w-xs">
-                                  <div className="text-sm text-slate-600 truncate" title={assignment.reasoning}>
-                                    {assignment.reasoning}
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
+                      ) : (
+                        <p className="text-sm text-gray-500 italic">No accepted members assigned</p>
+                      )}
+                    </Card>
+                  );
+                })}
               </div>
-            )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-            {!assignmentReport && (
-              <Card>
-                <CardContent className="text-center py-12">
-                  <Wand2 className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-slate-900 mb-2">No Assignment Report Available</h3>
-                  <p className="text-slate-600 mb-4">
-                    Run the team assignment algorithm to see detailed results and reasoning for each student's placement.
-                  </p>
-                  <Button 
-                    onClick={() => assignTeamsMutation.mutate()}
-                    disabled={assignTeamsMutation.isPending}
-                    className="grip-secondary text-white"
-                  >
-                    <Wand2 className="w-4 h-4 mr-2" />
-                    Generate Assignment Report
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          {/* Submissions Tab */}
-          <TabsContent value="submissions" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-slate-900">Member Applications</h3>
-              <div className="flex space-x-3">
-                <Button onClick={exportApplications} className="grip-success text-white">
+        {/* Members Tab */}
+        <TabsContent value="members" className="space-y-6">
+          <Card>
+            <CardHeader className="flex flex-row justify-between items-center">
+              <CardTitle>Current Members (Accepted)</CardTitle>
+              <div className="flex gap-2">
+                <Button onClick={handleExportMembers} variant="outline" size="sm">
                   <Download className="w-4 h-4 mr-2" />
                   Export CSV
                 </Button>
-                <Button 
-                  onClick={() => assignTeamsMutation.mutate()}
-                  disabled={assignTeamsMutation.isPending}
-                  className="grip-secondary text-white"
-                >
-                  <Wand2 className="w-4 h-4 mr-2" />
-                  {assignTeamsMutation.isPending ? "Assigning..." : "Auto-Assign Teams"}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-4 mb-4">
+                <div className="flex-1">
+                  <Input
+                    placeholder="Search members by name, email, or UFID..."
+                    value={memberSearchTerm}
+                    onChange={(e) => setMemberSearchTerm(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Members List */}
+                <div className="lg:col-span-2">
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {filteredMembers.map((member) => (
+                      <Card 
+                        key={member.id} 
+                        className={`p-3 cursor-pointer transition-colors ${
+                          selectedMember?.id === member.id ? "bg-blue-50 border-blue-200" : "hover:bg-gray-50"
+                        }`}
+                        onClick={() => setSelectedMember(member)}
+                      >
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <h4 className="font-medium">{member.fullName}</h4>
+                            <p className="text-sm text-gray-600">{member.email}</p>
+                            <p className="text-xs text-gray-500">
+                              {getTeamName(member.assignedTeamId)} | UFID: {member.ufid}
+                            </p>
+                          </div>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteMember(member.id);
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Member Details Panel */}
+                <div>
+                  {selectedMember ? (
+                    <Card className="p-4">
+                      <h4 className="font-semibold mb-3">Member Details</h4>
+                      <div className="space-y-2 text-sm">
+                        <div><strong>Name:</strong> {selectedMember.fullName}</div>
+                        <div><strong>Email:</strong> {selectedMember.email}</div>
+                        <div><strong>UFID:</strong> {selectedMember.ufid}</div>
+                        <div><strong>Team:</strong> {getTeamName(selectedMember.assignedTeamId)}</div>
+                        <div><strong>Status:</strong> {selectedMember.status}</div>
+                        <div><strong>Submitted:</strong> {new Date(selectedMember.submittedAt).toLocaleDateString()}</div>
+                        
+                        {selectedMember.skills && (
+                          <div>
+                            <strong>Skills:</strong>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {(selectedMember.skills as string[]).map((skill, index) => (
+                                <Badge key={index} variant="outline" className="text-xs">
+                                  {skill}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="mt-4 space-y-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="w-full"
+                            onClick={() => {
+                              // TODO: Implement absence management
+                              toast({
+                                title: "Coming Soon",
+                                description: "Absence management will be implemented soon.",
+                              });
+                            }}
+                          >
+                            <CalendarX className="w-4 h-4 mr-2" />
+                            Add Absence
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  ) : (
+                    <Card className="p-4">
+                      <p className="text-gray-500 text-center">
+                        Select a member to view details
+                      </p>
+                    </Card>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Submissions Tab */}
+        <TabsContent value="submissions" className="space-y-6">
+          <Card>
+            <CardHeader className="flex flex-row justify-between items-center">
+              <CardTitle>Application Submissions</CardTitle>
+              <div className="flex gap-2">
+                <Button onClick={handleExportApplications} variant="outline" size="sm">
+                  <Download className="w-4 h-4 mr-2" />
+                  Export CSV
                 </Button>
               </div>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              <div className="flex-1">
-                <Input
-                  placeholder="Search by name or email..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="max-w-sm"
-                />
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-4 mb-4">
+                <div className="flex-1">
+                  <Input
+                    placeholder="Search applications by name, email, or UFID..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="accepted">Accepted</SelectItem>
+                    <SelectItem value="waitlisted">Waitlisted</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            </div>
 
-            <Card>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Member</TableHead>
-                        <TableHead>Preferred Team</TableHead>
-                        <TableHead>Skills</TableHead>
-                        <TableHead>Submitted</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {applications
-                        .filter((app) => 
-                          searchTerm === "" || 
-                          app.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          app.email.toLowerCase().includes(searchTerm.toLowerCase())
-                        )
-                        .map((app) => (
-                        <TableRow key={app.id}>
-                          <TableCell>
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {filteredApplications.map((application) => (
+                  <Card key={application.id} className="p-4">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h4 className="font-medium">{application.fullName}</h4>
+                          <Badge variant={
+                            application.status === "accepted" ? "default" :
+                            application.status === "waitlisted" ? "secondary" :
+                            application.status === "rejected" ? "destructive" : "outline"
+                          }>
+                            {application.status}
+                          </Badge>
+                        </div>
+                        
+                        <div className="text-sm text-gray-600 space-y-1">
+                          <div>{application.email} | UFID: {application.ufid}</div>
+                          <div>Assigned Team: {getTeamName(application.assignedTeamId)}</div>
+                          <div>Submitted: {new Date(application.submittedAt).toLocaleDateString()}</div>
+                          
+                          {application.teamPreferences && application.teamPreferences.length > 0 && (
                             <div>
-                              <div className="font-medium flex items-center gap-2">
-                                {app.fullName}
-                                {getUserAbsences(app.id).length > 0 && (
-                                  <Badge variant="outline" className="text-orange-600 border-orange-600">
-                                    Absent
-                                  </Badge>
-                                )}
-                              </div>
-                              <div className="text-sm text-slate-500">{app.email}</div>
-                              <div className="text-xs text-slate-400">UFID: {app.ufid}</div>
-                              {app.assignedTeamId && (
-                                <div className="text-xs text-blue-600">
-                                  Team: {teams.find(t => t.id === app.assignedTeamId)?.name}
-                                </div>
-                              )}
+                              Team Preferences: {application.teamPreferences.map(teamId => getTeamName(teamId)).join(", ")}
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            {app.teamPreferences.length > 0 
-                              ? teams.find(t => t.id === app.teamPreferences[0])?.name || "No preference"
-                              : "No preferences"
-                            }
-                          </TableCell>
-                          <TableCell>
-                            {Array.isArray(app.skills) ? app.skills.join(", ") : "None"}
-                          </TableCell>
-                          <TableCell>
-                            {new Date(app.submittedAt).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={getStatusColor(app.status)}>
-                              {app.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex space-x-1">
-                              <Button variant="ghost" size="sm">
-                                <Eye className="w-4 h-4" />
-                              </Button>
-                              {app.assignedTeamId && (
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  onClick={() => removeFromTeamMutation.mutate(app.id)}
-                                  disabled={removeFromTeamMutation.isPending}
-                                  className="text-orange-600 hover:text-orange-700"
-                                  title="Remove from team"
-                                >
-                                  <UserMinus className="w-4 h-4" />
-                                </Button>
-                              )}
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => setSelectedUser(app.id)}
-                                className="text-blue-600 hover:text-blue-700"
-                                title="Mark absent"
-                              >
-                                <Calendar className="w-4 h-4" />
-                              </Button>
-                              {getUserAbsences(app.id).length > 0 && (
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  onClick={() => clearUserAbsencesMutation.mutate(app.id)}
-                                  disabled={clearUserAbsencesMutation.isPending}
-                                  className="text-green-600 hover:text-green-700"
-                                  title="Clear absences"
-                                >
-                                  <CalendarX className="w-4 h-4" />
-                                </Button>
-                              )}
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => deleteApplicationMutation.mutate(app.id)}
-                                disabled={deleteApplicationMutation.isPending}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {applications.filter((app) => 
-                          searchTerm === "" || 
-                          app.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          app.email.toLowerCase().includes(searchTerm.toLowerCase())
-                        ).length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center py-8 text-slate-500">
-                            {searchTerm ? "No applications match your search" : "No applications submitted yet"}
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Projects Tab */}
-          <TabsContent value="projects" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-slate-900">Project Requests</h3>
-              <Button className="grip-success text-white">
-                <Download className="w-4 h-4 mr-2" />
-                Export Requests
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-              {projectRequests.map((request) => (
-                <Card key={request.id}>
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h4 className="font-medium text-slate-900">{request.projectTitle}</h4>
-                        <p className="text-sm text-slate-600">{request.fullName}</p>
+                          )}
+                        </div>
                       </div>
-                      <Badge className={getPriorityColor(request.priority)}>
-                        {request.priority}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-slate-700 mb-3 line-clamp-3">{request.description}</p>
-                    <div className="flex justify-between items-center text-xs text-slate-500">
-                      <span>Submitted: {new Date(request.submittedAt).toLocaleDateString()}</span>
-                      <div className="flex space-x-2">
-                        <Button variant="ghost" size="sm">
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <CheckCircle className="w-4 h-4" />
+
+                      <div className="flex gap-2">
+                        <Select 
+                          value={application.status} 
+                          onValueChange={(status) => handleUpdateApplicationStatus(application.id, status)}
+                        >
+                          <SelectTrigger className="w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="accepted">Accept</SelectItem>
+                            <SelectItem value="waitlisted">Waitlist</SelectItem>
+                            <SelectItem value="rejected">Reject</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeleteApplication(application.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-              {projectRequests.length === 0 && (
-                <div className="col-span-full text-center py-8 text-slate-500">
-                  No project requests submitted yet
-                </div>
-              )}
-            </div>
-          </TabsContent>
-
-          {/* Settings Tab */}
-          <TabsContent value="settings" className="space-y-6">
-            <h3 className="text-lg font-semibold text-slate-900">Platform Settings</h3>
-
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Email Domain Configuration</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Allowed Email Domains</label>
-                    <div className="flex space-x-2">
-                      <Input className="flex-1" placeholder="@ufl.edu" defaultValue="@ufl.edu" />
-                      ```text
-
-                      <Button className="grip-primary text-white">
-                        <Plus className="w-4 h-4" />
-                      </Button>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <Badge variant="secondary" className="flex items-center gap-1">
-                        @ufl.edu
-                        <Button variant="ghost" size="sm" className="h-4 w-4 p-0">×</Button>
-                      </Badge>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Form Settings</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Registration Deadline</label>
-                    <Input type="datetime-local" defaultValue="2025-01-31T23:59" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="flex items-center">
-                      <input type="checkbox" defaultChecked className="mr-2" />
-                      <span className="text-sm">Enable team registration</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input type="checkbox" defaultChecked className="mr-2" />
-                      <span className="text-sm">Enable project requests</span>
-                    </label>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <div className="pt-4">
-                <Button className="grip-primary text-white">
-                  Save Settings
-                </Button>
+                  </Card>
+                ))}
               </div>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Settings Tab */}
+        <TabsContent value="settings" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>System Settings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="p-4 border rounded-lg">
+                  <h4 className="font-medium mb-2">Domain Configuration</h4>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Manage allowed email domains for applications
+                  </p>
+                  <Button variant="outline" size="sm" disabled>
+                    <Settings className="w-4 h-4 mr-2" />
+                    Configure Domains (Coming Soon)
+                  </Button>
+                </div>
+
+                <div className="p-4 border rounded-lg">
+                  <h4 className="font-medium mb-2">Form Settings</h4>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Adjust form validation and submission settings
+                  </p>
+                  <Button variant="outline" size="sm" disabled>
+                    <Edit className="w-4 h-4 mr-2" />
+                    Form Settings (Coming Soon)
+                  </Button>
+                </div>
+
+                <div className="p-4 border rounded-lg">
+                  <h4 className="font-medium mb-2">Team Assignment Algorithm</h4>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Configure automatic team assignment settings
+                  </p>
+                  <Button variant="outline" size="sm" disabled>
+                    <Wand2 className="w-4 h-4 mr-2" />
+                    Algorithm Settings (Coming Soon)
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }

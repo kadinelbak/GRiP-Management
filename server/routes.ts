@@ -207,6 +207,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/applications/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      const application = await storage.updateApplication(id, updates);
+      res.json(application);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update application" });
+    }
+  });
+
+  // Get accepted members
+  app.get("/api/accepted-members", async (_req, res) => {
+    try {
+      const members = await storage.getAcceptedMembers();
+      res.json(members);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch accepted members" });
+    }
+  });
+
+  // CSV exports
+  app.get("/api/export/members", async (_req, res) => {
+    try {
+      const members = await storage.getAcceptedMembers();
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="members.csv"');
+      
+      const headers = ['Name', 'Email', 'UFID', 'Team', 'Skills', 'Submitted At'];
+      const csvData = [headers.join(',')];
+      
+      members.forEach(member => {
+        const row = [
+          `"${member.fullName}"`,
+          `"${member.email}"`,
+          `"${member.ufid}"`,
+          `"${member.assignedTeamId || 'N/A'}"`,
+          `"${Array.isArray(member.skills) ? member.skills.join('; ') : ''}"`,
+          `"${new Date(member.submittedAt).toLocaleDateString()}"`
+        ];
+        csvData.push(row.join(','));
+      });
+      
+      res.send(csvData.join('\n'));
+    } catch (error) {
+      res.status(500).json({ message: "Failed to export members CSV" });
+    }
+  });
+
+  app.get("/api/export/applications", async (_req, res) => {
+    try {
+      const applications = await storage.getApplications();
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="applications.csv"');
+      
+      const headers = ['Name', 'Email', 'UFID', 'Status', 'Team Preferences', 'Skills', 'Submitted At'];
+      const csvData = [headers.join(',')];
+      
+      applications.forEach(app => {
+        const row = [
+          `"${app.fullName}"`,
+          `"${app.email}"`,
+          `"${app.ufid}"`,
+          `"${app.status}"`,
+          `"${Array.isArray(app.teamPreferences) ? app.teamPreferences.join('; ') : ''}"`,
+          `"${Array.isArray(app.skills) ? app.skills.join('; ') : ''}"`,
+          `"${new Date(app.submittedAt).toLocaleDateString()}"`
+        ];
+        csvData.push(row.join(','));
+      });
+      
+      res.send(csvData.join('\n'));
+    } catch (error) {
+      res.status(500).json({ message: "Failed to export applications CSV" });
+    }
+  });
+
   app.post("/api/applications/assign-teams", async (_req, res) => {
     try {
       const result = await storage.assignTeamsAutomatically();
