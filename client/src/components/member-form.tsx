@@ -165,6 +165,38 @@ export default function MemberForm() {
   };
 
   const onSubmit = (data: ApplicationFormData) => {
+    // Validate that all acknowledgments are checked
+    const allAcknowledged = data.acknowledgments.every(ack => ack === true);
+    if (!allAcknowledged) {
+      toast({
+        title: "Incomplete Form",
+        description: "Please check all required acknowledgments before submitting.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate team preferences
+    if (teamPreferences.length === 0) {
+      toast({
+        title: "Incomplete Form", 
+        description: "Please select at least one team preference.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate time availability
+    const selectedTimeSlots = Object.values(timeAvailability).filter(Boolean);
+    if (selectedTimeSlots.length === 0) {
+      toast({
+        title: "Incomplete Form",
+        description: "Please select at least one time availability slot.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Convert grid selections to time slots format
     const timeSlotData = Object.entries(timeAvailability)
       .filter(([_, selected]) => selected)
@@ -180,6 +212,8 @@ export default function MemberForm() {
       teamPreferences,
       timeAvailability: timeSlotData,
     };
+    
+    console.log("Submitting form data:", formData);
     submitMutation.mutate(formData);
   };
 
@@ -496,12 +530,17 @@ export default function MemberForm() {
               <div className="pt-6">
                 <Button 
                   type="submit" 
-                  disabled={submitMutation.isPending}
-                  className="w-full grip-primary text-white hover:bg-cyan-700"
+                  disabled={submitMutation.isPending || teamPreferences.length === 0 || Object.values(timeAvailability).filter(Boolean).length === 0}
+                  className="w-full grip-primary text-white hover:bg-cyan-700 disabled:opacity-50"
                 >
                   <NotebookPen className="w-4 h-4 mr-2" />
                   {submitMutation.isPending ? "Submitting..." : "Submit Application"}
                 </Button>
+                {(teamPreferences.length === 0 || Object.values(timeAvailability).filter(Boolean).length === 0) && (
+                  <p className="text-sm text-red-600 mt-2 text-center">
+                    Please complete all required fields: team preferences and time availability
+                  </p>
+                )}
               </div>
             </form>
           </Form>
