@@ -17,7 +17,7 @@ import type { z } from "zod";
 import type { Team } from "@shared/schema";
 
 type ApplicationFormData = z.infer<typeof insertApplicationSchema>;
-type TimeSlot = { day: string; startTime: string; endTime: string };
+type TimeAvailability = Record<string, boolean>;
 
 const skillOptions = [
   "3D Modeling",
@@ -28,20 +28,11 @@ const skillOptions = [
   "Game Development",
 ];
 
-const dayOptions = [
-  "Monday",
-  "Tuesday", 
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-];
-
-const timeOptions = [
-  "8:00 AM", "8:30 AM", "9:00 AM", "9:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM", "12:00 PM", "12:30 PM",
-  "1:00 PM", "1:30 PM", "2:00 PM", "2:30 PM", "3:00 PM", "3:30 PM", "4:00 PM", "4:30 PM", "5:00 PM", "5:30 PM",
-  "6:00 PM", "6:30 PM", "7:00 PM", "7:30 PM", "8:00 PM", "8:30 PM", "9:00 PM", "9:30 PM", "10:00 PM",
+const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const timeSlots = [
+  "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", 
+  "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", 
+  "6:00 PM", "7:00 PM", "8:00 PM", "9:00 PM", "10:00 PM"
 ];
 
 const acknowledgmentTexts = [
@@ -59,7 +50,7 @@ export default function MemberForm() {
   const queryClient = useQueryClient();
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [teamPreferences, setTeamPreferences] = useState<string[]>([]);
-  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([{ day: "", startTime: "", endTime: "" }]);
+  const [timeAvailability, setTimeAvailability] = useState<TimeAvailability>({});
 
   const form = useForm<ApplicationFormData>({
     resolver: zodResolver(insertApplicationSchema),
@@ -87,14 +78,14 @@ export default function MemberForm() {
 
   const submitMutation = useMutation({
     mutationFn: (data: ApplicationFormData) => {
-      // Check for duplicates by email and name
+      // Check for duplicates by email and UFID only
       const isDuplicate = existingApplications.some((app: any) => 
         app.email.toLowerCase() === data.email.toLowerCase() || 
-        app.fullName.toLowerCase() === data.fullName.toLowerCase()
+        app.ufid === data.ufid
       );
       
       if (isDuplicate) {
-        throw new Error("An application with this email address or name already exists.");
+        throw new Error("An application with this email address or UFID already exists.");
       }
       
       return apiRequest("POST", "/api/applications", data);
@@ -107,7 +98,7 @@ export default function MemberForm() {
       form.reset();
       setSelectedSkills([]);
       setTeamPreferences([]);
-      setTimeSlots([{ day: "", startTime: "", endTime: "" }]);
+      setTimeAvailability({});
       queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
     },
     onError: (error: any) => {
@@ -119,22 +110,17 @@ export default function MemberForm() {
     },
   });
 
-  const addTimeSlot = () => {
-    if (timeSlots.length < 7) {
-      setTimeSlots([...timeSlots, { day: "", startTime: "", endTime: "" }]);
-    }
+  const toggleTimeSlot = (day: string, time: string) => {
+    const key = `${day}-${time}`;
+    setTimeAvailability(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
   };
 
-  const removeTimeSlot = (index: number) => {
-    if (timeSlots.length > 1) {
-      setTimeSlots(timeSlots.filter((_, i) => i !== index));
-    }
-  };
-
-  const updateTimeSlot = (index: number, field: keyof TimeSlot, value: string) => {
-    const newTimeSlots = [...timeSlots];
-    newTimeSlots[index][field] = value;
-    setTimeSlots(newTimeSlots);
+  const isTimeSlotSelected = (day: string, time: string) => {
+    const key = `${day}-${time}`;
+    return timeAvailability[key] || false;
   };
 
   const moveTeamPreference = (index: number, direction: 'up' | 'down') => {
@@ -153,14 +139,20 @@ export default function MemberForm() {
   };
 
   const onSubmit = (data: ApplicationFormData) => {
-    const validTimeSlots = timeSlots.filter(slot => slot.day && slot.startTime && slot.endTime);
+    // Convert grid selections to time slots format
+    const timeSlotData = Object.entries(timeAvailability)
+      .filter(([_, selected]) => selected)
+      .map(([key, _]) => {
+        const [day, time] = key.split('-');
+        return { day, startTime: time, endTime: time };
+      });
     
     const formData = {
       ...data,
       fullName: `${data.firstName} ${data.lastName}`.trim(),
       skills: selectedSkills,
       teamPreferences,
-      timeAvailability: validTimeSlots,
+      timeAvailability: timeSlotData,
     };
     submitMutation.mutate(formData);
   };
@@ -390,99 +382,48 @@ export default function MemberForm() {
                   Time Availability
                 </h3>
                 <p className="text-sm text-slate-600">
-                  Add your available time slots. You can specify different time ranges for different days.
+                  Select the time slots when you are available. Click on the boxes to select/deselect times.
                 </p>
                 
-                <div className="space-y-3">
-                  {timeSlots.map((slot, index) => (
-                    <div key={index} className="p-4 border border-slate-200 rounded-lg">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-medium text-sm">Time Slot {index + 1}</h4>
-                        {timeSlots.length > 1 && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeTimeSlot(index)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </div>
-                      
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div>
-                          <FormLabel className="text-xs">Day</FormLabel>
-                          <Select
-                            value={slot.day}
-                            onValueChange={(value) => updateTimeSlot(index, 'day', value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select day" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {dayOptions.map((day) => (
-                                <SelectItem key={day} value={day}>
-                                  {day}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                <div className="overflow-x-auto">
+                  <div className="min-w-[600px]">
+                    {/* Header row with time slots */}
+                    <div className="grid grid-cols-8 gap-1 mb-2">
+                      <div className="p-2"></div> {/* Empty corner */}
+                      {timeSlots.map((time) => (
+                        <div key={time} className="p-2 text-xs font-medium text-center text-slate-600 bg-slate-50 rounded">
+                          {time}
                         </div>
-                        
-                        <div>
-                          <FormLabel className="text-xs">Start Time</FormLabel>
-                          <Select
-                            value={slot.startTime}
-                            onValueChange={(value) => updateTimeSlot(index, 'startTime', value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Start time" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {timeOptions.map((time) => (
-                                <SelectItem key={time} value={time}>
-                                  {time}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        
-                        <div>
-                          <FormLabel className="text-xs">End Time</FormLabel>
-                          <Select
-                            value={slot.endTime}
-                            onValueChange={(value) => updateTimeSlot(index, 'endTime', value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="End time" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {timeOptions.map((time) => (
-                                <SelectItem key={time} value={time}>
-                                  {time}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                  
-                  {timeSlots.length < 7 && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={addTimeSlot}
-                      className="w-full"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Another Time Slot
-                    </Button>
-                  )}
+                    
+                    {/* Days and time grid */}
+                    {daysOfWeek.map((day) => (
+                      <div key={day} className="grid grid-cols-8 gap-1 mb-1">
+                        <div className="p-2 text-sm font-medium text-slate-700 bg-slate-50 rounded flex items-center">
+                          {day.slice(0, 3)}
+                        </div>
+                        {timeSlots.map((time) => (
+                          <button
+                            key={`${day}-${time}`}
+                            type="button"
+                            onClick={() => toggleTimeSlot(day, time)}
+                            className={`p-2 rounded border transition-colors ${
+                              isTimeSlotSelected(day, time)
+                                ? 'bg-blue-500 border-blue-600 text-white'
+                                : 'bg-white border-slate-200 hover:bg-slate-50'
+                            }`}
+                          >
+                            <div className="w-full h-4"></div>
+                          </button>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="text-xs text-slate-500">
+                  Selected {Object.values(timeAvailability).filter(Boolean).length} time slots
                 </div>
               </div>
 
