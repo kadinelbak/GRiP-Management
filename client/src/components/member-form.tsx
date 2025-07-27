@@ -53,6 +53,7 @@ export default function MemberForm() {
   const [timeAvailability, setTimeAvailability] = useState<TimeAvailability>({});
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{day: string, time: string} | null>(null);
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   const form = useForm<ApplicationFormData>({
     resolver: zodResolver(insertApplicationSchema),
@@ -93,6 +94,7 @@ export default function MemberForm() {
       return apiRequest("POST", "/api/applications", data);
     },
     onSuccess: () => {
+      setIsSubmitted(true);
       toast({
         title: "Application Submitted!",
         description: "Your application has been submitted successfully. You will receive a confirmation email shortly.",
@@ -216,6 +218,47 @@ export default function MemberForm() {
     console.log("Submitting form data:", formData);
     submitMutation.mutate(formData);
   };
+
+  if (isSubmitted) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <Card className="shadow-sm border border-slate-200">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-green-600 text-center">
+              Thank You! 🎉
+            </CardTitle>
+            <CardDescription className="text-center">
+              Your application has been submitted successfully.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center space-y-4">
+            <div className="bg-green-50 p-6 rounded-lg">
+              <h3 className="text-lg font-semibold text-green-800 mb-2">
+                What happens next?
+              </h3>
+              <ul className="text-sm text-green-700 space-y-2 text-left max-w-md mx-auto">
+                <li>• Your application will be reviewed by our team</li>
+                <li>• You'll receive a confirmation email shortly</li>
+                <li>• Team assignments will be made on a first-come, first-serve basis</li>
+                <li>• You'll be notified about your team assignment soon</li>
+                <li>• Remember to join the GRiP Slack workspace</li>
+              </ul>
+            </div>
+            <Button 
+              onClick={() => {
+                setIsSubmitted(false);
+                window.location.reload();
+              }}
+              variant="outline"
+              className="mt-4"
+            >
+              Submit Another Application
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto">
