@@ -10,7 +10,8 @@ async function migrate() {
     await db.execute(sql`
       ALTER TABLE applications 
       ADD COLUMN IF NOT EXISTS first_name TEXT,
-      ADD COLUMN IF NOT EXISTS last_name TEXT
+      ADD COLUMN IF NOT EXISTS last_name TEXT,
+      ADD COLUMN IF NOT EXISTS assignment_reason TEXT
     `);
     
     // Add address column to project_requests table

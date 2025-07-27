@@ -85,11 +85,11 @@ export default function MemberForm() {
         app.email.toLowerCase() === data.email.toLowerCase() || 
         app.ufid === data.ufid
       );
-      
+
       if (isDuplicate) {
         throw new Error("An application with this email address or UFID already exists.");
       }
-      
+
       return apiRequest("POST", "/api/applications", data);
     },
     onSuccess: () => {
@@ -99,8 +99,8 @@ export default function MemberForm() {
       });
       form.reset();
       setSelectedSkills([]);
-      setTeamPreferences([]);
       setTimeAvailability({});
+      setTeamPreferences([]);
       queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
     },
     onError: (error: any) => {
@@ -136,7 +136,7 @@ export default function MemberForm() {
       const key = `${day}-${time}`;
       const startKey = `${dragStart.day}-${dragStart.time}`;
       const shouldSelect = timeAvailability[startKey] || false;
-      
+
       setTimeAvailability(prev => ({
         ...prev,
         [key]: shouldSelect
@@ -152,7 +152,7 @@ export default function MemberForm() {
   const moveTeamPreference = (index: number, direction: 'up' | 'down') => {
     const newPreferences = [...teamPreferences];
     const newIndex = direction === 'up' ? index - 1 : index + 1;
-    
+
     if (newIndex >= 0 && newIndex < newPreferences.length) {
       [newPreferences[index], newPreferences[newIndex]] = [newPreferences[newIndex], newPreferences[index]];
       setTeamPreferences(newPreferences);
@@ -172,7 +172,7 @@ export default function MemberForm() {
         const [day, time] = key.split('-');
         return { day, startTime: time, endTime: time };
       });
-    
+
     const formData = {
       ...data,
       fullName: `${data.firstName} ${data.lastName}`.trim(),
@@ -209,7 +209,7 @@ export default function MemberForm() {
                 <h3 className="text-lg font-semibold text-slate-900 border-b border-slate-200 pb-2">
                   Personal Information
                 </h3>
-                
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -224,7 +224,7 @@ export default function MemberForm() {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="lastName"
@@ -278,7 +278,7 @@ export default function MemberForm() {
                 <p className="text-sm text-slate-600">
                   Select up to 9 teams in order of preference. Higher preferences will be considered first during assignment.
                 </p>
-                
+
                 <div className="space-y-3">
                   {teamPreferences.length > 0 && (
                     <div className="space-y-2">
@@ -326,7 +326,7 @@ export default function MemberForm() {
                       })}
                     </div>
                   )}
-                  
+
                   {teamPreferences.length < 9 && (
                     <div>
                       <FormLabel>Add Team Preference</FormLabel>
@@ -355,7 +355,7 @@ export default function MemberForm() {
                       </Select>
                     </div>
                   )}
-                  
+
                   {teamPreferences.length === 0 && (
                     <p className="text-sm text-slate-500 text-center py-4 border-2 border-dashed border-slate-200 rounded-lg">
                       No team preferences selected. Click above to add your first preference.
@@ -382,7 +382,7 @@ export default function MemberForm() {
                       </label>
                     ))}
                   </div>
-                  
+
                   <FormField
                     control={form.control}
                     name="additionalSkills"
@@ -410,7 +410,7 @@ export default function MemberForm() {
                 <p className="text-sm text-slate-600">
                   Select the time slots when you are available. Click on the boxes to select/deselect times.
                 </p>
-                
+
                 <div className="overflow-x-auto" onMouseLeave={handleMouseUp}>
                   <div className="min-w-[900px]" onMouseUp={handleMouseUp}>
                     {/* Header row with days */}
@@ -422,7 +422,7 @@ export default function MemberForm() {
                         </div>
                       ))}
                     </div>
-                    
+
                     {/* Time slots and availability grid */}
                     {timeSlots.map((time) => (
                       <div key={time} className="grid grid-cols-8 gap-1 mb-1">
@@ -451,7 +451,7 @@ export default function MemberForm() {
                     ))}
                   </div>
                 </div>
-                
+
                 <div className="text-xs text-slate-500">
                   Selected {Object.values(timeAvailability).filter(Boolean).length} time slots
                 </div>
@@ -465,7 +465,7 @@ export default function MemberForm() {
                 <p className="text-sm text-slate-600">
                   Please read and acknowledge GRiP's Team Joining Rules by checking the following boxes:
                 </p>
-                
+
                 <div className="space-y-4">
                   {acknowledgmentTexts.map((text, index) => (
                     <FormField
