@@ -12,11 +12,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { NotebookPen, Info } from "lucide-react";
+import { NotebookPen, Info, Plus, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import type { z } from "zod";
 import type { Team } from "@shared/schema";
 
 type ApplicationFormData = z.infer<typeof insertApplicationSchema>;
+type TimeSlot = { day: string; startTime: string; endTime: string };
 
 const skillOptions = [
   "3D Modeling",
@@ -38,9 +39,9 @@ const dayOptions = [
 ];
 
 const timeOptions = [
-  "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM",
-  "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM",
-  "6:00 PM", "7:00 PM", "8:00 PM", "9:00 PM",
+  "8:00 AM", "8:30 AM", "9:00 AM", "9:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM", "12:00 PM", "12:30 PM",
+  "1:00 PM", "1:30 PM", "2:00 PM", "2:30 PM", "3:00 PM", "3:30 PM", "4:00 PM", "4:30 PM", "5:00 PM", "5:30 PM",
+  "6:00 PM", "6:30 PM", "7:00 PM", "7:30 PM", "8:00 PM", "8:30 PM", "9:00 PM", "9:30 PM", "10:00 PM",
 ];
 
 const acknowledgmentTexts = [
@@ -57,7 +58,8 @@ export default function MemberForm() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
-  const [selectedDays, setSelectedDays] = useState<string[]>([]);
+  const [teamPreferences, setTeamPreferences] = useState<string[]>([]);
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([{ day: "", startTime: "", endTime: "" }]);
 
   const form = useForm<ApplicationFormData>({
     resolver: zodResolver(insertApplicationSchema),
@@ -65,12 +67,10 @@ export default function MemberForm() {
       fullName: "",
       email: "",
       ufid: "",
-      preferredTeamId: "",
+      teamPreferences: [],
       skills: [],
       additionalSkills: "",
-      availableDays: [],
-      preferredStartTime: "",
-      preferredEndTime: "",
+      timeAvailability: [],
       acknowledgments: new Array(7).fill(false),
     },
   });
@@ -89,7 +89,8 @@ export default function MemberForm() {
       });
       form.reset();
       setSelectedSkills([]);
-      setSelectedDays([]);
+      setTeamPreferences([]);
+      setTimeSlots([{ day: "", startTime: "", endTime: "" }]);
       queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
     },
     onError: (error: any) => {
@@ -101,11 +102,47 @@ export default function MemberForm() {
     },
   });
 
+  const addTimeSlot = () => {
+    if (timeSlots.length < 7) {
+      setTimeSlots([...timeSlots, { day: "", startTime: "", endTime: "" }]);
+    }
+  };
+
+  const removeTimeSlot = (index: number) => {
+    if (timeSlots.length > 1) {
+      setTimeSlots(timeSlots.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateTimeSlot = (index: number, field: keyof TimeSlot, value: string) => {
+    const newTimeSlots = [...timeSlots];
+    newTimeSlots[index][field] = value;
+    setTimeSlots(newTimeSlots);
+  };
+
+  const moveTeamPreference = (index: number, direction: 'up' | 'down') => {
+    const newPreferences = [...teamPreferences];
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    
+    if (newIndex >= 0 && newIndex < newPreferences.length) {
+      [newPreferences[index], newPreferences[newIndex]] = [newPreferences[newIndex], newPreferences[index]];
+      setTeamPreferences(newPreferences);
+    }
+  };
+
+  const removeTeamPreference = (index: number) => {
+    const newPreferences = teamPreferences.filter((_, i) => i !== index);
+    setTeamPreferences(newPreferences);
+  };
+
   const onSubmit = (data: ApplicationFormData) => {
+    const validTimeSlots = timeSlots.filter(slot => slot.day && slot.startTime && slot.endTime);
+    
     const formData = {
       ...data,
       skills: selectedSkills,
-      availableDays: selectedDays,
+      teamPreferences,
+      timeAvailability: validTimeSlots,
     };
     submitMutation.mutate(formData);
   };
@@ -186,31 +223,93 @@ export default function MemberForm() {
                 <h3 className="text-lg font-semibold text-slate-900 border-b border-slate-200 pb-2">
                   Team Preferences
                 </h3>
+                <p className="text-sm text-slate-600">
+                  Select up to 9 teams in order of preference. Higher preferences will be considered first during assignment.
+                </p>
                 
-                <FormField
-                  control={form.control}
-                  name="preferredTeamId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Preferred Team *</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select your preferred team" />
-                          </SelectTrigger>
-                        </FormControl>
+                <div className="space-y-3">
+                  {teamPreferences.length > 0 && (
+                    <div className="space-y-2">
+                      {teamPreferences.map((teamId, index) => {
+                        const team = teams.find(t => t.id === teamId);
+                        return (
+                          <div key={`${teamId}-${index}`} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                            <div className="flex items-center">
+                              <span className="text-sm font-medium bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center mr-3">
+                                {index + 1}
+                              </span>
+                              <span className="font-medium">{team?.name || "Unknown Team"}</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => moveTeamPreference(index, 'up')}
+                                disabled={index === 0}
+                              >
+                                <ArrowUp className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => moveTeamPreference(index, 'down')}
+                                disabled={index === teamPreferences.length - 1}
+                              >
+                                <ArrowDown className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeTeamPreference(index)}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  
+                  {teamPreferences.length < 9 && (
+                    <div>
+                      <FormLabel>Add Team Preference</FormLabel>
+                      <Select
+                        onValueChange={(teamId) => {
+                          if (!teamPreferences.includes(teamId)) {
+                            setTeamPreferences([...teamPreferences, teamId]);
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="mt-2">
+                          <SelectValue placeholder="Select a team to add" />
+                        </SelectTrigger>
                         <SelectContent>
-                          {teams.map((team) => (
-                            <SelectItem key={team.id} value={team.id}>
-                              {team.name}
-                            </SelectItem>
-                          ))}
+                          {teams
+                            .filter(team => !teamPreferences.includes(team.id))
+                            .map((team) => (
+                              <SelectItem key={team.id} value={team.id}>
+                                {team.name}
+                                {team.description && (
+                                  <span className="text-xs text-slate-500 block">{team.description}</span>
+                                )}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
-                      <FormMessage />
-                    </FormItem>
+                    </div>
                   )}
-                />
+                  
+                  {teamPreferences.length === 0 && (
+                    <p className="text-sm text-slate-500 text-center py-4 border-2 border-dashed border-slate-200 rounded-lg">
+                      No team preferences selected. Click above to add your first preference.
+                    </p>
+                  )}
+                </div>
 
                 <div>
                   <FormLabel>Skills & Experience</FormLabel>
@@ -256,78 +355,100 @@ export default function MemberForm() {
                 <h3 className="text-lg font-semibold text-slate-900 border-b border-slate-200 pb-2">
                   Time Availability
                 </h3>
+                <p className="text-sm text-slate-600">
+                  Add your available time slots. You can specify different time ranges for different days.
+                </p>
                 
-                <div>
-                  <FormLabel>Available Days (Select all that apply)</FormLabel>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
-                    {dayOptions.map((day) => (
-                      <label key={day} className="flex items-center">
-                        <Checkbox
-                          checked={selectedDays.includes(day)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedDays([...selectedDays, day]);
-                            } else {
-                              setSelectedDays(selectedDays.filter(d => d !== day));
-                            }
-                          }}
-                        />
-                        <span className="ml-2 text-sm">{day}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="preferredStartTime"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Preferred Start Time</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
+                <div className="space-y-3">
+                  {timeSlots.map((slot, index) => (
+                    <div key={index} className="p-4 border border-slate-200 rounded-lg">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-medium text-sm">Time Slot {index + 1}</h4>
+                        {timeSlots.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeTimeSlot(index)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <FormLabel className="text-xs">Day</FormLabel>
+                          <Select
+                            value={slot.day}
+                            onValueChange={(value) => updateTimeSlot(index, 'day', value)}
+                          >
                             <SelectTrigger>
-                              <SelectValue placeholder="Select time" />
+                              <SelectValue placeholder="Select day" />
                             </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {timeOptions.slice(0, -4).map((time) => (
-                              <SelectItem key={time} value={time}>
-                                {time}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="preferredEndTime"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Preferred End Time</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
+                            <SelectContent>
+                              {dayOptions.map((day) => (
+                                <SelectItem key={day} value={day}>
+                                  {day}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div>
+                          <FormLabel className="text-xs">Start Time</FormLabel>
+                          <Select
+                            value={slot.startTime}
+                            onValueChange={(value) => updateTimeSlot(index, 'startTime', value)}
+                          >
                             <SelectTrigger>
-                              <SelectValue placeholder="Select time" />
+                              <SelectValue placeholder="Start time" />
                             </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {timeOptions.slice(2).map((time) => (
-                              <SelectItem key={time} value={time}>
-                                {time}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                            <SelectContent>
+                              {timeOptions.map((time) => (
+                                <SelectItem key={time} value={time}>
+                                  {time}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div>
+                          <FormLabel className="text-xs">End Time</FormLabel>
+                          <Select
+                            value={slot.endTime}
+                            onValueChange={(value) => updateTimeSlot(index, 'endTime', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="End time" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {timeOptions.map((time) => (
+                                <SelectItem key={time} value={time}>
+                                  {time}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {timeSlots.length < 7 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={addTimeSlot}
+                      className="w-full"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Another Time Slot
+                    </Button>
+                  )}
                 </div>
               </div>
 

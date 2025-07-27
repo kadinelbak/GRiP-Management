@@ -65,6 +65,20 @@ export default function AdminDashboard() {
     queryKey: ["/api/project-requests"],
   });
 
+  const { data: assignmentReport } = useQuery<any>({
+    queryKey: ["/api/admin/assignment-report"],
+    enabled: activeTab === "assignments"
+  });
+
+  const assignTeamsMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/assign-teams", {}),
+    onSuccess: () => {
+      toast({ title: "Team assignments completed successfully!" });
+      queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/assignment-report"] });
+    },
+  });
+
   const createTeamMutation = useMutation({
     mutationFn: (data: TeamFormData) => apiRequest("POST", "/api/teams", data),
     onSuccess: () => {
@@ -78,17 +92,7 @@ export default function AdminDashboard() {
     },
   });
 
-  const assignTeamsMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/applications/assign-teams", {}),
-    onSuccess: () => {
-      toast({ title: "Teams assigned successfully!" });
-      queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
-    },
-    onError: () => {
-      toast({ title: "Failed to assign teams", variant: "destructive" });
-    },
-  });
+
 
   const exportApplications = () => {
     window.open("/api/applications/export", "_blank");
@@ -134,13 +138,13 @@ export default function AdminDashboard() {
               <Users className="w-4 h-4" />
               Teams
             </TabsTrigger>
+            <TabsTrigger value="assignments" className="flex items-center gap-2">
+              <Wand2 className="w-4 h-4" />
+              Assignments
+            </TabsTrigger>
             <TabsTrigger value="submissions" className="flex items-center gap-2">
               <Inbox className="w-4 h-4" />
               Submissions
-            </TabsTrigger>
-            <TabsTrigger value="projects" className="flex items-center gap-2">
-              <Settings className="w-4 h-4" />
-              Projects
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="w-4 h-4" />
@@ -211,7 +215,12 @@ export default function AdminDashboard() {
                       <div key={app.id} className="flex items-center justify-between p-3 bg-slate-50 rounded">
                         <div>
                           <p className="font-medium">{app.fullName}</p>
-                          <p className="text-sm text-slate-600">{teams.find(t => t.id === app.preferredTeamId)?.name || "No preference"}</p>
+                          <p className="text-sm text-slate-600">
+                            {app.teamPreferences.length > 0 
+                              ? teams.find(t => t.id === app.teamPreferences[0])?.name || "No preference"
+                              : "No preferences"
+                            }
+                          </p>
                         </div>
                         <Badge variant="outline">{new Date(app.submittedAt).toLocaleDateString()}</Badge>
                       </div>
@@ -333,7 +342,7 @@ export default function AdminDashboard() {
                             <FormItem>
                               <FormLabel>Meeting Time</FormLabel>
                               <FormControl>
-                                <Input {...field} placeholder="Tuesdays 6:00 PM - 8:00 PM" />
+                                <Input {...field} value={field.value || ""} placeholder="Tuesdays 6:00 PM - 8:00 PM" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -347,7 +356,7 @@ export default function AdminDashboard() {
                             <FormItem>
                               <FormLabel>Required Skills</FormLabel>
                               <FormControl>
-                                <Textarea {...field} rows={3} placeholder="List required or preferred skills..." />
+                                <Textarea {...field} value={field.value || ""} rows={3} placeholder="List required or preferred skills..." />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -368,6 +377,132 @@ export default function AdminDashboard() {
                 </Card>
               </div>
             </div>
+          </TabsContent>
+
+          {/* Assignments Tab */}
+          <TabsContent value="assignments" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-slate-900">Team Assignments</h3>
+              <div className="flex space-x-3">
+                <Button 
+                  onClick={() => assignTeamsMutation.mutate()}
+                  disabled={assignTeamsMutation.isPending}
+                  className="grip-secondary text-white"
+                >
+                  <Wand2 className="w-4 h-4 mr-2" />
+                  {assignTeamsMutation.isPending ? "Assigning..." : "Run Team Assignment"}
+                </Button>
+              </div>
+            </div>
+
+            {assignmentReport && (
+              <div className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Assignment Summary</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="text-center p-4 bg-blue-50 rounded-lg">
+                        <div className="text-2xl font-bold text-blue-600">
+                          {assignmentReport.summary.totalApplications}
+                        </div>
+                        <div className="text-sm text-blue-600">Total Applications</div>
+                      </div>
+                      <div className="text-center p-4 bg-green-50 rounded-lg">
+                        <div className="text-2xl font-bold text-green-600">
+                          {assignmentReport.summary.assigned}
+                        </div>
+                        <div className="text-sm text-green-600">Assigned</div>
+                      </div>
+                      <div className="text-center p-4 bg-red-50 rounded-lg">
+                        <div className="text-2xl font-bold text-red-600">
+                          {assignmentReport.summary.waitlisted}
+                        </div>
+                        <div className="text-sm text-red-600">Waitlisted</div>
+                      </div>
+                    </div>
+                    <p className="text-sm text-slate-600 mt-4">
+                      Report generated: {new Date(assignmentReport.summary.timestamp).toLocaleString()}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Assignment Details</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Student</TableHead>
+                            <TableHead>Assigned Team</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Preference Rank</TableHead>
+                            <TableHead>Reasoning</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {assignmentReport.assignments.map((assignment: any) => {
+                            const application = applications.find(app => app.id === assignment.applicationId);
+                            const team = teams.find(t => t.id === assignment.assignedTeamId);
+                            
+                            return (
+                              <TableRow key={assignment.applicationId}>
+                                <TableCell>
+                                  <div>
+                                    <div className="font-medium">{application?.fullName || "Unknown"}</div>
+                                    <div className="text-sm text-slate-500">{application?.email || ""}</div>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  {team ? team.name : "Not assigned"}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge className={getStatusColor(assignment.status)}>
+                                    {assignment.status}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  {assignment.preferenceRank ? `#${assignment.preferenceRank}` : "N/A"}
+                                </TableCell>
+                                <TableCell className="max-w-xs">
+                                  <div className="text-sm text-slate-600 truncate" title={assignment.reasoning}>
+                                    {assignment.reasoning}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {!assignmentReport && (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <Wand2 className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-slate-900 mb-2">No Assignment Report Available</h3>
+                  <p className="text-slate-600 mb-4">
+                    Run the team assignment algorithm to see detailed results and reasoning for each student's placement.
+                  </p>
+                  <Button 
+                    onClick={() => assignTeamsMutation.mutate()}
+                    disabled={assignTeamsMutation.isPending}
+                    className="grip-secondary text-white"
+                  >
+                    <Wand2 className="w-4 h-4 mr-2" />
+                    Generate Assignment Report
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* Submissions Tab */}
@@ -414,7 +549,10 @@ export default function AdminDashboard() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            {teams.find(t => t.id === app.preferredTeamId)?.name || "No preference"}
+                            {app.teamPreferences.length > 0 
+                              ? teams.find(t => t.id === app.teamPreferences[0])?.name || "No preference"
+                              : "No preferences"
+                            }
                           </TableCell>
                           <TableCell>
                             {Array.isArray(app.skills) ? app.skills.join(", ") : "None"}

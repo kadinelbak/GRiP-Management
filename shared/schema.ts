@@ -20,15 +20,14 @@ export const applications = pgTable("applications", {
   fullName: text("full_name").notNull(),
   email: text("email").notNull(),
   ufid: text("ufid").notNull(),
-  preferredTeamId: varchar("preferred_team_id").references(() => teams.id),
+  teamPreferences: json("team_preferences").$type<string[]>().notNull().default([]), // Up to 9 ranked preferences
   skills: json("skills").$type<string[]>().notNull().default([]),
   additionalSkills: text("additional_skills"),
-  availableDays: json("available_days").$type<string[]>().notNull().default([]),
-  preferredStartTime: text("preferred_start_time"),
-  preferredEndTime: text("preferred_end_time"),
+  timeAvailability: json("time_availability").$type<{ day: string; startTime: string; endTime: string }[]>().notNull().default([]),
   acknowledgments: json("acknowledgments").$type<boolean[]>().notNull(),
   assignedTeamId: varchar("assigned_team_id").references(() => teams.id),
   status: text("status").notNull().default("pending"), // 'pending', 'assigned', 'waitlisted'
+  assignmentReason: text("assignment_reason"), // Explanation of why assigned to this team
   submittedAt: timestamp("submitted_at").notNull().defaultNow(),
 });
 
@@ -45,6 +44,7 @@ export const projectRequests = pgTable("project_requests", {
   fullName: text("full_name").notNull(),
   email: text("email").notNull(),
   phone: text("phone"),
+  address: text("address"),
   projectType: text("project_type").notNull(),
   projectTitle: text("project_title").notNull(),
   description: text("description").notNull(),
@@ -70,10 +70,6 @@ export const teamsRelations = relations(teams, ({ many }) => ({
 }));
 
 export const applicationsRelations = relations(applications, ({ one }) => ({
-  preferredTeam: one(teams, {
-    fields: [applications.preferredTeamId],
-    references: [teams.id],
-  }),
   assignedTeam: one(teams, {
     fields: [applications.assignedTeamId],
     references: [teams.id],
@@ -91,10 +87,17 @@ export const insertApplicationSchema = createInsertSchema(applications).omit({
   id: true,
   assignedTeamId: true,
   status: true,
+  assignmentReason: true,
   submittedAt: true,
 }).extend({
   email: z.string().email("Invalid email format"),
   ufid: z.string().min(8, "UFID must be at least 8 characters"),
+  teamPreferences: z.array(z.string()).min(1, "At least one team preference required").max(9, "Maximum 9 team preferences allowed"),
+  timeAvailability: z.array(z.object({
+    day: z.string(),
+    startTime: z.string(),
+    endTime: z.string(),
+  })).min(1, "At least one time availability slot required"),
   acknowledgments: z.array(z.boolean()).length(7, "All acknowledgments must be completed"),
 });
 

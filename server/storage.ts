@@ -39,7 +39,10 @@ export interface IStorage {
   getAdminSettings(): Promise<AdminSetting[]>;
 
   // Team Assignment
-  assignTeamsAutomatically(): Promise<void>;
+  assignTeamsAutomatically(): Promise<{ assignments: Array<{ applicationId: string; studentName: string; assignedTeam: string | null; reason: string }> }>;
+  
+  // Team membership
+  getTeamMembers(teamId: string): Promise<Application[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -142,7 +145,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(adminSettings);
   }
 
-  async assignTeamsAutomatically(): Promise<void> {
+  async assignTeamsAutomatically(): Promise<{ assignments: Array<{ applicationId: string; studentName: string; assignedTeam: string | null; reason: string }> }> {
     // Get all pending applications ordered by submission time (first-come, first-served)
     const pendingApplications = await db
       .select()
@@ -152,35 +155,112 @@ export class DatabaseStorage implements IStorage {
 
     // Get all teams with their current sizes
     const allTeams = await this.getTeams();
-    const teamCapacities = new Map(allTeams.map(team => [team.id, team.maxCapacity - team.currentSize]));
+    const teamCapacities = new Map(allTeams.map(team => [team.id, { 
+      name: team.name, 
+      available: team.maxCapacity - team.currentSize,
+      maxCapacity: team.maxCapacity,
+      currentSize: team.currentSize
+    }]));
+
+    const assignments: Array<{ applicationId: string; studentName: string; assignedTeam: string | null; reason: string }> = [];
 
     for (const application of pendingApplications) {
-      if (!application.preferredTeamId) continue;
-
-      const availableSlots = teamCapacities.get(application.preferredTeamId) || 0;
+      let assignedTeamId: string | null = null;
+      let reason = "";
       
-      if (availableSlots > 0) {
-        // Assign to preferred team
+      // Check if application has complete information
+      if (!application.teamPreferences || application.teamPreferences.length === 0) {
+        reason = "No team preferences provided - moved to waitlist";
         await this.updateApplication(application.id, {
-          assignedTeamId: application.preferredTeamId,
-          status: "assigned"
+          status: "waitlisted",
+          assignmentReason: reason
         });
+        assignments.push({
+          applicationId: application.id,
+          studentName: application.fullName,
+          assignedTeam: null,
+          reason
+        });
+        continue;
+      }
 
-        // Update team capacity
-        const team = allTeams.find(t => t.id === application.preferredTeamId);
-        if (team) {
-          await this.updateTeam(team.id, {
-            currentSize: team.currentSize + 1
-          });
-          teamCapacities.set(team.id, availableSlots - 1);
-        }
-      } else {
-        // Add to waitlist
+      if (!application.timeAvailability || application.timeAvailability.length === 0) {
+        reason = "No time availability provided - moved to waitlist";
         await this.updateApplication(application.id, {
-          status: "waitlisted"
+          status: "waitlisted",
+          assignmentReason: reason
+        });
+        assignments.push({
+          applicationId: application.id,
+          studentName: application.fullName,
+          assignedTeam: null,
+          reason
+        });
+        continue;
+      }
+
+      // Try to assign based on team preferences (in order of preference)
+      for (let i = 0; i < application.teamPreferences.length; i++) {
+        const preferredTeamId = application.teamPreferences[i];
+        const teamCapacity = teamCapacities.get(preferredTeamId);
+        
+        if (!teamCapacity) {
+          continue; // Team doesn't exist
+        }
+
+        if (teamCapacity.available > 0) {
+          assignedTeamId = preferredTeamId;
+          reason = `Assigned to preference #${i + 1}: ${teamCapacity.name} (${teamCapacity.available} slots available)`;
+          
+          // Update application
+          await this.updateApplication(application.id, {
+            assignedTeamId,
+            status: "assigned",
+            assignmentReason: reason
+          });
+
+          // Update team capacity
+          await this.updateTeam(preferredTeamId, {
+            currentSize: teamCapacity.currentSize + 1
+          });
+          
+          // Update our local capacity tracking
+          teamCapacities.set(preferredTeamId, {
+            ...teamCapacity,
+            available: teamCapacity.available - 1,
+            currentSize: teamCapacity.currentSize + 1
+          });
+          
+          break;
+        }
+      }
+
+      // If no preferred teams available, add to waitlist
+      if (!assignedTeamId) {
+        const preferredTeamNames = application.teamPreferences
+          .map(id => teamCapacities.get(id)?.name || "Unknown")
+          .join(", ");
+        reason = `All preferred teams full: ${preferredTeamNames} - moved to waitlist`;
+        
+        await this.updateApplication(application.id, {
+          status: "waitlisted",
+          assignmentReason: reason
         });
       }
+
+      assignments.push({
+        applicationId: application.id,
+        studentName: application.fullName,
+        assignedTeam: assignedTeamId ? teamCapacities.get(assignedTeamId)?.name || null : null,
+        reason
+      });
     }
+    
+    return { assignments };
+  }
+
+  async getTeamMembers(teamId: string): Promise<Application[]> {
+    return await db.select().from(applications).where(eq(applications.assignedTeamId, teamId));
   }
 }
 

@@ -7,6 +7,87 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 
+interface AssignmentResult {
+  applicationId: string;
+  assignedTeamId: string | null;
+  status: 'assigned' | 'waitlisted';
+  reasoning: string;
+  preferenceRank?: number;
+}
+
+interface TeamAssignmentReport {
+  assignments: AssignmentResult[];
+  summary: {
+    totalApplications: number;
+    assigned: number;
+    waitlisted: number;
+    timestamp: string;
+  };
+}
+
+function performTeamAssignment(applications: any[], teams: any[]): TeamAssignmentReport {
+  const assignments: AssignmentResult[] = [];
+  const teamCapacities = new Map(teams.map(team => [team.id, { current: 0, max: team.maxCapacity }]));
+  
+  // Sort applications by timestamp (first-come, first-served priority)
+  const sortedApplications = [...applications].sort((a, b) => 
+    new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime()
+  );
+
+  for (const application of sortedApplications) {
+    let assigned = false;
+    let reasoning = `Application submitted at ${new Date(application.submittedAt).toLocaleString()}. `;
+    
+    // Try each team preference in order
+    for (let i = 0; i < application.teamPreferences.length; i++) {
+      const teamId = application.teamPreferences[i];
+      const team = teams.find(t => t.id === teamId);
+      const capacity = teamCapacities.get(teamId);
+      
+      if (!team || !capacity) {
+        reasoning += `Team preference ${i + 1} (${teamId}) not found. `;
+        continue;
+      }
+      
+      if (capacity.current < capacity.max) {
+        // Assign to this team
+        capacity.current++;
+        assignments.push({
+          applicationId: application.id,
+          assignedTeamId: teamId,
+          status: 'assigned',
+          reasoning: reasoning + `Assigned to team "${team.name}" (preference #${i + 1}). Team capacity: ${capacity.current}/${capacity.max}.`,
+          preferenceRank: i + 1
+        });
+        assigned = true;
+        break;
+      } else {
+        reasoning += `Team preference ${i + 1} "${team.name}" is at full capacity (${capacity.max}/${capacity.max}). `;
+      }
+    }
+    
+    if (!assigned) {
+      assignments.push({
+        applicationId: application.id,
+        assignedTeamId: null,
+        status: 'waitlisted',
+        reasoning: reasoning + "All preferred teams are at capacity. Added to waitlist.",
+        preferenceRank: undefined
+      });
+    }
+  }
+
+  return {
+    assignments,
+    summary: {
+      totalApplications: applications.length,
+      assigned: assignments.filter(a => a.status === 'assigned').length,
+      waitlisted: assignments.filter(a => a.status === 'waitlisted').length,
+      timestamp: new Date().toISOString()
+    }
+  };
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Teams API
   app.get("/api/teams", async (_req, res) => {
@@ -104,10 +185,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/applications/assign-teams", async (_req, res) => {
     try {
-      await storage.assignTeamsAutomatically();
-      res.json({ message: "Teams assigned successfully" });
+      const result = await storage.assignTeamsAutomatically();
+      res.json({ message: "Teams assigned successfully", assignments: result.assignments });
     } catch (error) {
       res.status(500).json({ message: "Failed to assign teams" });
+    }
+  });
+
+  // Get team members
+  app.get("/api/teams/:id/members", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const members = await storage.getTeamMembers(id);
+      res.json(members);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch team members" });
     }
   });
 
@@ -118,20 +210,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const teams = await storage.getTeams();
       const teamMap = new Map(teams.map(t => [t.id, t.name]));
 
-      const csvHeader = "Name,Email,UFID,Preferred Team,Assigned Team,Status,Skills,Submitted At\n";
+      const csvHeader = "Name,Email,UFID,Team Preferences,Assigned Team,Status,Skills,Time Availability,Assignment Reason,Submitted At\n";
       const csvRows = applications.map(app => {
-        const preferredTeam = app.preferredTeamId ? teamMap.get(app.preferredTeamId) || "Unknown" : "None";
+        const teamPreferences = Array.isArray(app.teamPreferences) 
+          ? app.teamPreferences.map(id => teamMap.get(id) || "Unknown").join("; ") 
+          : "None";
         const assignedTeam = app.assignedTeamId ? teamMap.get(app.assignedTeamId) || "Unknown" : "None";
         const skills = Array.isArray(app.skills) ? app.skills.join("; ") : "";
+        const timeAvailability = Array.isArray(app.timeAvailability) 
+          ? app.timeAvailability.map(slot => `${slot.day}: ${slot.startTime}-${slot.endTime}`).join("; ")
+          : "";
         
         return [
           `"${app.fullName}"`,
           `"${app.email}"`,
           `"${app.ufid}"`,
-          `"${preferredTeam}"`,
+          `"${teamPreferences}"`,
           `"${assignedTeam}"`,
           `"${app.status}"`,
           `"${skills}"`,
+          `"${timeAvailability}"`,
+          `"${app.assignmentReason || ""}"`,
           `"${app.submittedAt}"`
         ].join(",");
       }).join("\n");
@@ -143,6 +242,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.send(csv);
     } catch (error) {
       res.status(500).json({ message: "Failed to export applications" });
+    }
+  });
+
+  // Team Assignment API
+  app.post("/api/admin/assign-teams", async (_req, res) => {
+    try {
+      const applications = await storage.getApplications();
+      const teams = await storage.getTeams();
+      const technicalTeams = teams.filter(team => team.type === 'technical');
+      
+      const report = performTeamAssignment(applications, technicalTeams);
+      
+      // Update applications with assignments
+      for (const assignment of report.assignments) {
+        await storage.updateApplication(assignment.applicationId, {
+          assignedTeamId: assignment.assignedTeamId,
+          status: assignment.status,
+          assignmentReason: assignment.reasoning
+        });
+      }
+      
+      res.json(report);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to perform team assignments" });
+    }
+  });
+
+  app.get("/api/admin/assignment-report", async (_req, res) => {
+    try {
+      const applications = await storage.getApplications();
+      const teams = await storage.getTeams();
+      const technicalTeams = teams.filter(team => team.type === 'technical');
+      
+      const report = performTeamAssignment(applications, technicalTeams);
+      res.json(report);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to generate assignment report" });
     }
   });
 
