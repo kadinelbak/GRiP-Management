@@ -79,28 +79,52 @@ async function seedDummyData() {
     const insertedTeams = await db.insert(teams).values(technicalTeamsData).returning();
     console.log(`Created ${insertedTeams.length} technical teams`);
     
-    // Create some constant teams for additional signups
+    // Create permanent teams with 15 member capacity each
     const constantTeamsData = [
       {
-        name: "Outreach Team",
+        name: "Marketing Team",
         type: "constant",
-        maxCapacity: 999,
+        maxCapacity: 15,
         currentSize: 0,
-        description: "Community outreach and event coordination"
+        meetingTime: "Wednesdays 6:00 PM - 7:30 PM",
+        location: "Reitz Union Room 2350",
+        description: "Social media management, branding, promotional materials, and event marketing"
       },
       {
-        name: "Marketing Team", 
+        name: "Outreach Team", 
         type: "constant",
-        maxCapacity: 999,
+        maxCapacity: 15,
         currentSize: 0,
-        description: "Social media, branding, and promotional activities"
+        meetingTime: "Fridays 4:00 PM - 5:30 PM",
+        location: "Reitz Union Room 2360",
+        description: "Community outreach, school visits, educational workshops, and public engagement"
       },
       {
-        name: "3D Printing Support",
+        name: "Art Team",
         type: "constant", 
-        maxCapacity: 999,
+        maxCapacity: 15,
         currentSize: 0,
-        description: "Maintain and operate 3D printers for all teams"
+        meetingTime: "Tuesdays 7:00 PM - 8:30 PM",
+        location: "Fine Arts Building Room C105",
+        description: "Graphic design, visual content creation, and artistic elements for prosthetics"
+      },
+      {
+        name: "Events Team",
+        type: "constant",
+        maxCapacity: 15,
+        currentSize: 0,
+        meetingTime: "Thursdays 6:30 PM - 8:00 PM",
+        location: "Reitz Union Room 2370",
+        description: "Social events planning, meeting coordination, and special activities organization"
+      },
+      {
+        name: "3D Printing Team",
+        type: "constant",
+        maxCapacity: 15,
+        currentSize: 0,
+        meetingTime: "Mondays 5:00 PM - 6:30 PM",
+        location: "MAE-A Building Room 312",
+        description: "3D printer operation, maintenance, training, and printing support for all teams"
       }
     ];
     

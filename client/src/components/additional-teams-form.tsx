@@ -21,18 +21,24 @@ const additionalTeams = [
     name: "Marketing Team",
     description: "Help promote GRiP events, manage social media, and create marketing materials.",
     meetingTime: "Wednesdays 6:00 PM - 7:30 PM",
+    location: "Online",
+    capacity: 15,
   },
   {
     id: "outreach",
     name: "Outreach Team", 
     description: "Organize community events, school visits, and educational workshops.",
     meetingTime: "Fridays 4:00 PM - 5:30 PM",
+    location: "Various Locations",
+    capacity: 15,
   },
   {
     id: "art",
     name: "Art Team",
     description: "Design graphics, create visual content, and work on artistic elements of prosthetics.",
     meetingTime: "Tuesdays 7:00 PM - 8:30 PM",
+    location: "Art Studio",
+    capacity: 15,
   },
 ];
 
@@ -100,7 +106,7 @@ export default function AdditionalTeamsForm() {
                 <h3 className="text-lg font-semibold text-slate-900 border-b border-slate-200 pb-2">
                   Contact Information
                 </h3>
-                
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -129,7 +135,7 @@ export default function AdditionalTeamsForm() {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="ufid"
@@ -154,7 +160,7 @@ export default function AdditionalTeamsForm() {
                 <p className="text-sm text-slate-600">
                   Select all teams you're interested in joining:
                 </p>
-                
+
                 <div className="space-y-4">
                   {additionalTeams.map((team) => (
                     <div key={team.id} className="border border-slate-200 rounded-lg p-4">
@@ -170,14 +176,18 @@ export default function AdditionalTeamsForm() {
                           }}
                           className="mt-1"
                         />
-                        <div>
-                          <span className="font-medium text-slate-900">{team.name}</span>
-                          <p className="text-sm text-slate-600 mt-1">{team.description}</p>
-                          <p className="text-xs text-slate-500 mt-2 flex items-center">
-                            <Clock className="w-3 h-3 mr-1" />
-                            Meets: {team.meetingTime}
-                          </p>
+                        <div className="flex-1">
+                        <div className="font-medium text-slate-900">{team.name}</div>
+                        {team.description && (
+                          <div className="text-sm text-slate-600 mt-1">{team.description}</div>
+                        )}
+                        <div className="text-xs text-slate-500 mt-1">
+                          📅 {team.meetingTime} • 📍 {team.location}
                         </div>
+                        <div className="text-xs text-blue-600 mt-1">
+                          ✓ Capacity: {team.capacity} members
+                        </div>
+                      </div>
                       </label>
                     </div>
                   ))}
