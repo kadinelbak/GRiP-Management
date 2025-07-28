@@ -635,7 +635,7 @@ function PrintManagementSection() {
       {/* Submission Detail Modal */}
       {selectedSubmission && (
         <Dialog open={!!selectedSubmission} onOpenChange={() => setSelectedSubmission(null)}>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto bg-white">
             <DialogHeader>
               <DialogTitle>Print Submission Details</DialogTitle>
             </DialogHeader>
@@ -1319,7 +1319,7 @@ function AbsenceManagementSection() {
               {/* Member Detail Modal */}
               {selectedMember && (
                 <Dialog open={!!selectedMember} onOpenChange={() => setSelectedMember(null)}>
-                  <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                  <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto bg-white">
                     <DialogHeader>
                       <DialogTitle>Member Details - {selectedMember.fullName}</DialogTitle>
                     </DialogHeader>
