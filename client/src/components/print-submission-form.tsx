@@ -119,7 +119,14 @@ export default function PrintSubmissionForm() {
       });
       return;
     }
-    submitMutation.mutate(data);
+    
+    // Format the deadline as ISO string if it exists
+    const formattedData = {
+      ...data,
+      deadline: data.deadline ? data.deadline.toISOString() : undefined
+    };
+    
+    submitMutation.mutate(formattedData);
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -291,7 +298,7 @@ export default function PrintSubmissionForm() {
                               )}
                             >
                               {field.value ? (
-                                format(field.value, "PPP")
+                                format(new Date(field.value), "PPP")
                               ) : (
                                 <span>Pick a date</span>
                               )}
@@ -302,8 +309,8 @@ export default function PrintSubmissionForm() {
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
                             mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
+                            selected={field.value ? new Date(field.value) : undefined}
+                            onSelect={(date) => field.onChange(date)}
                             disabled={(date) =>
                               date < new Date() || date < new Date("1900-01-01")
                             }

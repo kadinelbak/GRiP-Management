@@ -273,6 +273,9 @@ export const insertPrintSubmissionSchema = createInsertSchema(printSubmissions).
   generalPrintDescription: z.string().optional(),
   fileSpecifications: z.string().optional(),
   comments: z.string().optional(),
-  deadline: z.string().optional().transform((val) => val ? new Date(val) : undefined)
+  deadline: z.union([z.string(), z.date()]).optional().transform((val) => {
+    if (!val) return undefined;
+    return typeof val === 'string' ? new Date(val) : val;
+  })
 });
 export type InsertPrintSubmission = z.infer<typeof insertPrintSubmissionSchema>;
