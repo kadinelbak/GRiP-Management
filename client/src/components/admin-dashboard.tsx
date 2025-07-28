@@ -1495,7 +1495,7 @@ function AbsenceManagementSection() {
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
                               {selectedMember.timeAvailability.map((slot, index) => (
                                 <div key={index} className="bg-white px-2 py-1 rounded border text-center">
-                                  {slot}
+                                  {typeof slot === 'string' ? slot : `${slot.day}: ${slot.startTime} - ${slot.endTime}`}
                                 </div>
                               ))}
                             </div>
