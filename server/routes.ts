@@ -3,7 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { 
   insertTeamSchema, insertApplicationSchema, insertAdditionalTeamSignupSchema, 
-  insertProjectRequestSchema, insertAdminSettingSchema, insertAbsenceSchema 
+  insertProjectRequestSchema, insertAdminSettingSchema, insertAbsenceSchema,
+  insertEventSchema, insertEventAttendanceSchema
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -613,6 +614,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to clear user absences" });
+    }
+  });
+
+  // Events API
+  app.get("/api/events", async (_req, res) => {
+    try {
+      const events = await storage.getEvents();
+      res.json(events);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch events" });
+    }
+  });
+
+  app.post("/api/events", async (req, res) => {
+    try {
+      const eventData = insertEventSchema.parse(req.body);
+      const event = await storage.createEvent(eventData);
+      res.status(201).json(event);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid event data", errors: error.errors });
+      } else {
+        res.status(500).json({ message: "Failed to create event" });
+      }
+    }
+  });
+
+  app.put("/api/events/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      const event = await storage.updateEvent(id, updates);
+      res.json(event);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update event" });
+    }
+  });
+
+  app.delete("/api/events/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteEvent(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete event" });
+    }
+  });
+
+  // Event Attendance API
+  app.get("/api/event-attendance", async (_req, res) => {
+    try {
+      const attendance = await storage.getEventAttendance();
+      res.json(attendance);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch event attendance" });
+    }
+  });
+
+  app.post("/api/event-attendance", async (req, res) => {
+    try {
+      const attendanceData = insertEventAttendanceSchema.parse(req.body);
+      const attendance = await storage.createEventAttendance(attendanceData);
+      res.status(201).json(attendance);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid attendance data", errors: error.errors });
+      } else {
+        res.status(500).json({ message: "Failed to submit attendance" });
+      }
+    }
+  });
+
+  app.put("/api/event-attendance/:id/approve", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = await storage.approveEventAttendance(id);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to approve attendance" });
+    }
+  });
+
+  app.put("/api/event-attendance/:id/reject", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.rejectEventAttendance(id);
+      res.json({ message: "Attendance rejected" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to reject attendance" });
+    }
+  });
+
+  app.delete("/api/event-attendance/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteEventAttendance(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete attendance" });
     }
   });
 

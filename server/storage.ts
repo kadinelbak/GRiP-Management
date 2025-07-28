@@ -1,8 +1,7 @@
 import { 
-  teams, applications, additionalTeamSignups, projectRequests, adminSettings, absences,
-  type Team, type Application, type AdditionalTeamSignup, type ProjectRequest, type AdminSetting, type Absence,
-  type InsertTeam, type InsertApplication, type InsertAdditionalTeamSignup, 
-  type InsertProjectRequest, type InsertAdminSetting, type InsertAbsence
+  teams, applications, additionalTeamSignups, projectRequests, adminSettings, absences, events, eventAttendance,
+  type Team, type Application, type AdditionalTeamSignup, type ProjectRequest, type AdminSetting, type Absence, type Event, type EventAttendance,
+  type InsertTeam, type InsertApplication, type InsertAdditionalTeamSignup, type InsertProjectRequest, type InsertAdminSetting, type InsertAbsence, type InsertEvent, type InsertEventAttendance
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, asc, and, isNull, sql, or } from "drizzle-orm";
@@ -54,6 +53,19 @@ export interface IStorage {
 
   // Team membership
   getTeamMembers(teamId: string): Promise<Application[]>;
+
+  // Events
+  getEvents(): Promise<Event[]>;
+  getEventById(id: string): Promise<Event | undefined>;
+  createEvent(event: InsertEvent): Promise<Event>;
+  updateEvent(id: string, updates: Partial<Event>): Promise<Event>;
+  deleteEvent(id: string): Promise<void>;
+
+  // Event Attendance
+  getEventAttendances(): Promise<EventAttendance[]>;
+  getEventAttendanceById(id: string): Promise<EventAttendance | undefined>;
+  createEventAttendance(attendance: InsertEventAttendance): Promise<EventAttendance>;
+  getEventAttendancesByEvent(eventId: string): Promise<EventAttendance[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -256,16 +268,16 @@ export class DatabaseStorage implements IStorage {
 
   async assignTeamsAutomatically(): Promise<{ assignments: Array<{ applicationId: string; studentName: string; assignedTeam: string | null; reason: string }>, logFileContent: string }> {
     console.log(`[AUTO-ASSIGN] Starting automatic team assignment process...`);
-    
+
     // Initialize detailed logging
     const assignmentLog: string[] = [];
     const timestamp = new Date().toISOString();
-    
+
     assignmentLog.push(`GRiP Team Assignment Report`);
     assignmentLog.push(`Generated: ${new Date(timestamp).toLocaleString()}`);
     assignmentLog.push(`=`.repeat(80));
     assignmentLog.push(``);
-    
+
     // Get all pending applications - no separate "accepted" status anymore
     const pendingApplications = await db
       .select()
@@ -309,13 +321,13 @@ export class DatabaseStorage implements IStorage {
 
     for (const application of allApplicationsToProcess) {
       console.log(`[AUTO-ASSIGN] Processing ${application.fullName} (${application.status})`);
-      
+
       assignmentLog.push(`Processing: ${application.fullName}`);
       assignmentLog.push(`Email: ${application.email}`);
       assignmentLog.push(`UFID: ${application.ufid}`);
       assignmentLog.push(`Submission Time: ${new Date(application.submittedAt).toLocaleString()}`);
       assignmentLog.push(`Current Status: ${application.status}`);
-      
+
       let assignedTeamId: string | null = null;
       let reason = "";
 
@@ -327,7 +339,7 @@ export class DatabaseStorage implements IStorage {
         assignmentLog.push(`⚠️  RESULT: Moved to waitlist`);
         assignmentLog.push(`📝 Reason: ${reason}`);
         assignmentLog.push(``);
-        
+
         await this.updateApplication(application.id, {
           status: "waitlisted",
           assignmentReason: reason
@@ -348,7 +360,7 @@ export class DatabaseStorage implements IStorage {
         assignmentLog.push(`⚠️  RESULT: Moved to waitlist`);
         assignmentLog.push(`📝 Reason: ${reason}`);
         assignmentLog.push(``);
-        
+
         await this.updateApplication(application.id, {
           status: "waitlisted",
           assignmentReason: reason
@@ -378,7 +390,7 @@ export class DatabaseStorage implements IStorage {
       console.log(`[AUTO-ASSIGN] ${application.fullName} preferences: ${technicalTeamPreferences.length} technical teams`);
       assignmentLog.push(`TEAM PREFERENCE MATCHING PROCESS`);
       assignmentLog.push(`Technical team preferences found: ${technicalTeamPreferences.length}`);
-      
+
       // Log all preferences
       assignmentLog.push(`Preference order:`);
       technicalTeamPreferences.forEach((teamId, index) => {
@@ -476,7 +488,7 @@ export class DatabaseStorage implements IStorage {
         assignedTeam: assignedTeamId ? teamCapacities.get(assignedTeamId)?.name || null : null,
         reason
       });
-      
+
       assignmentLog.push(`${'='.repeat(60)}`);
       assignmentLog.push(``);
     }
@@ -485,7 +497,7 @@ export class DatabaseStorage implements IStorage {
     console.log(`[AUTO-ASSIGN] Summary: ${assignments.length} applications processed`);
     console.log(`[AUTO-ASSIGN] Assigned: ${assignments.filter(a => a.assignedTeam !== null).length}`);
     console.log(`[AUTO-ASSIGN] Waitlisted: ${assignments.filter(a => a.assignedTeam === null).length}`);
-    
+
     // Add final summary to log
     assignmentLog.push(`ASSIGNMENT SUMMARY`);
     assignmentLog.push(`=`.repeat(30));
@@ -493,7 +505,7 @@ export class DatabaseStorage implements IStorage {
     assignmentLog.push(`Successfully assigned: ${assignments.filter(a => a.assignedTeam !== null).length}`);
     assignmentLog.push(`Waitlisted: ${assignments.filter(a => a.assignedTeam === null).length}`);
     assignmentLog.push(``);
-    
+
     // Log final team capacities
     console.log(`[AUTO-ASSIGN] Final team capacities:`);
     assignmentLog.push(`FINAL TEAM CAPACITIES`);
@@ -502,7 +514,7 @@ export class DatabaseStorage implements IStorage {
       console.log(`  - ${capacity.name}: ${capacity.maxCapacity - capacity.available}/${capacity.maxCapacity} filled`);
       assignmentLog.push(`${capacity.name}: ${capacity.maxCapacity - capacity.available}/${capacity.maxCapacity} filled`);
     });
-    
+
     assignmentLog.push(``);
     assignmentLog.push(`Report generated at: ${new Date().toLocaleString()}`);
     assignmentLog.push(`=`.repeat(80));
@@ -514,7 +526,7 @@ export class DatabaseStorage implements IStorage {
 
   private async assignToAdditionalTeams(applicationId: string, additionalTeamIds: string[]): Promise<void> {
     console.log(`[AUTO-ASSIGN] Processing additional teams for application ${applicationId}: ${additionalTeamIds.length} teams`);
-    
+
     // Get application details for signup creation
     const application = await this.getApplicationById(applicationId);
     if (!application) {
@@ -530,7 +542,7 @@ export class DatabaseStorage implements IStorage {
       const team = constantTeams.find(t => t.id === teamId);
       if (team && team.currentSize < team.maxCapacity) {
         console.log(`[AUTO-ASSIGN] Adding ${application.fullName} to additional team: ${team.name}`);
-        
+
         try {
           // Create additional team signup record with proper fields
           await this.createAdditionalTeamSignup({
@@ -544,7 +556,7 @@ export class DatabaseStorage implements IStorage {
           await this.updateTeam(teamId, {
             currentSize: team.currentSize + 1
           });
-          
+
           console.log(`[AUTO-ASSIGN] Successfully added to ${team.name}, new size: ${team.currentSize + 1}/${team.maxCapacity}`);
         } catch (error) {
           console.error(`[AUTO-ASSIGN] ERROR: Failed to add ${application.fullName} to team ${team.name}:`, error);
@@ -631,6 +643,49 @@ export class DatabaseStorage implements IStorage {
       .set({ isActive: false })
       .where(eq(absences.applicationId, applicationId));
   }
+
+  // Events
+  async getEvents(): Promise<Event[]> {
+    return await db.select().from(events).orderBy(desc(events.createdAt));
+  }
+
+  async getEventById(id: string): Promise<Event | undefined> {
+    const [event] = await db.select().from(events).where(eq(events.id, id));
+    return event || undefined;
+  }
+
+  async createEvent(insertEvent: InsertEvent): Promise<Event> {
+    const [event] = await db.insert(events).values(insertEvent).returning();
+    return event;
+  }
+
+  async updateEvent(id: string, updates: Partial<Event>): Promise<Event> {
+    const [event] = await db.update(events).set(updates).where(eq(events.id, id)).returning();
+    return event;
+  }
+
+  async deleteEvent(id: string): Promise<void> {
+    await db.delete(events).where(eq(events.id, id));
+  }
+
+  // Event Attendance
+  async getEventAttendances(): Promise<EventAttendance[]> {
+    return await db.select().from(eventAttendance).orderBy(desc(eventAttendance.createdAt));
+  }
+
+  async getEventAttendanceById(id: string): Promise<EventAttendance | undefined> {
+    const [attendance] = await db.select().from(eventAttendance).where(eq(eventAttendance.id, id));
+    return attendance || undefined;
+  }
+
+  async createEventAttendance(insertAttendance: InsertEventAttendance): Promise<EventAttendance> {
+    const [attendance] = await db.insert(eventAttendance).values(insertAttendance).returning();
+    return attendance;
+  }
+
+    async getEventAttendancesByEvent(eventId: string): Promise<EventAttendance[]> {
+        return await db.select().from(eventAttendance).where(eq(eventAttendance.eventId, eventId));
+    }
 }
 
 export const storage = new DatabaseStorage();

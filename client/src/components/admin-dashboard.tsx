@@ -83,6 +83,14 @@ export default function AdminDashboard() {
     queryKey: ["/api/additional-signups"],
   });
 
+  const { data: events = [] } = useQuery<any[]>({
+    queryKey: ["/api/events"],
+  });
+
+  const { data: eventAttendance = [] } = useQuery<any[]>({
+    queryKey: ["/api/event-attendance"],
+  });
+
   // Mutation for creating teams
   const createTeamMutation = useMutation({
     mutationFn: (data: TeamFormData) =>
@@ -355,6 +363,45 @@ export default function AdminDashboard() {
     },
   });
 
+  // Event attendance approval mutation
+  const approveAttendanceMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("PUT", `/api/event-attendance/${id}/approve`),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/event-attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/accepted-members"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
+      toast({
+        title: "Attendance Approved",
+        description: data.message || "Attendance approved and points added",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to approve attendance",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const rejectAttendanceMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("PUT", `/api/event-attendance/${id}/reject`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/event-attendance"] });
+      toast({
+        title: "Attendance Rejected",
+        description: "Attendance has been rejected",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to reject attendance",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleConvertToTeam = (project: ProjectRequest) => {
     const teamData = {
       name: project.projectTitle,
@@ -406,7 +453,7 @@ export default function AdminDashboard() {
       <h1 className="text-3xl font-bold text-slate-900">GRiP Admin Dashboard</h1>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="overview">
             <BarChart3 className="w-4 h-4 mr-2" />
             Overview
@@ -426,6 +473,10 @@ export default function AdminDashboard() {
           <TabsTrigger value="projects">
             <Wand2 className="w-4 h-4 mr-2" />
             Projects
+          </TabsTrigger>
+          <TabsTrigger value="events">
+            <CalendarX className="w-4 h-4 mr-2" />
+            Events
           </TabsTrigger>
           <TabsTrigger value="settings">
             <Settings className="w-4 h-4 mr-2" />
@@ -1126,6 +1177,172 @@ export default function AdminDashboard() {
                     No project requests submitted yet.
                   </div>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Events Tab */}
+        <TabsContent value="events" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Active Events */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Active Events</CardTitle>
+                <CardDescription>Manage current events</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {events.filter(event => event.isActive).map((event) => (
+                    <Card key={event.id} className="p-3">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <h4 className="font-medium">{event.title}</h4>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {new Date(event.eventDate).toLocaleString()}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {event.location} • {event.points} points
+                          </p>
+                          {event.description && (
+                            <p className="text-xs text-gray-500 mt-1">{event.description}</p>
+                          )}
+                        </div>
+                        <Badge variant="default">{event.points} pts</Badge>
+                      </div>
+                    </Card>
+                  ))}
+                  {events.filter(event => event.isActive).length === 0 && (
+                    <p className="text-center text-gray-500 py-4">No active events</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Event Attendance Submissions */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Attendance Submissions</CardTitle>
+                <CardDescription>Review and approve event attendance</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {eventAttendance.filter(attendance => attendance.status === 'pending').map((attendance) => (
+                    <Card key={attendance.id} className="p-3">
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-medium">{attendance.fullName}</h4>
+                            <p className="text-sm text-gray-600">UFID: {attendance.ufid}</p>
+                            <p className="text-sm text-gray-500">
+                              Event: {attendance.event?.title || 'Unknown Event'}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Submitted: {new Date(attendance.submittedAt).toLocaleString()}
+                            </p>
+                          </div>
+                          <Badge variant="outline">{attendance.event?.points || 0} pts</Badge>
+                        </div>
+
+                        {attendance.photo && (
+                          <div>
+                            <img
+                              src={attendance.photo}
+                              alt="Event photo"
+                              className="w-20 h-20 object-cover rounded border"
+                            />
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className={attendance.socialMediaPermission ? "text-green-600" : "text-gray-500"}>
+                            Social Media: {attendance.socialMediaPermission ? "Allowed" : "Not Allowed"}
+                          </span>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => approveAttendanceMutation.mutate(attendance.id)}
+                            disabled={approveAttendanceMutation.isPending}
+                          >
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => rejectAttendanceMutation.mutate(attendance.id)}
+                          >
+                            <X className="w-4 h-4 mr-1" />
+                            Reject
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                  {eventAttendance.filter(attendance => attendance.status === 'pending').length === 0 && (
+                    <p className="text-center text-gray-500 py-4">No pending submissions</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* All Attendance Records */}
+          <Card>
+            <CardHeader>
+              <CardTitle>All Attendance Records</CardTitle>
+              <CardDescription>Complete history of event attendance</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>UFID</TableHead>
+                      <TableHead>Event</TableHead>
+                      <TableHead>Points</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Social Media</TableHead>
+                      <TableHead>Submitted</TableHead>
+                      <TableHead>Photo</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {eventAttendance.map((attendance) => (
+                      <TableRow key={attendance.id}>
+                        <TableCell className="font-medium">{attendance.fullName}</TableCell>
+                        <TableCell>{attendance.ufid}</TableCell>
+                        <TableCell>{attendance.event?.title || 'Unknown'}</TableCell>
+                        <TableCell>{attendance.event?.points || 0}</TableCell>
+                        <TableCell>
+                          <Badge variant={
+                            attendance.status === 'approved' ? 'default' :
+                            attendance.status === 'rejected' ? 'destructive' : 'secondary'
+                          }>
+                            {attendance.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {attendance.socialMediaPermission ? "✅" : "❌"}
+                        </TableCell>
+                        <TableCell>{new Date(attendance.submittedAt).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          {attendance.photo && (
+                            <img
+                              src={attendance.photo}
+                              alt="Event"
+                              className="w-8 h-8 object-cover rounded cursor-pointer"
+                              onClick={() => window.open(attendance.photo, '_blank')}
+                            />
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
           </Card>

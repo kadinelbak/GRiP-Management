@@ -4,11 +4,13 @@ import MemberForm from "@/components/member-form";
 import ProjectRequestForm from "@/components/project-request-form";
 import AdminDashboard from "@/components/admin-dashboard";
 import TeamCreationForm from "@/components/team-creation-form";
+import EventCreationForm from "@/components/event-creation-form";
+import EventAttendanceForm from "@/components/event-attendance-form";
 import { Button } from "@/components/ui/button";
-import { UserPlus, Users, Lightbulb, Settings, Plus } from "lucide-react";
+import { UserPlus, Users, Lightbulb, Settings, Plus, CalendarDays, Camera } from "lucide-react";
 import { Link } from "wouter";
 
-type TabType = "member" | "project" | "admin" | "team";
+type TabType = "member" | "project" | "admin" | "team" | "create-event" | "event-attendance";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>("member");
@@ -16,6 +18,8 @@ export default function Home() {
   const tabs = [
     { id: "member" as TabType, label: "Join Team", icon: UserPlus },
     { id: "project" as TabType, label: "Project Request", icon: Lightbulb },
+    { id: "create-event" as TabType, label: "Create Event", icon: CalendarDays },
+    { id: "event-attendance" as TabType, label: "Event Attendance", icon: Camera },
     { id: "admin" as TabType, label: "Admin", icon: Settings },
     { id: "team" as TabType, label: "Create Team", icon: Plus },
   ];
@@ -27,7 +31,7 @@ export default function Home() {
       {/* Navigation Tabs */}
       <nav className="bg-white shadow-sm border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-1 overflow-x-auto scrollbar-hide">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-1 overflow-x-auto scrollbar-hide">
             {tabs.map(({ id, label, icon: Icon }) => (
               <Button
                 key={id}
@@ -49,6 +53,8 @@ export default function Home() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {activeTab === "member" && <MemberForm />}
         {activeTab === "project" && <ProjectRequestForm />}
+        {activeTab === "create-event" && <EventCreationForm />}
+        {activeTab === "event-attendance" && <EventAttendanceForm />}
         {activeTab === "admin" && <AdminDashboard />}
         {activeTab === "team" && <TeamCreationForm />}
       </main>
