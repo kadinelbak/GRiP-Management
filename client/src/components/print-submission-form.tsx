@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { insertPrintSubmissionSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -26,10 +26,31 @@ const requestTypes = [
   { value: "other", label: "Other" }
 ];
 
+const colorOptions = [
+  { value: "red", label: "Red" },
+  { value: "blue", label: "Blue" },
+  { value: "green", label: "Green" },
+  { value: "yellow", label: "Yellow" },
+  { value: "orange", label: "Orange" },
+  { value: "purple", label: "Purple" },
+  { value: "black", label: "Black" },
+  { value: "white", label: "White" },
+  { value: "gray", label: "Gray" },
+  { value: "pink", label: "Pink" },
+  { value: "brown", label: "Brown" },
+  { value: "clear", label: "Clear/Transparent" },
+  { value: "other", label: "Other" }
+];
+
 export default function PrintSubmissionForm() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+
+  // Fetch technical teams for dropdown
+  const { data: technicalTeams = [] } = useQuery({
+    queryKey: ["/api/teams/type/technical"],
+  });
 
   const form = useForm<PrintSubmissionData>({
     resolver: zodResolver(insertPrintSubmissionSchema),
@@ -38,6 +59,7 @@ export default function PrintSubmissionForm() {
       emailAddress: "",
       requestType: "",
       teamName: "",
+      color: "",
       generalPrintDescription: "",
       fileSpecifications: "",
       comments: "",
@@ -202,15 +224,51 @@ export default function PrintSubmissionForm() {
                     name="teamName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Team Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} value={field.value || ""} placeholder="Optional team name" />
-                        </FormControl>
+                        <FormLabel>Team</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select your team (optional)" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {technicalTeams.map((team: any) => (
+                              <SelectItem key={team.id} value={team.name}>
+                                {team.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage className="text-red-600" />
                       </FormItem>
                     )}
                   />
                 </div>
+
+                <FormField
+                  control={form.control}
+                  name="color"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Preferred Color</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select preferred print color" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {colorOptions.map((color) => (
+                            <SelectItem key={color.value} value={color.value}>
+                              {color.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage className="text-red-600" />
+                    </FormItem>
+                  )}
+                />
               </div>
 
               {/* File Upload */}

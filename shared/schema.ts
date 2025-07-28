@@ -242,6 +242,7 @@ export const printSubmissions = pgTable("print_submissions", {
   emailAddress: text("email_address").notNull(),
   requestType: text("request_type").notNull(), // "Adaptive Gaming", "Test", etc.
   teamName: text("team_name"),
+  color: text("color"), // Preferred print color
   uploadFiles: text("upload_files"), // JSON array of file paths
   generalPrintDescription: text("general_print_description"),
   fileSpecifications: text("file_specifications"),
@@ -267,6 +268,7 @@ export const insertPrintSubmissionSchema = createInsertSchema(printSubmissions).
   emailAddress: z.string().email("Valid email address is required"),
   requestType: z.string().min(1, "Request type is required"),
   teamName: z.string().optional(),
+  color: z.string().optional(),
   uploadFiles: z.string().optional(),
   generalPrintDescription: z.string().optional(),
   fileSpecifications: z.string().optional(),
