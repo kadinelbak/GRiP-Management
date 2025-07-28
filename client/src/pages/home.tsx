@@ -34,7 +34,7 @@ import {
 
 type TabType = "home" | "member" | "project" | "admin" | "team" | "create-event" | "event-attendance" | "print-submission" | "special-role";
 
-function HomePage() {
+function LandingPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="text-center mb-12">
@@ -229,7 +229,7 @@ export default function Home() {
 
       {/* Tab Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {activeTab === "home" && <HomePage />}
+        {activeTab === "home" && <LandingPage />}
         {activeTab === "member" && <MemberForm />}
         {activeTab === "project" && <ProjectRequestForm />}
         {activeTab === "special-role" && <SpecialRoleForm />}
