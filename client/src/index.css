@@ -155,6 +155,97 @@
   border-bottom-color: var(--grip-primary);
 }
 
+/* Ensure all picker components have solid backgrounds */
+.react-day-picker {
+  background-color: white !important;
+}
+
+.react-day-picker .rdp-day_picker {
+  background-color: white !important;
+}
+
+[data-radix-calendar-root] {
+  background-color: white !important;
+}
+
+[data-radix-popover-content] {
+  background-color: white !important;
+}
+
+[data-radix-select-content] {
+  background-color: white !important;
+}
+
+[data-radix-select-viewport] {
+  background-color: white !important;
+}
+
+[data-radix-select-item] {
+  background-color: white !important;
+}
+
+[data-radix-select-item]:hover {
+  background-color: hsl(210, 40%, 98%) !important;
+}
+
+[data-radix-dropdown-menu-content] {
+  background-color: white !important;
+}
+
+[data-radix-dropdown-menu-item] {
+  background-color: white !important;
+}
+
+[data-radix-dropdown-menu-item]:hover {
+  background-color: hsl(210, 40%, 98%) !important;
+}
+
+/* Calendar picker specific styles */
+.rdp {
+  background-color: white !important;
+}
+
+.rdp-months {
+  background-color: white !important;
+}
+
+.rdp-month {
+  background-color: white !important;
+}
+
+.rdp-table {
+  background-color: white !important;
+}
+
+.rdp-head {
+  background-color: white !important;
+}
+
+.rdp-tbody {
+  background-color: white !important;
+}
+
+.rdp-day {
+  background-color: white !important;
+}
+
+.rdp-day:hover {
+  background-color: hsl(210, 40%, 98%) !important;
+}
+
+/* Time picker styles */
+.time-picker-content {
+  background-color: white !important;
+}
+
+.time-picker-item {
+  background-color: white !important;
+}
+
+.time-picker-item:hover {
+  background-color: hsl(210, 40%, 98%) !important;
+}
+
 .admin-tab-button {
   color: hsl(100, 5%, 46%);
   border-bottom: 2px solid transparent;
