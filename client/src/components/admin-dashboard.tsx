@@ -537,7 +537,7 @@ function PrintManagementSection() {
           <CardDescription>Manage and track all 3D print requests</CardDescription>
         </CardHeader>
         <CardContent>
-          {!printSubmissions || printSubmissions.length === 0 ? (
+          {!printSubmissions || (Array.isArray(printSubmissions) && printSubmissions.length === 0) ? (
             <p className="text-slate-500 text-center py-8">No print submissions found</p>
           ) : (
             <div className="overflow-x-auto">
@@ -555,7 +555,7 @@ function PrintManagementSection() {
                   </tr>
                 </thead>
                 <tbody>
-                  {printSubmissions.map((submission) => (
+                  {(Array.isArray(printSubmissions) ? printSubmissions : []).map((submission: any) => (
                     <tr key={submission.id} className="border-b border-slate-100 hover:bg-slate-50">
                       <td className="p-3">
                         {new Date(submission.submittedAt).toLocaleDateString()}
@@ -1323,7 +1323,7 @@ function AbsenceManagementSection() {
                   <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto bg-white">
                     <DialogHeader>
                       <DialogTitle>Member Details - {selectedMember.fullName}</DialogTitle>
-					  <DialogDescription>View details about the selected member</DialogDescription>
+                                          <DialogDescription>View details about the selected member</DialogDescription>
                     </DialogHeader>
 
                     <div className="space-y-6">
@@ -1489,18 +1489,24 @@ function AbsenceManagementSection() {
                       </div>
 
                       {/* Time Availability */}
-                      {selectedMember.timeAvailability && selectedMember.timeAvailability.length > 0 && (
+                      {selectedMember.timeAvailability && (
                         <div>
                           <h3 className="font-semibold text-slate-900 mb-3">Time Availability</h3>
                           <div className="bg-slate-50 p-3 rounded border">
                             <div className="text-xs text-slate-600 mb-2">Available time slots:</div>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                              {selectedMember.timeAvailability.map((slot, index) => (
-                                <div key={index} className="bg-white px-2 py-1 rounded border text-center">
-                                  {slot.day}: {slot.startTime} - {slot.endTime}
-                                </div>
-                              ))}
-                            </div>
+                            {Array.isArray(selectedMember.timeAvailability) && selectedMember.timeAvailability.length > 0 ? (
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                                {selectedMember.timeAvailability.map((slot: any, index: number) => (
+                                  <div key={index} className="bg-white px-2 py-1 rounded border text-center">
+                                    {typeof slot === 'object' && slot.day && slot.startTime && slot.endTime ? 
+                                      `${slot.day}: ${slot.startTime} - ${slot.endTime}` : 
+                                      'Available'}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-sm text-slate-600">No specific time slots available</div>
+                            )}
                           </div>
                         </div>
                       )}
