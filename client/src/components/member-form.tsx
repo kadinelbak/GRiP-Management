@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { insertApplicationSchema } from "@shared/schema";
+import { insertApplicationSchema, insertAdditionalTeamSignupSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { NotebookPen, Info, Plus, Trash2, ArrowUp, ArrowDown } from "lucide-react";
+import { NotebookPen, Info, Plus, Trash2, ArrowUp, ArrowDown, Clock } from "lucide-react";
 import type { z } from "zod";
 import type { Team } from "@shared/schema";
 
@@ -26,6 +26,27 @@ const skillOptions = [
   "Research",
   "CAD Design",
   "Game Development",
+];
+
+const additionalTeams = [
+  {
+    id: "marketing",
+    name: "Marketing Team",
+    description: "Help promote GRiP events, manage social media, and create marketing materials.",
+    meetingTime: "Wednesdays 6:00 PM - 7:30 PM",
+  },
+  {
+    id: "outreach",
+    name: "Outreach Team", 
+    description: "Organize community events, school visits, and educational workshops.",
+    meetingTime: "Fridays 4:00 PM - 5:30 PM",
+  },
+  {
+    id: "art",
+    name: "Art Team",
+    description: "Design graphics, create visual content, and work on artistic elements of prosthetics.",
+    meetingTime: "Tuesdays 7:00 PM - 8:30 PM",
+  },
 ];
 
 const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -54,6 +75,7 @@ export default function MemberForm() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{day: string, time: string} | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [selectedAdditionalTeams, setSelectedAdditionalTeams] = useState<string[]>([]);
 
   const form = useForm<ApplicationFormData>({
     resolver: zodResolver(insertApplicationSchema),
@@ -80,20 +102,38 @@ export default function MemberForm() {
   });
 
   const submitMutation = useMutation({
-    mutationFn: (data: ApplicationFormData) => {
-      return apiRequest("POST", "/api/applications", data);
+    mutationFn: async (data: ApplicationFormData) => {
+      // Submit technical team application
+      const applicationResponse = await apiRequest("POST", "/api/applications", data);
+      
+      // Submit additional teams signup if any teams are selected
+      if (selectedAdditionalTeams.length > 0) {
+        const additionalTeamData = {
+          fullName: data.fullName,
+          email: data.email,
+          ufid: data.ufid,
+          selectedTeams: selectedAdditionalTeams,
+        };
+        await apiRequest("POST", "/api/additional-signups", additionalTeamData);
+      }
+      
+      return applicationResponse;
     },
     onSuccess: () => {
       setIsSubmitted(true);
       toast({
         title: "Application Submitted!",
-        description: "Your application has been submitted successfully. You will receive a confirmation email shortly.",
+        description: selectedAdditionalTeams.length > 0 
+          ? "Your technical team application and additional team signups have been submitted successfully!"
+          : "Your application has been submitted successfully. You will receive a confirmation email shortly.",
       });
       form.reset();
       setSelectedSkills([]);
       setTimeAvailability({});
       setTeamPreferences([]);
+      setSelectedAdditionalTeams([]);
       queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/additional-signups"] });
     },
     onError: (error: any) => {
       toast({
@@ -250,10 +290,11 @@ export default function MemberForm() {
                 What happens next?
               </h3>
               <ul className="text-sm text-green-700 space-y-2 text-left max-w-md mx-auto">
-                <li>• Your application will be reviewed by our team</li>
+                <li>• Your technical team application will be reviewed by our team</li>
                 <li>• You'll receive a confirmation email shortly</li>
-                <li>• Team assignments will be made on a first-come, first-serve basis</li>
+                <li>• Technical team assignments will be made on a first-come, first-serve basis</li>
                 <li>• You'll be notified about your team assignment soon</li>
+                <li>• Any additional teams you selected will be processed automatically</li>
                 <li>• Remember to join the GRiP Slack workspace</li>
               </ul>
             </div>
@@ -278,10 +319,10 @@ export default function MemberForm() {
       <Card className="shadow-sm border border-slate-200">
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-slate-900">
-            Join a Technical Division Team
+            Join GRiP Teams
           </CardTitle>
           <CardDescription>
-            Complete this form to join one of our technical division teams for Spring 2025.
+            Complete this form to join a technical division team and optionally additional teams for Spring 2025.
           </CardDescription>
           <div className="mt-4 p-4 bg-blue-50 rounded-lg">
             <p className="text-sm text-blue-800 flex items-center">
@@ -552,6 +593,53 @@ export default function MemberForm() {
                 <div className="text-xs text-slate-500">
                   Selected {Object.values(timeAvailability).filter(Boolean).length} time slots
                 </div>
+              </div>
+
+              {/* Additional Teams */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-slate-900 border-b border-slate-200 pb-2">
+                  Additional Teams (Optional)
+                </h3>
+                <p className="text-sm text-slate-600">
+                  You can also join additional non-technical teams. These are in addition to your technical team assignment.
+                </p>
+                
+                <div className="space-y-4">
+                  {additionalTeams.map((team) => (
+                    <div key={team.id} className="border border-slate-200 rounded-lg p-4">
+                      <label className="flex items-start space-x-3 cursor-pointer">
+                        <Checkbox
+                          checked={selectedAdditionalTeams.includes(team.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedAdditionalTeams([...selectedAdditionalTeams, team.id]);
+                            } else {
+                              setSelectedAdditionalTeams(selectedAdditionalTeams.filter(t => t !== team.id));
+                            }
+                          }}
+                          className="mt-1"
+                        />
+                        <div>
+                          <span className="font-medium text-slate-900">{team.name}</span>
+                          <p className="text-sm text-slate-600 mt-1">{team.description}</p>
+                          <p className="text-xs text-slate-500 mt-2 flex items-center">
+                            <Clock className="w-3 h-3 mr-1" />
+                            Meets: {team.meetingTime}
+                          </p>
+                        </div>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                
+                {selectedAdditionalTeams.length > 0 && (
+                  <div className="text-sm text-blue-600 bg-blue-50 p-3 rounded-lg">
+                    Selected additional teams: {selectedAdditionalTeams.map(teamId => {
+                      const team = additionalTeams.find(t => t.id === teamId);
+                      return team?.name;
+                    }).join(', ')}
+                  </div>
+                )}
               </div>
 
               {/* Required Acknowledgments */}
