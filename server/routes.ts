@@ -373,11 +373,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Use the storage service method instead of direct db access
       const result = await storage.assignTeamsAutomatically();
-      
+
       // Generate filename with timestamp
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const filename = `grip-team-assignment-log-${timestamp}.txt`;
-      
+
       res.json({ 
         success: true, 
         assignments: result.assignments,
@@ -385,7 +385,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logFileName: filename,
         message: `Assignment completed successfully`
       });
-      
+
     } catch (error) {
       console.error("Assignment error:", error);
       res.status(500).json({ error: "Failed to assign teams" });
@@ -395,11 +395,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/download-assignment-log", async (req, res) => {
     try {
       const { content, filename } = req.query;
-      
+
       if (!content || !filename) {
         return res.status(400).json({ error: "Missing content or filename" });
       }
-      
+
       res.setHeader('Content-Type', 'text/plain');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       res.send(decodeURIComponent(content as string));
@@ -735,11 +735,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/print-submissions", async (req, res) => {
     try {
       console.log("Received print submission data:", req.body);
-      
+
       // Validate and transform the data
       const submissionData = insertPrintSubmissionSchema.parse(req.body);
       console.log("Validated submission data:", submissionData);
-      
+
       const submission = await storage.createPrintSubmission(submissionData);
       res.status(201).json(submission);
     } catch (error) {
@@ -764,23 +764,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Download files endpoint
   app.get("/api/print-submissions/:id/download", async (req, res) => {
     try {
       const { id } = req.params;
+
       const submission = await storage.getPrintSubmissionById(id);
-      
+
       if (!submission) {
         return res.status(404).json({ message: "Submission not found" });
       }
 
       const filePaths = submission.uploadFiles ? JSON.parse(submission.uploadFiles) : [];
-      
+
       if (filePaths.length === 0) {
         return res.status(404).json({ message: "No files found for this submission" });
       }
 
-      const archiver = require('archiver');
-      const archive = archiver('zip', { zlib: { level: 9 } });
+      // Import required modules
+      const { default: archiver } = await import('archiver');
+      const fs = await import('fs');
+      const path = await import('path');
+
+      const archive = archiver('zip', {
+        zlib: { level: 9 } // Sets the compression level.
+      });
 
       res.setHeader('Content-Type', 'application/zip');
       res.setHeader('Content-Disposition', `attachment; filename="print-submission-${id}-files.zip"`);
@@ -788,13 +796,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       archive.pipe(res);
 
       // Add each file to the archive
-      filePaths.forEach((filePath: string, index: number) => {
-        const path = require('path');
-        const fileName = path.basename(filePath);
-        archive.file(filePath, { name: fileName });
-      });
+      for (const filePath of filePaths) {
+        try {
+          if (fs.existsSync(filePath)) {
+            const fileName = path.basename(filePath);
+            archive.file(filePath, { name: fileName });
+          }
+        } catch (fileError) {
+          console.error(`Error adding file ${filePath} to archive:`, fileError);
+        }
+      }
 
-      await archive.finalize();
+      archive.finalize();
     } catch (error) {
       console.error("Download error:", error);
       res.status(500).json({ message: "Failed to download files" });
