@@ -338,13 +338,14 @@ export default function AdminDashboard() {
     }
   };
 
-  // Filter applications based on search and status
+  // Filter applications based on search and status, excluding assigned members
   const filteredApplications = applications.filter(app => {
     const matchesSearch = app.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          app.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          app.ufid.includes(searchTerm);
     const matchesStatus = statusFilter === "all" || app.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const isNotAssigned = app.status !== "assigned"; // Exclude assigned members from submissions
+    return matchesSearch && matchesStatus && isNotAssigned;
   });
 
   // Filter members based on search
@@ -729,8 +730,8 @@ export default function AdminDashboard() {
                   <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="assigned">Assigned</SelectItem>
                     <SelectItem value="waitlisted">Waitlisted</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
