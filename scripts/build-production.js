@@ -65,6 +65,14 @@ export default {
     
     // Write the main vite config file
     await fs.writeFile('dist/vite.config.js', prodConfig);
+// Also create extensionless version for compatibility
+await fs.writeFile('dist/vite.config', prodConfig);
+
+// Create dist/package.json with "type": "module" to enable ES module imports
+const distPackageJson = {
+  "type": "module"
+};
+await fs.writeFile('dist/package.json', JSON.stringify(distPackageJson, null, 2));
     
     // Create an import map for extensionless imports by modifying the compiled server file
     const serverVitePath = path.join('dist', 'server', 'vite.js');
