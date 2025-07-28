@@ -865,10 +865,17 @@ export default function AdminDashboard() {
                           <div>Submitted: {new Date(application.submittedAt).toLocaleDateString()}</div>
 
                           {application.teamPreferences && application.teamPreferences.length > 0 && (
-                            <div>
-                              TeamPreferences: {application.teamPreferences.map(teamId => getTeamName(teamId)).join(", ")}
+                            <div className="mt-2">
+                              <span className="text-xs font-medium text-gray-700">Team Preferences:</span>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {application.teamPreferences.map((teamId, index) => (
+                                  <Badge key={teamId} variant="outline" className="text-xs bg-blue-50 border-blue-200 text-blue-800">
+                                    #{index + 1} {getTeamName(teamId)}
+                                  </Badge>
+                                ))}
+                              </div>
                             </div>
-                          )}
+                          )}</div>
                         </div>
                       </div>
 
