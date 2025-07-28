@@ -79,69 +79,6 @@ export default function AdminDashboard() {
     queryKey: ["/api/additional-signups"],
   });
 
-  // Initialize permanent teams
-  const initializePermanentTeams = async () => {
-    const permanentTeams = [
-      {
-        name: "Marketing Team",
-        type: "constant",
-        maxCapacity: 15,
-        meetingTime: "Wednesdays 6:00 PM - 7:30 PM",
-        location: "Reitz Union Room 2350",
-        description: "Social media management, branding, promotional materials, and event marketing"
-      },
-      {
-        name: "Outreach Team", 
-        type: "constant",
-        maxCapacity: 15,
-        meetingTime: "Fridays 4:00 PM - 5:30 PM",
-        location: "Reitz Union Room 2360",
-        description: "Community outreach, school visits, educational workshops, and public engagement"
-      },
-      {
-        name: "Art Team",
-        type: "constant", 
-        maxCapacity: 15,
-        meetingTime: "Tuesdays 7:00 PM - 8:30 PM",
-        location: "Fine Arts Building Room C105",
-        description: "Graphic design, visual content creation, and artistic elements for prosthetics"
-      },
-      {
-        name: "Events Team",
-        type: "constant",
-        maxCapacity: 15,
-        meetingTime: "Thursdays 6:30 PM - 8:00 PM",
-        location: "Reitz Union Room 2370",
-        description: "Social events planning, meeting coordination, and special activities organization"
-      },
-      {
-        name: "3D Printing Team",
-        type: "constant",
-        maxCapacity: 15,
-        meetingTime: "Mondays 5:00 PM - 6:30 PM",
-        location: "MAE-A Building Room 312",
-        description: "3D printer operation, maintenance, training, and printing support for all teams"
-      }
-    ];
-
-    try {
-      for (const team of permanentTeams) {
-        await apiRequest("POST", "/api/teams", team);
-      }
-      toast({
-        title: "Permanent Teams Initialized",
-        description: "Successfully created all 5 permanent teams.",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
-    } catch (error: any) {
-      toast({
-        title: "Failed to Initialize Teams",
-        description: error.message || "Failed to create permanent teams.",
-        variant: "destructive",
-      });
-    }
-  };
-
   // Mutation for creating teams
   const createTeamMutation = useMutation({
     mutationFn: (data: TeamFormData) =>
@@ -239,7 +176,8 @@ export default function AdminDashboard() {
         description: `Successfully processed ${data.assignments?.length || 0} applications. Check the assignments for details.`,
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error("Auto assignment error:", error);
       toast({
         title: "Assignment Failed",
         description: "Failed to automatically assign teams. Please try again.",
@@ -436,10 +374,6 @@ export default function AdminDashboard() {
             <Users className="w-4 h-4 mr-2" />
             Technical Teams
           </TabsTrigger>
-          <TabsTrigger value="permanent-teams">
-            <Users className="w-4 h-4 mr-2" />
-            Permanent Teams
-          </TabsTrigger>
           <TabsTrigger value="members">
             <UserCheck className="w-4 h-4 mr-2" />
             Members
@@ -569,160 +503,6 @@ export default function AdminDashboard() {
                       ) : (
                         <p className="text-sm text-gray-500 italic">No accepted members assigned</p>
                       )}
-                    </Card>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Permanent Teams Tab */}
-        <TabsContent value="permanent-teams" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Permanent Teams Management</CardTitle>
-              <CardDescription>
-                Manage the 5 permanent teams: Marketing, Outreach, Art, Events, and 3D Printing
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {teams.filter(team => team.type === "constant").map((team) => {
-                  const teamMembers = acceptedMembers.filter(member => 
-                    member.additionalTeams && Array.isArray(member.additionalTeams) && member.additionalTeams.includes(team.id)
-                  );
-                  
-                  return (
-                    <Card key={team.id} className="p-4">
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <h4 className="text-lg font-semibold">{team.name}</h4>
-                              <Badge variant="outline" className="text-sm">
-                                {teamMembers.length}/{team.maxCapacity} members
-                              </Badge>
-                              <Badge variant={teamMembers.length >= team.maxCapacity ? "destructive" : "default"}>
-                                {teamMembers.length >= team.maxCapacity ? "Full" : "Open"}
-                              </Badge>
-                            </div>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
-                              <div>
-                                <strong>Meeting Time:</strong> {team.meetingTime || "TBD"}
-                              </div>
-                              <div>
-                                <strong>Location:</strong> {team.location || "TBD"}
-                              </div>
-                              <div className="md:col-span-2">
-                                <strong>Description:</strong> {team.description}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Team Members Section */}
-                        <div className="border-t pt-4">
-                          <h5 className="font-medium mb-3">Current Members</h5>
-                          {teamMembers.length > 0 ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                              {teamMembers.map((member) => (
-                                <div key={member.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                                  <div className="flex-1">
-                                    <div className="font-medium text-sm">{member.fullName}</div>
-                                    <div className="text-xs text-gray-500">{member.email}</div>
-                                  </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => {
-                                      if (confirm(`Remove ${member.fullName} from ${team.name}?`)) {
-                                        // Remove team from member's additionalTeams array
-                                        const updatedAdditionalTeams = member.additionalTeams 
-                                          ? (member.additionalTeams as string[]).filter(teamId => teamId !== team.id)
-                                          : [];
-                                        updateApplicationMutation.mutate({ 
-                                          id: member.id, 
-                                          updates: { additionalTeams: updatedAdditionalTeams } 
-                                        });
-                                      }
-                                    }}
-                                    className="text-red-600 hover:text-red-700"
-                                  >
-                                    <UserMinus className="w-4 h-4" />
-                                  </Button>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-sm text-gray-500 italic">No members assigned to this team</p>
-                          )}
-                        </div>
-
-                        {/* Team Statistics */}
-                        <div className="border-t pt-4">
-                          <div className="grid grid-cols-3 gap-4 text-center">
-                            <div>
-                              <div className="text-2xl font-bold text-blue-600">{teamMembers.length}</div>
-                              <div className="text-xs text-gray-500">Current Members</div>
-                            </div>
-                            <div>
-                              <div className="text-2xl font-bold text-green-600">{team.maxCapacity - teamMembers.length}</div>
-                              <div className="text-xs text-gray-500">Open Spots</div>
-                            </div>
-                            <div>
-                              <div className="text-2xl font-bold text-purple-600">
-                                {Math.round((teamMembers.length / team.maxCapacity) * 100)}%
-                              </div>
-                              <div className="text-xs text-gray-500">Capacity</div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })}
-              </div>
-
-              {teams.filter(team => team.type === "constant").length === 0 && (
-                <div className="text-center py-8">
-                  <p className="text-gray-500 mb-4">No permanent teams found.</p>
-                  <Button onClick={initializePermanentTeams} variant="outline">
-                    Initialize Permanent Teams
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Permanent Teams Overview Statistics */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Permanent Teams Statistics</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                {teams.filter(team => team.type === "constant").map((team) => {
-                  const teamMembers = acceptedMembers.filter(member => 
-                    member.additionalTeams && Array.isArray(member.additionalTeams) && member.additionalTeams.includes(team.id)
-                  );
-                  const fillPercentage = Math.round((teamMembers.length / team.maxCapacity) * 100);
-                  
-                  return (
-                    <Card key={team.id} className="p-4 text-center">
-                      <h4 className="font-medium text-sm mb-2">{team.name}</h4>
-                      <div className="text-2xl font-bold mb-1">{teamMembers.length}/{team.maxCapacity}</div>
-                      <div className="text-xs text-gray-500 mb-2">{fillPercentage}% Full</div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className={`h-2 rounded-full ${
-                            fillPercentage >= 100 ? 'bg-red-500' : 
-                            fillPercentage >= 80 ? 'bg-yellow-500' : 'bg-green-500'
-                          }`}
-                          style={{ width: `${Math.min(fillPercentage, 100)}%` }}
-                        ></div>
-                      </div>
                     </Card>
                   );
                 })}
@@ -1012,68 +792,6 @@ export default function AdminDashboard() {
                     </div>
                   </Card>
                 ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Additional Teams Tab */}
-        <TabsContent value="additional" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Additional Team Signups</CardTitle>
-              <CardDescription>
-                View and manage additional team signups (non-technical teams)
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {additionalSignups?.map((signup) => (
-                  <Card key={signup.id} className="p-4">
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-start">
-                        <h4 className="font-medium">{signup.fullName}</h4>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary">
-                            {signup.selectedTeams?.length || 0} teams
-                          </Badge>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600">
-                        <div>Email: {signup.email}</div>
-                        <div>UFID: {signup.ufid}</div>
-                        <div>Submitted: {new Date(signup.submittedAt).toLocaleDateString()}</div>
-                      </div>
-
-                      {signup.selectedTeams && signup.selectedTeams.length > 0 && (
-                        <div>
-                          <p className="text-sm font-medium text-gray-700 mb-2">Selected Teams:</p>
-                          <div className="flex flex-wrap gap-2">
-                            {signup.selectedTeams.map((teamId: string, index: number) => {
-                              const teamNames: { [key: string]: string } = {
-                                'marketing': 'Marketing Team',
-                                'outreach': 'Outreach Team',
-                                'art': 'Art Team'
-                              };
-                              return (
-                                <Badge key={index} variant="outline">
-                                  {teamNames[teamId] || teamId}
-                                </Badge>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </Card>
-                  ))}
-
-                {(!additionalSignups || additionalSignups.length === 0) && (
-                  <div className="text-center py-8 text-gray-500">
-                    No additional team signups yet.
-                  </div>
-                )}
               </div>
             </CardContent>
           </Card>

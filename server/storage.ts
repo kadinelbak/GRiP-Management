@@ -265,6 +265,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async assignTeamsAutomatically(): Promise<{ assignments: Array<{ applicationId: string; studentName: string; assignedTeam: string | null; reason: string }> }> {
+    console.log(`[AUTO-ASSIGN] Starting automatic team assignment process...`);
+    
     // Get accepted unassigned members first (priority), then pending applications
     const acceptedUnassigned = await db
       .select()
@@ -277,6 +279,8 @@ export class DatabaseStorage implements IStorage {
       .from(applications)
       .where(eq(applications.status, "pending"))
       .orderBy(asc(applications.submittedAt));
+
+    console.log(`[AUTO-ASSIGN] Found ${acceptedUnassigned.length} accepted unassigned members and ${pendingApplications.length} pending applications`);
 
     // Combine with priority: accepted unassigned first, then pending
     const allApplicationsToProcess = [...acceptedUnassigned, ...pendingApplications];
@@ -291,9 +295,17 @@ export class DatabaseStorage implements IStorage {
       currentSize: team.currentSize
     }]));
 
+    console.log(`[AUTO-ASSIGN] Technical teams available for assignment:`);
+    technicalTeams.forEach(team => {
+      const capacity = teamCapacities.get(team.id);
+      console.log(`  - ${team.name}: ${capacity?.available}/${capacity?.maxCapacity} slots available`);
+    });
+
     const assignments: Array<{ applicationId: string; studentName: string; assignedTeam: string | null; reason: string }> = [];
 
     for (const application of allApplicationsToProcess) {
+      console.log(`[AUTO-ASSIGN] Processing ${application.fullName} (${application.status})`);
+      
       let assignedTeamId: string | null = null;
       let reason = "";
       const isAcceptedMember = application.status === "accepted";
@@ -301,6 +313,7 @@ export class DatabaseStorage implements IStorage {
       // Check if application has complete information
       if (!application.teamPreferences || application.teamPreferences.length === 0) {
         reason = "No team preferences provided - moved to waitlist";
+        console.log(`[AUTO-ASSIGN] ${application.fullName}: ${reason}`);
         await this.updateApplication(application.id, {
           status: "waitlisted",
           assignmentReason: reason
@@ -316,6 +329,7 @@ export class DatabaseStorage implements IStorage {
 
       if (!application.timeAvailability || application.timeAvailability.length === 0) {
         reason = "No time availability provided - moved to waitlist";
+        console.log(`[AUTO-ASSIGN] ${application.fullName}: ${reason}`);
         await this.updateApplication(application.id, {
           status: "waitlisted",
           assignmentReason: reason
@@ -335,18 +349,25 @@ export class DatabaseStorage implements IStorage {
         technicalTeams.some(team => team.id === teamId)
       );
 
+      console.log(`[AUTO-ASSIGN] ${application.fullName} preferences: ${technicalTeamPreferences.length} technical teams`);
+
       for (let i = 0; i < technicalTeamPreferences.length; i++) {
         const preferredTeamId = technicalTeamPreferences[i];
         const teamCapacity = teamCapacities.get(preferredTeamId);
 
         if (!teamCapacity) {
+          console.log(`[AUTO-ASSIGN] ${application.fullName}: Preference #${i + 1} team not found or not technical`);
           continue; // Team doesn't exist or isn't technical
         }
+
+        console.log(`[AUTO-ASSIGN] ${application.fullName}: Checking preference #${i + 1}: ${teamCapacity.name} (${teamCapacity.available} slots available)`);
 
         if (teamCapacity.available > 0) {
           assignedTeamId = preferredTeamId;
           const memberType = isAcceptedMember ? "accepted member" : "new applicant";
           reason = `${memberType} assigned to preference #${i + 1}: ${teamCapacity.name} (${teamCapacity.available} slots available)`;
+
+          console.log(`[AUTO-ASSIGN] SUCCESS: ${application.fullName} assigned to ${teamCapacity.name}`);
 
           // Update application - if they were accepted and unassigned, keep them accepted
           // If they were pending, mark as assigned
@@ -370,12 +391,17 @@ export class DatabaseStorage implements IStorage {
             currentSize: teamCapacity.currentSize + 1
           });
 
+          console.log(`[AUTO-ASSIGN] Updated ${teamCapacity.name} capacity: ${teamCapacity.available - 1}/${teamCapacity.maxCapacity} slots remaining`);
+
           // Handle additional teams - auto-assign to any additional teams they selected
           if (application.additionalTeams && application.additionalTeams.length > 0) {
+            console.log(`[AUTO-ASSIGN] Processing ${application.additionalTeams.length} additional teams for ${application.fullName}`);
             await this.assignToAdditionalTeams(application.id, application.additionalTeams);
           }
 
           break;
+        } else {
+          console.log(`[AUTO-ASSIGN] ${application.fullName}: ${teamCapacity.name} is full (${teamCapacity.currentSize}/${teamCapacity.maxCapacity})`);
         }
       }
 
@@ -385,6 +411,8 @@ export class DatabaseStorage implements IStorage {
           .map(id => teamCapacities.get(id)?.name || "Unknown")
           .join(", ");
         reason = `All preferred technical teams full: ${preferredTeamNames} - moved to waitlist`;
+
+        console.log(`[AUTO-ASSIGN] WAITLISTED: ${application.fullName} - ${reason}`);
 
         await this.updateApplication(application.id, {
           status: "waitlisted",
@@ -400,10 +428,30 @@ export class DatabaseStorage implements IStorage {
       });
     }
 
+    console.log(`[AUTO-ASSIGN] Assignment process completed!`);
+    console.log(`[AUTO-ASSIGN] Summary: ${assignments.length} applications processed`);
+    console.log(`[AUTO-ASSIGN] Assigned: ${assignments.filter(a => a.assignedTeam !== null).length}`);
+    console.log(`[AUTO-ASSIGN] Waitlisted: ${assignments.filter(a => a.assignedTeam === null).length}`);
+    
+    // Log final team capacities
+    console.log(`[AUTO-ASSIGN] Final team capacities:`);
+    Array.from(teamCapacities.entries()).forEach(([teamId, capacity]) => {
+      console.log(`  - ${capacity.name}: ${capacity.maxCapacity - capacity.available}/${capacity.maxCapacity} filled`);
+    });
+
     return { assignments };
   }
 
   private async assignToAdditionalTeams(applicationId: string, additionalTeamIds: string[]): Promise<void> {
+    console.log(`[AUTO-ASSIGN] Processing additional teams for application ${applicationId}: ${additionalTeamIds.length} teams`);
+    
+    // Get application details for signup creation
+    const application = await this.getApplicationById(applicationId);
+    if (!application) {
+      console.log(`[AUTO-ASSIGN] ERROR: Application ${applicationId} not found for additional team assignment`);
+      return;
+    }
+
     // Get constant teams for additional assignments
     const allTeams = await this.getTeams();
     const constantTeams = allTeams.filter(team => team.type === 'constant');
@@ -411,17 +459,31 @@ export class DatabaseStorage implements IStorage {
     for (const teamId of additionalTeamIds) {
       const team = constantTeams.find(t => t.id === teamId);
       if (team && team.currentSize < team.maxCapacity) {
-        // Create additional team signup record
-        await this.createAdditionalTeamSignup({
-          applicationId,
-          teamId,
-          submittedAt: new Date()
-        });
+        console.log(`[AUTO-ASSIGN] Adding ${application.fullName} to additional team: ${team.name}`);
+        
+        try {
+          // Create additional team signup record with proper fields
+          await this.createAdditionalTeamSignup({
+            fullName: application.fullName,
+            email: application.email,
+            ufid: application.ufid,
+            selectedTeams: [teamId],
+            submittedAt: new Date()
+          });
 
-        // Update team size
-        await this.updateTeam(teamId, {
-          currentSize: team.currentSize + 1
-        });
+          // Update team size
+          await this.updateTeam(teamId, {
+            currentSize: team.currentSize + 1
+          });
+          
+          console.log(`[AUTO-ASSIGN] Successfully added to ${team.name}, new size: ${team.currentSize + 1}/${team.maxCapacity}`);
+        } catch (error) {
+          console.error(`[AUTO-ASSIGN] ERROR: Failed to add ${application.fullName} to team ${team.name}:`, error);
+        }
+      } else if (team) {
+        console.log(`[AUTO-ASSIGN] Skipping additional team ${team.name} - at capacity (${team.currentSize}/${team.maxCapacity})`);
+      } else {
+        console.log(`[AUTO-ASSIGN] WARNING: Additional team ${teamId} not found or not constant type`);
       }
     }
   }
