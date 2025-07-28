@@ -1,3 +1,4 @@
+
 {
   "include": ["server/**/*", "shared/**/*"],
   "exclude": ["client/**/*", "node_modules", "dist", "**/*.test.ts", "vite.config.ts"],
@@ -21,8 +22,8 @@
     "baseUrl": ".",
     "paths": {
       "@shared/*": ["./shared/*"]
-    },
-    "types": ["node"],
-    "lib": ["ES2020"]
-  }
+    }
+  },
+  "types": ["node"],
+  "lib": ["ES2020"]
 }
