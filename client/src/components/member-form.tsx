@@ -81,16 +81,6 @@ export default function MemberForm() {
 
   const submitMutation = useMutation({
     mutationFn: (data: ApplicationFormData) => {
-      // Check for duplicates by email and UFID only
-      const isDuplicate = existingApplications.some((app: any) => 
-        app.email.toLowerCase() === data.email.toLowerCase() || 
-        app.ufid === data.ufid
-      );
-
-      if (isDuplicate) {
-        throw new Error("An application with this email address or UFID already exists.");
-      }
-
       return apiRequest("POST", "/api/applications", data);
     },
     onSuccess: () => {
