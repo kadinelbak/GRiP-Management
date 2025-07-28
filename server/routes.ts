@@ -367,26 +367,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Team Assignment API
+  // Team Assignment API - Uses the improved database storage assignment method
   app.post("/api/admin/assign-teams", async (_req, res) => {
     try {
-      const applications = await storage.getApplications();
-      const teams = await storage.getTeams();
-      const technicalTeams = teams.filter(team => team.type === 'technical');
-      
-      const report = performTeamAssignment(applications, technicalTeams);
-      
-      // Update applications with assignments
-      for (const assignment of report.assignments) {
-        await storage.updateApplication(assignment.applicationId, {
-          assignedTeamId: assignment.assignedTeamId,
-          status: assignment.status,
-          assignmentReason: assignment.reasoning
-        });
-      }
-      
-      res.json(report);
+      const result = await storage.assignTeamsAutomatically();
+      res.json(result);
     } catch (error) {
+      console.error("Failed to perform team assignments:", error);
       res.status(500).json({ message: "Failed to perform team assignments" });
     }
   });

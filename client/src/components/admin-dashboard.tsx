@@ -159,6 +159,28 @@ export default function AdminDashboard() {
     },
   });
 
+  const autoAssignMutation = useMutation({
+    mutationFn: () => apiRequest("/api/admin/assign-teams", { method: "POST" }),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/accepted-members"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      
+      toast({
+        title: "Auto Assignment Complete",
+        description: `Successfully processed ${data.assignments?.length || 0} applications. Check the assignments for details.`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Assignment Failed",
+        description: "Failed to automatically assign teams. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: TeamFormData) => {
     createTeamMutation.mutate(data);
   };
@@ -185,6 +207,12 @@ export default function AdminDashboard() {
 
   const handleExportApplications = () => {
     window.open("/api/export/applications", "_blank");
+  };
+
+  const handleAutoAssignTeams = () => {
+    if (confirm("This will automatically assign teams based on preferences and submission time. Continue?")) {
+      autoAssignMutation.mutate();
+    }
   };
 
   // Filter applications based on search and status
@@ -575,6 +603,15 @@ export default function AdminDashboard() {
             <CardHeader className="flex flex-row justify-between items-center">
               <CardTitle>Application Submissions</CardTitle>
               <div className="flex gap-2">
+                <Button 
+                  onClick={handleAutoAssignTeams} 
+                  variant="default" 
+                  size="sm"
+                  disabled={autoAssignMutation.isPending}
+                >
+                  <Wand2 className="w-4 h-4 mr-2" />
+                  {autoAssignMutation.isPending ? "Assigning..." : "Auto Assign Teams"}
+                </Button>
                 <Button onClick={handleExportApplications} variant="outline" size="sm">
                   <Download className="w-4 h-4 mr-2" />
                   Export CSV
