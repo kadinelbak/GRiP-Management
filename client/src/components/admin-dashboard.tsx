@@ -976,23 +976,23 @@ function AbsenceManagementSection() {
                             </div>
 
                             <div className="text-sm text-gray-600 space-y-1">
-                              <div>{application.email} | UFID: {application.ufid}</div>
-                              <div>Assigned Team: {getTeamName(application.assignedTeamId)}</div>
-                              <div>Submitted: {new Date(application.submittedAt).toLocaleDateString()}</div>
+                                <div>{application.email} | UFID: {application.ufid}</div>
+                                <div>Assigned Team: {getTeamName(application.assignedTeamId)}</div>
+                                <div>Submitted: {new Date(application.submittedAt).toLocaleDateString()}</div>
 
-                              {application.teamPreferences && application.teamPreferences.length > 0 && (
-                                <div className="mt-2">
-                                  <span className="text-xs font-medium text-gray-700">Team Preferences:</span>
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    {application.teamPreferences.map((teamId, index) => (
-                                      <Badge key={teamId} variant="outline" className="text-xs bg-blue-50 border-blue-200 text-blue-800">
-                                        #{index + 1} {getTeamName(teamId)}
-                                      </Badge>
-                                    ))}
+                                {application.teamPreferences && application.teamPreferences.length > 0 && (
+                                  <div className="mt-2">
+                                    <div className="text-xs font-medium text-gray-700 mb-1">Team Preferences:</div>
+                                    <div className="flex flex-wrap gap-1">
+                                      {application.teamPreferences.map((teamId, index) => (
+                                        <Badge key={teamId} variant="outline" className="text-xs bg-blue-50 border-blue-200 text-blue-800">
+                                          #{index + 1} {getTeamName(teamId)}
+                                        </Badge>
+                                      ))}
+                                    </div>
                                   </div>
-                                </div>
-                              )}
-                            </div>
+                                )}
+                              </div>
                           </div>
 
                           <div className="flex gap-2">
