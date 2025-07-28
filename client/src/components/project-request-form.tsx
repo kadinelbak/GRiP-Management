@@ -143,7 +143,7 @@ export default function ProjectRequestForm() {
                     <FormItem>
                       <FormLabel>Phone Number</FormLabel>
                       <FormControl>
-                        <Input {...field} type="tel" placeholder="(555) 123-4567" />
+                        <Input {...field} value={field.value || ""} type="tel" placeholder="(555) 123-4567" />
                       </FormControl>
                       <FormMessage className="text-red-600" />
                     </FormItem>
@@ -157,7 +157,7 @@ export default function ProjectRequestForm() {
                     <FormItem>
                       <FormLabel>Address</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="Your address (optional)" />
+                        <Input {...field} value={field.value || ""} placeholder="Your address (optional)" />
                       </FormControl>
                       <FormMessage className="text-red-600" />
                     </FormItem>
@@ -262,6 +262,7 @@ export default function ProjectRequestForm() {
                       <FormControl>
                         <Textarea 
                           {...field} 
+                          value={field.value || ""}
                           rows={3} 
                           placeholder="Any budget constraints or funding information we should know about?"
                         />
@@ -284,7 +285,7 @@ export default function ProjectRequestForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>How did you hear about GRiP?</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select an option" />

@@ -139,7 +139,6 @@ export const insertProjectRequestSchema = createInsertSchema(projectRequests).om
   id: true,
   status: true,
   submittedAt: true,
-  responsiblePerson: true, // This will be set when status changes to 'reaching_out'
 });
 
 export const insertAdminSettingSchema = createInsertSchema(adminSettings).omit({

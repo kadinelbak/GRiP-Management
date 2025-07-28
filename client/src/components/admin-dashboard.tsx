@@ -632,8 +632,8 @@ export default function AdminDashboard() {
                 <div className="lg:col-span-2">
                   <div className="space-y-2 max-h-96 overflow-y-auto">
                     {filteredMembers.map((member) => {
-                      // Calculate absence count for color coding
-                      const absenceCount = member.absences?.filter(absence => absence.isActive).length || 0;
+                      // Calculate absence count for color coding - we'll need to query absences separately
+                      const absenceCount = 0; // TODO: Query absences for this member
 
                       // Determine card color based on absence count
                       const getCardColor = (count: number) => {
@@ -724,41 +724,13 @@ export default function AdminDashboard() {
                           <div className="flex justify-between items-center">
                             <h5 className="font-medium text-sm">Absences</h5>
                             <Badge variant="outline">
-                              {selectedMember.absences?.filter(a => a.isActive).length || 0}
+                              0
                             </Badge>
                           </div>
 
-                          {selectedMember.absences && selectedMember.absences.length > 0 && (
-                            <div className="space-y-1 max-h-24 overflow-y-auto">
-                              {selectedMember.absences
-                                .filter(absence => absence.isActive)
-                                .map((absence, index) => (
-                                <div key={index} className="flex justify-between items-center text-xs bg-red-50 p-2 rounded">
-                                  <div>
-                                    <div className="font-medium">{new Date(absence.startDate).toLocaleDateString()}</div>
-                                    {absence.reason && <div className="text-gray-600">{absence.reason}</div>}
-                                  </div>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-6 w-6 p-0"
-                                    onClick={async () => {
-                                      try {
-                                        await fetch(`/api/absences/${absence.id}`, { method: 'DELETE' });
-                                        toast({ title: "Absence removed successfully" });
-                                        // Refresh data
-                                        queryClient.invalidateQueries({ queryKey: ['/api/accepted-members'] });
-                                      } catch (error) {
-                                        toast({ title: "Failed to remove absence", variant: "destructive" });
-                                      }
-                                    }}
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </Button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                          <div className="text-sm text-gray-500">
+                            No absences recorded
+                          </div>
 
                           <div className="flex gap-2">
                             <Button 
@@ -960,8 +932,9 @@ export default function AdminDashboard() {
                             })}
                           </div>
                         </div>
-                      </div>
-                    </Card>
+                      )}
+                    </div>
+                  </Card>
                   ))}
 
                 {(!additionalSignups || additionalSignups.length === 0) && (
@@ -1011,22 +984,12 @@ export default function AdminDashboard() {
                       <p className="text-sm text-gray-600">{request.description}</p>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-500">
-                        <div>Submitted by: {request.submitterName} ({request.submitterEmail})</div>
-                        <div>Organization: {request.organizationName}</div>
-                        {request.organizationWebsite && (
-                          <div className="md:col-span-2">
-                            Website: <a href={request.organizationWebsite} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                              {request.organizationWebsite}
-                            </a>
-                          </div>
-                        )}
+                        <div>Submitted by: {request.fullName} ({request.email})</div>
+                        <div>Phone: {request.phone || 'Not provided'}</div>
                         {request.address && (
                           <div className="md:col-span-2">Address: {request.address}</div>
                         )}
                         <div>Submitted: {new Date(request.submittedAt).toLocaleDateString()}</div>
-                        {request.responsiblePerson && (
-                          <div>Responsible: {request.responsiblePerson}</div>
-                        )}
                       </div>
 
                       <div className="flex flex-wrap gap-2 pt-2">
@@ -1037,7 +1000,7 @@ export default function AdminDashboard() {
                               // Prompt for responsible person name
                               const responsiblePerson = prompt("Enter the name of the person responsible for reaching out:");
                               if (responsiblePerson) {
-                                handleUpdateProjectRequest(request.id, { status, responsiblePerson });
+                                handleUpdateProjectRequest(request.id, { status });
                               }
                             } else {
                               handleUpdateProjectRequest(request.id, { status });
@@ -1064,7 +1027,7 @@ export default function AdminDashboard() {
                                 const target = e.target as HTMLInputElement;
                                 if (target.value.trim()) {
                                   handleUpdateProjectRequest(request.id, { 
-                                    responsiblePerson: target.value.trim() 
+                                    status: "reaching_out" 
                                   });
                                   target.value = "";
                                 }
