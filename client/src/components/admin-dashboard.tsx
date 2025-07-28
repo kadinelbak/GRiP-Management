@@ -47,11 +47,15 @@ export default function AdminDashboard() {
     resolver: zodResolver(insertTeamSchema),
     defaultValues: {
       name: "",
-      type: "technical",
-      maxCapacity: 15,
+      type: "",
+      maxCapacity: 0,
       meetingTime: "",
+      location: "",
       requiredSkills: "",
       description: "",
+      meetingDay: "",
+      meetingStartTime: "",
+      meetingEndTime: "",
     },
   });
 

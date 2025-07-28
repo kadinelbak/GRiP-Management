@@ -10,6 +10,7 @@ export const teams = pgTable("teams", {
   maxCapacity: integer("max_capacity").notNull(),
   currentSize: integer("current_size").notNull().default(0),
   meetingTime: text("meeting_time"),
+  location: text("location"),
   requiredSkills: text("required_skills"),
   description: text("description"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
