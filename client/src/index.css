@@ -134,9 +134,16 @@
 }
 
 .tab-button.active {
-  background-color: var(--grip-primary);
-  color: white;
-  border-bottom-color: var(--grip-primary);
+  background-color: hsl(210, 40%, 98%);
+  color: var(--grip-primary);
+  border-bottom: 2px solid var(--grip-primary);
+}
+
+/* Override for dropdown menu triggers to ensure visibility */
+.tab-button.active[data-state="open"] {
+  background-color: hsl(210, 40%, 98%);
+  color: var(--grip-primary);
+  border-bottom: 2px solid var(--grip-primary);
 }
 
 .tab-button {
