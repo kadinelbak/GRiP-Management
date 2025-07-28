@@ -776,6 +776,36 @@ export default function AdminDashboard() {
                   <Download className="w-4 h-4 mr-2" />
                   Export CSV
                 </Button>
+                <Button 
+                  onClick={() => {
+                    if (confirm("Are you sure you want to delete ALL submissions? This action cannot be undone.")) {
+                      // Delete all applications that are not assigned
+                      const deletePromises = filteredApplications.map(app => 
+                        apiRequest("DELETE", `/api/applications/${app.id}`)
+                      );
+                      Promise.all(deletePromises).then(() => {
+                        toast({
+                          title: "All Submissions Deleted",
+                          description: `${filteredApplications.length} submissions have been deleted.`,
+                        });
+                        queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
+                        queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+                      }).catch(() => {
+                        toast({
+                          title: "Error",
+                          description: "Failed to delete all submissions.",
+                          variant: "destructive",
+                        });
+                      });
+                    }
+                  }}
+                  variant="destructive" 
+                  size="sm"
+                  disabled={filteredApplications.length === 0}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Remove All Submissions
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -865,11 +895,41 @@ export default function AdminDashboard() {
         {/* Projects Tab */}
         <TabsContent value="projects">
           <Card>
-            <CardHeader>
-              <CardTitle>Project Requests</CardTitle>
-              <CardDescription>
-                Manage submitted project requests
-              </CardDescription>
+            <CardHeader className="flex flex-row justify-between items-center">
+              <div>
+                <CardTitle>Project Requests</CardTitle>
+                <CardDescription>
+                  Manage submitted project requests
+                </CardDescription>
+              </div>
+              <Button 
+                onClick={() => {
+                  if (confirm("Are you sure you want to delete ALL project requests? This action cannot be undone.")) {
+                    const deletePromises = projectRequests.map(project => 
+                      apiRequest("DELETE", `/api/project-requests/${project.id}`)
+                    );
+                    Promise.all(deletePromises).then(() => {
+                      toast({
+                        title: "All Project Requests Deleted",
+                        description: `${projectRequests.length} project requests have been deleted.`,
+                      });
+                      queryClient.invalidateQueries({ queryKey: ["/api/project-requests"] });
+                    }).catch(() => {
+                      toast({
+                        title: "Error",
+                        description: "Failed to delete all project requests.",
+                        variant: "destructive",
+                      });
+                    });
+                  }
+                }}
+                variant="destructive" 
+                size="sm"
+                disabled={!projectRequests || projectRequests.length === 0}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Remove All Projects
+              </Button>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
