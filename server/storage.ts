@@ -767,7 +767,7 @@ export class DatabaseStorage implements IStorage {
       if (application) {
         // Add points to user
         const newPoints = application.points + attendance.event.points;
-        
+
         // Add event to user's events array
         const userEvents = Array.isArray(application.events) ? application.events : [];
         if (!userEvents.includes(attendance.event.id)) {
@@ -836,9 +836,24 @@ export class DatabaseStorage implements IStorage {
         }
       });
     }
-    
+
     await db.delete(printSubmissions).where(eq(printSubmissions.id, id));
   }
 }
+
+export const printSubmissions = sqliteTable("print_submissions", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  submitterName: text("submitter_name").notNull(),
+  emailAddress: text("email_address").notNull(),
+  requestType: text("request_type").notNull(),
+  teamName: text("team_name"),
+  color: text("color"),
+  generalPrintDescription: text("general_print_description"),
+  fileSpecifications: text("file_specifications"),
+  comments: text("comments"),
+  filePaths: text("file_paths", { mode: "json" }).$type<string[]>(),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
 
 export const storage = new DatabaseStorage();

@@ -254,7 +254,6 @@ export const printSubmissions = pgTable("print_submissions", {
 });
 
 export type PrintSubmission = typeof printSubmissions.$inferSelect;
-export type InsertPrintSubmission = z.infer<typeof insertPrintSubmissionSchema>;
 
 export const insertPrintSubmissionSchema = createInsertSchema(printSubmissions).omit({
   id: true,
@@ -274,3 +273,4 @@ export const insertPrintSubmissionSchema = createInsertSchema(printSubmissions).
   fileSpecifications: z.string().optional(),
   comments: z.string().optional()
 });
+export type InsertPrintSubmission = z.infer<typeof insertPrintSubmissionSchema>;

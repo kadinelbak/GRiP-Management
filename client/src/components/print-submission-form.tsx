@@ -1,8 +1,7 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { insertPrintSubmissionSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -27,18 +26,16 @@ const requestTypes = [
 ];
 
 const colorOptions = [
+  { value: "white", label: "White" },
+  { value: "black", label: "Black" },
   { value: "red", label: "Red" },
   { value: "blue", label: "Blue" },
   { value: "green", label: "Green" },
   { value: "yellow", label: "Yellow" },
   { value: "orange", label: "Orange" },
   { value: "purple", label: "Purple" },
-  { value: "black", label: "Black" },
-  { value: "white", label: "White" },
   { value: "gray", label: "Gray" },
-  { value: "pink", label: "Pink" },
-  { value: "brown", label: "Brown" },
-  { value: "clear", label: "Clear/Transparent" },
+  { value: "transparent", label: "Transparent/Clear" },
   { value: "other", label: "Other" }
 ];
 
@@ -50,6 +47,7 @@ export default function PrintSubmissionForm() {
   // Fetch technical teams for dropdown
   const { data: technicalTeams = [] } = useQuery({
     queryKey: ["/api/teams/type/technical"],
+    queryFn: () => apiRequest("GET", "/api/teams/type/technical"),
   });
 
   const form = useForm<PrintSubmissionData>({
@@ -69,7 +67,7 @@ export default function PrintSubmissionForm() {
   const submitMutation = useMutation({
     mutationFn: async (data: PrintSubmissionData) => {
       const formData = new FormData();
-      
+
       // Add form fields
       Object.entries(data).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
@@ -120,7 +118,7 @@ export default function PrintSubmissionForm() {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
-    
+
     // Filter for zip files and STL files
     const validFiles = files.filter(file => {
       const isZip = file.type === 'application/zip' || file.name.toLowerCase().endsWith('.zip');
@@ -164,7 +162,7 @@ export default function PrintSubmissionForm() {
                 <h3 className="text-lg font-semibold text-slate-900 border-b border-slate-200 pb-2">
                   Submitter Information
                 </h3>
-                
+
                 <FormField
                   control={form.control}
                   name="submitterName"
@@ -228,7 +226,7 @@ export default function PrintSubmissionForm() {
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select your team (optional)" />
+                              <SelectValue placeholder="Select team (optional)" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -254,7 +252,7 @@ export default function PrintSubmissionForm() {
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select preferred print color" />
+                            <SelectValue placeholder="Select color (optional)" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -276,7 +274,7 @@ export default function PrintSubmissionForm() {
                 <h3 className="text-lg font-semibold text-slate-900 border-b border-slate-200 pb-2">
                   File Upload
                 </h3>
-                
+
                 <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center">
                   <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
                   <label htmlFor="file-upload" className="cursor-pointer">
