@@ -690,7 +690,7 @@ export class DatabaseStorage implements IStorage {
         })
         .from(eventAttendance)
         .leftJoin(events, eq(eventAttendance.eventId, events.id))
-        .orderBy(desc(eventAttendance.createdAt));
+        .orderBy(desc(eventAttendance.submittedAt));
 
       return attendanceRecords.map(record => ({
         id: record.id,
