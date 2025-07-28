@@ -105,7 +105,21 @@ export class DatabaseStorage implements IStorage {
       throw new Error("A technical team application with this UFID already exists. You cannot submit multiple technical team applications.");
     }
 
-    const [application] = await db.insert(applications).values(insertApplication).returning();
+    const applicationData = {
+      fullName: insertApplication.fullName,
+      firstName: insertApplication.firstName,
+      lastName: insertApplication.lastName,
+      email: insertApplication.email,
+      ufid: insertApplication.ufid,
+      teamPreferences: insertApplication.teamPreferences,
+      additionalTeams: insertApplication.additionalTeams || [],
+      skills: insertApplication.skills || [],
+      additionalSkills: insertApplication.additionalSkills,
+      timeAvailability: insertApplication.timeAvailability,
+      acknowledgments: insertApplication.acknowledgments,
+    };
+
+    const [application] = await db.insert(applications).values(applicationData as any).returning();
     return application;
   }
 
@@ -141,7 +155,7 @@ export class DatabaseStorage implements IStorage {
       })
       .from(applications)
       .leftJoin(absences, and(eq(applications.id, absences.applicationId), eq(absences.isActive, true)))
-      .where(or(eq(applications.status, "accepted"), eq(applications.status, "assigned")))
+      .where(eq(applications.status, "assigned"))
       .orderBy(asc(applications.fullName));
 
     // Group absences by application
@@ -170,31 +184,7 @@ export class DatabaseStorage implements IStorage {
     await db.delete(absences).where(eq(absences.id, absenceId));
   }
 
-  async getAbsences(): Promise<Absence[]> {
-    return await db.select().from(absences).orderBy(desc(absences.createdAt));
-  }
 
-  async createAbsence(insertAbsence: InsertAbsence): Promise<Absence> {
-    const [absence] = await db.insert(absences).values({
-      ...insertAbsence,
-      startDate: new Date(insertAbsence.startDate),
-    }).returning();
-    return absence;
-  }
-
-  async getAbsencesByApplication(applicationId: string): Promise<Absence[]> {
-    return await db.select().from(absences)
-      .where(and(eq(absences.applicationId, applicationId), eq(absences.isActive, true)))
-      .orderBy(desc(absences.startDate));
-  }
-
-  async clearAbsence(id: string): Promise<void> {
-    await db.delete(absences).where(eq(absences.id, id));
-  }
-
-  async clearAllAbsencesForUser(applicationId: string): Promise<void> {
-    await db.delete(absences).where(eq(absences.applicationId, applicationId));
-  }
 
   async getAdditionalTeamSignups(): Promise<AdditionalTeamSignup[]> {
     return await db.select().from(additionalTeamSignups).orderBy(desc(additionalTeamSignups.submittedAt));
@@ -267,23 +257,17 @@ export class DatabaseStorage implements IStorage {
   async assignTeamsAutomatically(): Promise<{ assignments: Array<{ applicationId: string; studentName: string; assignedTeam: string | null; reason: string }> }> {
     console.log(`[AUTO-ASSIGN] Starting automatic team assignment process...`);
     
-    // Get accepted unassigned members first (priority), then pending applications
-    const acceptedUnassigned = await db
-      .select()
-      .from(applications)
-      .where(and(eq(applications.status, "accepted"), isNull(applications.assignedTeamId)))
-      .orderBy(asc(applications.submittedAt));
-
+    // Get all pending applications - no separate "accepted" status anymore
     const pendingApplications = await db
       .select()
       .from(applications)
       .where(eq(applications.status, "pending"))
       .orderBy(asc(applications.submittedAt));
 
-    console.log(`[AUTO-ASSIGN] Found ${acceptedUnassigned.length} accepted unassigned members and ${pendingApplications.length} pending applications`);
+    console.log(`[AUTO-ASSIGN] Found ${pendingApplications.length} pending applications to process`);
 
-    // Combine with priority: accepted unassigned first, then pending
-    const allApplicationsToProcess = [...acceptedUnassigned, ...pendingApplications];
+    // Process all pending applications
+    const allApplicationsToProcess = pendingApplications;
 
     // Get technical teams only for assignment
     const allTeams = await this.getTeams();
@@ -308,7 +292,6 @@ export class DatabaseStorage implements IStorage {
       
       let assignedTeamId: string | null = null;
       let reason = "";
-      const isAcceptedMember = application.status === "accepted";
 
       // Check if application has complete information
       if (!application.teamPreferences || application.teamPreferences.length === 0) {
@@ -364,18 +347,14 @@ export class DatabaseStorage implements IStorage {
 
         if (teamCapacity.available > 0) {
           assignedTeamId = preferredTeamId;
-          const memberType = isAcceptedMember ? "accepted member" : "new applicant";
-          reason = `${memberType} assigned to preference #${i + 1}: ${teamCapacity.name} (${teamCapacity.available} slots available)`;
+          reason = `Assigned to preference #${i + 1}: ${teamCapacity.name} (${teamCapacity.available} slots available)`;
 
           console.log(`[AUTO-ASSIGN] SUCCESS: ${application.fullName} assigned to ${teamCapacity.name}`);
 
-          // Update application - if they were accepted and unassigned, keep them accepted
-          // If they were pending, mark as assigned
-          const newStatus = isAcceptedMember ? "accepted" : "assigned";
-
+          // Update application status to assigned (consolidating assigned and accepted)
           await this.updateApplication(application.id, {
             assignedTeamId,
-            status: newStatus,
+            status: "assigned",
             assignmentReason: reason
           });
 
@@ -467,8 +446,7 @@ export class DatabaseStorage implements IStorage {
             fullName: application.fullName,
             email: application.email,
             ufid: application.ufid,
-            selectedTeams: [teamId],
-            submittedAt: new Date()
+            selectedTeams: [teamId]
           });
 
           // Update team size
@@ -531,22 +509,24 @@ export class DatabaseStorage implements IStorage {
     await db.delete(absences);
   }
 
-  async createAbsence(absenceData: any): Promise<Absence> {
+  async createAbsence(insertAbsence: InsertAbsence): Promise<Absence> {
     const [absence] = await db.insert(absences).values({
-      ...absenceData,
-      startDate: new Date(absenceData.startDate),
-      endDate: absenceData.endDate ? new Date(absenceData.endDate) : null,
+      ...insertAbsence,
+      startDate: new Date(insertAbsence.startDate),
     }).returning();
     return absence;
   }
 
   async getAbsences(): Promise<Absence[]> {
-    return await db.select().from(absences).orderBy(desc(absences.createdAt));
+    return await db.select().from(absences)
+      .where(eq(absences.isActive, true))
+      .orderBy(desc(absences.createdAt));
   }
 
   async getAbsencesByApplication(applicationId: string): Promise<Absence[]> {
     return await db.select().from(absences)
-      .where(and(eq(absences.applicationId, applicationId), eq(absences.isActive, true)));
+      .where(and(eq(absences.applicationId, applicationId), eq(absences.isActive, true)))
+      .orderBy(desc(absences.startDate));
   }
 
   async clearAbsence(absenceId: string): Promise<void> {

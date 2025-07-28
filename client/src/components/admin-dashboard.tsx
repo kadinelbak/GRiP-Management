@@ -473,7 +473,7 @@ export default function AdminDashboard() {
           {/* Team Assignments - Accepted and Assigned Members */}
           <Card>
             <CardHeader>
-              <CardTitle>Team Assignments (Active Members)</CardTitle></old_str>
+              <CardTitle>Team Assignments (Active Members)</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4">
@@ -729,9 +729,8 @@ export default function AdminDashboard() {
                   <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="accepted">Accepted</SelectItem>
+                    <SelectItem value="assigned">Assigned</SelectItem>
                     <SelectItem value="waitlisted">Waitlisted</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
