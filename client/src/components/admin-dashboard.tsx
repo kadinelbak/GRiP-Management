@@ -194,9 +194,22 @@ export default function AdminDashboard() {
       queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
 
+      // Auto-download the assignment log file
+      if (data.logFileContent && data.logFileName) {
+        const blob = new Blob([data.logFileContent], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = data.logFileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }
+
       toast({
         title: "Auto Assignment Complete",
-        description: `Successfully processed ${data.assignments?.length || 0} applications. Check the assignments for details.`,
+        description: `Successfully processed ${data.assignments?.length || 0} applications. Assignment log has been downloaded.`,
       });
     },
     onError: (error: any) => {

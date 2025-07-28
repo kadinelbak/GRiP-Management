@@ -254,8 +254,17 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(adminSettings);
   }
 
-  async assignTeamsAutomatically(): Promise<{ assignments: Array<{ applicationId: string; studentName: string; assignedTeam: string | null; reason: string }> }> {
+  async assignTeamsAutomatically(): Promise<{ assignments: Array<{ applicationId: string; studentName: string; assignedTeam: string | null; reason: string }>, logFileContent: string }> {
     console.log(`[AUTO-ASSIGN] Starting automatic team assignment process...`);
+    
+    // Initialize detailed logging
+    const assignmentLog: string[] = [];
+    const timestamp = new Date().toISOString();
+    
+    assignmentLog.push(`GRiP Team Assignment Report`);
+    assignmentLog.push(`Generated: ${new Date(timestamp).toLocaleString()}`);
+    assignmentLog.push(`=`.repeat(80));
+    assignmentLog.push(``);
     
     // Get all pending applications - no separate "accepted" status anymore
     const pendingApplications = await db
@@ -265,6 +274,10 @@ export class DatabaseStorage implements IStorage {
       .orderBy(asc(applications.submittedAt));
 
     console.log(`[AUTO-ASSIGN] Found ${pendingApplications.length} pending applications to process`);
+    assignmentLog.push(`ASSIGNMENT OVERVIEW`);
+    assignmentLog.push(`Total pending applications to process: ${pendingApplications.length}`);
+    assignmentLog.push(`Assignment method: First-come, first-served based on submission timestamp`);
+    assignmentLog.push(``);
 
     // Process all pending applications
     const allApplicationsToProcess = pendingApplications;
@@ -280,15 +293,28 @@ export class DatabaseStorage implements IStorage {
     }]));
 
     console.log(`[AUTO-ASSIGN] Technical teams available for assignment:`);
+    assignmentLog.push(`TECHNICAL TEAMS CAPACITY (BEFORE ASSIGNMENT)`);
     technicalTeams.forEach(team => {
       const capacity = teamCapacities.get(team.id);
       console.log(`  - ${team.name}: ${capacity?.available}/${capacity?.maxCapacity} slots available`);
+      assignmentLog.push(`${team.name}: ${capacity?.available}/${capacity?.maxCapacity} slots available`);
     });
+    assignmentLog.push(``);
 
     const assignments: Array<{ applicationId: string; studentName: string; assignedTeam: string | null; reason: string }> = [];
 
+    assignmentLog.push(`INDIVIDUAL ASSIGNMENT DETAILS`);
+    assignmentLog.push(`=`.repeat(50));
+    assignmentLog.push(``);
+
     for (const application of allApplicationsToProcess) {
       console.log(`[AUTO-ASSIGN] Processing ${application.fullName} (${application.status})`);
+      
+      assignmentLog.push(`Processing: ${application.fullName}`);
+      assignmentLog.push(`Email: ${application.email}`);
+      assignmentLog.push(`UFID: ${application.ufid}`);
+      assignmentLog.push(`Submission Time: ${new Date(application.submittedAt).toLocaleString()}`);
+      assignmentLog.push(`Current Status: ${application.status}`);
       
       let assignedTeamId: string | null = null;
       let reason = "";
@@ -297,6 +323,11 @@ export class DatabaseStorage implements IStorage {
       if (!application.teamPreferences || application.teamPreferences.length === 0) {
         reason = "No team preferences provided - moved to waitlist";
         console.log(`[AUTO-ASSIGN] ${application.fullName}: ${reason}`);
+        assignmentLog.push(`❌ VALIDATION FAILED: No team preferences provided`);
+        assignmentLog.push(`⚠️  RESULT: Moved to waitlist`);
+        assignmentLog.push(`📝 Reason: ${reason}`);
+        assignmentLog.push(``);
+        
         await this.updateApplication(application.id, {
           status: "waitlisted",
           assignmentReason: reason
@@ -313,6 +344,11 @@ export class DatabaseStorage implements IStorage {
       if (!application.timeAvailability || application.timeAvailability.length === 0) {
         reason = "No time availability provided - moved to waitlist";
         console.log(`[AUTO-ASSIGN] ${application.fullName}: ${reason}`);
+        assignmentLog.push(`❌ VALIDATION FAILED: No time availability provided`);
+        assignmentLog.push(`⚠️  RESULT: Moved to waitlist`);
+        assignmentLog.push(`📝 Reason: ${reason}`);
+        assignmentLog.push(``);
+        
         await this.updateApplication(application.id, {
           status: "waitlisted",
           assignmentReason: reason
@@ -326,6 +362,13 @@ export class DatabaseStorage implements IStorage {
         continue;
       }
 
+      // Log application details for successful validation
+      assignmentLog.push(`✅ VALIDATION PASSED`);
+      assignmentLog.push(`Team Preferences: ${application.teamPreferences.length} teams selected`);
+      assignmentLog.push(`Time Availability: ${application.timeAvailability.length} time slots available`);
+      assignmentLog.push(`Skills: ${Array.isArray(application.skills) ? application.skills.join(', ') : 'None specified'}`);
+      assignmentLog.push(``);
+
       // Try to assign based on team preferences (in order of preference)
       // Filter team preferences to only include technical teams
       const technicalTeamPreferences = application.teamPreferences.filter(teamId => 
@@ -333,6 +376,16 @@ export class DatabaseStorage implements IStorage {
       );
 
       console.log(`[AUTO-ASSIGN] ${application.fullName} preferences: ${technicalTeamPreferences.length} technical teams`);
+      assignmentLog.push(`TEAM PREFERENCE MATCHING PROCESS`);
+      assignmentLog.push(`Technical team preferences found: ${technicalTeamPreferences.length}`);
+      
+      // Log all preferences
+      assignmentLog.push(`Preference order:`);
+      technicalTeamPreferences.forEach((teamId, index) => {
+        const team = technicalTeams.find(t => t.id === teamId);
+        assignmentLog.push(`  ${index + 1}. ${team?.name || 'Unknown Team'} (ID: ${teamId})`);
+      });
+      assignmentLog.push(``);
 
       for (let i = 0; i < technicalTeamPreferences.length; i++) {
         const preferredTeamId = technicalTeamPreferences[i];
@@ -340,16 +393,26 @@ export class DatabaseStorage implements IStorage {
 
         if (!teamCapacity) {
           console.log(`[AUTO-ASSIGN] ${application.fullName}: Preference #${i + 1} team not found or not technical`);
+          assignmentLog.push(`❌ Preference #${i + 1}: Team not found or not technical (ID: ${preferredTeamId})`);
           continue; // Team doesn't exist or isn't technical
         }
 
         console.log(`[AUTO-ASSIGN] ${application.fullName}: Checking preference #${i + 1}: ${teamCapacity.name} (${teamCapacity.available} slots available)`);
+        assignmentLog.push(`🔍 Checking Preference #${i + 1}: ${teamCapacity.name}`);
+        assignmentLog.push(`   Current capacity: ${teamCapacity.currentSize}/${teamCapacity.maxCapacity}`);
+        assignmentLog.push(`   Available slots: ${teamCapacity.available}`);
 
         if (teamCapacity.available > 0) {
           assignedTeamId = preferredTeamId;
           reason = `Assigned to preference #${i + 1}: ${teamCapacity.name} (${teamCapacity.available} slots available)`;
 
           console.log(`[AUTO-ASSIGN] SUCCESS: ${application.fullName} assigned to ${teamCapacity.name}`);
+          assignmentLog.push(`✅ SUCCESS: Matched with ${teamCapacity.name}!`);
+          assignmentLog.push(`🎯 Assignment Details:`);
+          assignmentLog.push(`   - Preference rank: #${i + 1}`);
+          assignmentLog.push(`   - Team: ${teamCapacity.name}`);
+          assignmentLog.push(`   - Slots before assignment: ${teamCapacity.available}`);
+          assignmentLog.push(`   - New team size: ${teamCapacity.currentSize + 1}/${teamCapacity.maxCapacity}`);
 
           // Update application status to assigned (consolidating assigned and accepted)
           await this.updateApplication(application.id, {
@@ -375,12 +438,17 @@ export class DatabaseStorage implements IStorage {
           // Handle additional teams - auto-assign to any additional teams they selected
           if (application.additionalTeams && application.additionalTeams.length > 0) {
             console.log(`[AUTO-ASSIGN] Processing ${application.additionalTeams.length} additional teams for ${application.fullName}`);
+            assignmentLog.push(`📋 Additional Teams Processing:`);
+            assignmentLog.push(`   - Additional teams selected: ${application.additionalTeams.length}`);
             await this.assignToAdditionalTeams(application.id, application.additionalTeams);
+            assignmentLog.push(`   - Additional teams processed successfully`);
           }
 
+          assignmentLog.push(``);
           break;
         } else {
           console.log(`[AUTO-ASSIGN] ${application.fullName}: ${teamCapacity.name} is full (${teamCapacity.currentSize}/${teamCapacity.maxCapacity})`);
+          assignmentLog.push(`❌ ${teamCapacity.name} is FULL (${teamCapacity.currentSize}/${teamCapacity.maxCapacity})`);
         }
       }
 
@@ -392,6 +460,9 @@ export class DatabaseStorage implements IStorage {
         reason = `All preferred technical teams full: ${preferredTeamNames} - moved to waitlist`;
 
         console.log(`[AUTO-ASSIGN] WAITLISTED: ${application.fullName} - ${reason}`);
+        assignmentLog.push(`⚠️  RESULT: WAITLISTED`);
+        assignmentLog.push(`📝 Reason: All preferred teams are at full capacity`);
+        assignmentLog.push(`   Preferred teams checked: ${preferredTeamNames}`);
 
         await this.updateApplication(application.id, {
           status: "waitlisted",
@@ -405,6 +476,9 @@ export class DatabaseStorage implements IStorage {
         assignedTeam: assignedTeamId ? teamCapacities.get(assignedTeamId)?.name || null : null,
         reason
       });
+      
+      assignmentLog.push(`${'='.repeat(60)}`);
+      assignmentLog.push(``);
     }
 
     console.log(`[AUTO-ASSIGN] Assignment process completed!`);
@@ -412,13 +486,30 @@ export class DatabaseStorage implements IStorage {
     console.log(`[AUTO-ASSIGN] Assigned: ${assignments.filter(a => a.assignedTeam !== null).length}`);
     console.log(`[AUTO-ASSIGN] Waitlisted: ${assignments.filter(a => a.assignedTeam === null).length}`);
     
+    // Add final summary to log
+    assignmentLog.push(`ASSIGNMENT SUMMARY`);
+    assignmentLog.push(`=`.repeat(30));
+    assignmentLog.push(`Total applications processed: ${assignments.length}`);
+    assignmentLog.push(`Successfully assigned: ${assignments.filter(a => a.assignedTeam !== null).length}`);
+    assignmentLog.push(`Waitlisted: ${assignments.filter(a => a.assignedTeam === null).length}`);
+    assignmentLog.push(``);
+    
     // Log final team capacities
     console.log(`[AUTO-ASSIGN] Final team capacities:`);
+    assignmentLog.push(`FINAL TEAM CAPACITIES`);
+    assignmentLog.push(`=`.repeat(30));
     Array.from(teamCapacities.entries()).forEach(([teamId, capacity]) => {
       console.log(`  - ${capacity.name}: ${capacity.maxCapacity - capacity.available}/${capacity.maxCapacity} filled`);
+      assignmentLog.push(`${capacity.name}: ${capacity.maxCapacity - capacity.available}/${capacity.maxCapacity} filled`);
     });
+    
+    assignmentLog.push(``);
+    assignmentLog.push(`Report generated at: ${new Date().toLocaleString()}`);
+    assignmentLog.push(`=`.repeat(80));
 
-    return { assignments };
+    const logFileContent = assignmentLog.join('\n');
+
+    return { assignments, logFileContent };
   }
 
   private async assignToAdditionalTeams(applicationId: string, additionalTeamIds: string[]): Promise<void> {

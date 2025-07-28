@@ -372,16 +372,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Use the storage service method instead of direct db access
       const result = await storage.assignTeamsAutomatically();
+      
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `grip-team-assignment-log-${timestamp}.txt`;
+      
       res.json({ 
         success: true, 
         assignments: result.assignments,
+        logFileContent: result.logFileContent,
+        logFileName: filename,
         message: `Assignment completed successfully`
       });
-
       
     } catch (error) {
       console.error("Assignment error:", error);
       res.status(500).json({ error: "Failed to assign teams" });
+    }
+  });
+
+  app.get("/api/admin/download-assignment-log", async (req, res) => {
+    try {
+      const { content, filename } = req.query;
+      
+      if (!content || !filename) {
+        return res.status(400).json({ error: "Missing content or filename" });
+      }
+      
+      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(decodeURIComponent(content as string));
+    } catch (error) {
+      console.error("Download error:", error);
+      res.status(500).json({ error: "Failed to download log file" });
     }
   });
 
