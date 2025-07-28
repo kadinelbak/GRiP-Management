@@ -367,14 +367,150 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Team Assignment API - Uses the improved database storage assignment method
-  app.post("/api/admin/assign-teams", async (_req, res) => {
+  // Auto-assign teams endpoint
+  app.post("/api/admin/assign-teams", async (req, res) => {
     try {
-      const result = await storage.assignTeamsAutomatically();
-      res.json(result);
+      // Get all accepted members without assigned teams and new applications
+      const acceptedUnassigned = await storage.db.select().from(storage.applications)
+        .where(storage.and(
+          storage.eq(storage.applications.status, "accepted"),
+          storage.isNull(storage.applications.assignedTeamId)
+        ))
+        .orderBy(storage.applications.submittedAt); // Prioritize earlier submissions
+
+      const newApplications = await storage.db.select().from(storage.applications)
+        .where(storage.eq(storage.applications.status, "pending"))
+        .orderBy(storage.applications.submittedAt);
+
+      // Combine with priority: accepted first, then new
+      const allApplicants = [...acceptedUnassigned, ...newApplications];
+
+      const technicalTeams = await storage.db.select().from(storage.teams)
+        .where(storage.eq(storage.teams.type, "technical"));
+
+      const assignments = [];
+      const waitlisted = [];
+
+      for (const applicant of allApplicants) {
+        let assigned = false;
+
+        // Try to assign based on preferences
+        if (applicant.teamPreferences && applicant.teamPreferences.length > 0) {
+          for (const preferredTeamId of applicant.teamPreferences) {
+            const team = technicalTeams.find(t => t.id === preferredTeamId);
+            if (!team) continue;
+
+            // Check current capacity
+            const currentMembers = await storage.db.select().from(storage.applications)
+              .where(storage.eq(storage.applications.assignedTeamId, team.id));
+
+            if (currentMembers.length < team.maxCapacity) {
+              // Assign to this team
+              await storage.db.update(storage.applications)
+                .set({ 
+                  assignedTeamId: team.id,
+                  status: "accepted" // Ensure they're accepted
+                })
+                .where(storage.eq(storage.applications.id, applicant.id));
+
+              assignments.push({
+                applicantId: applicant.id,
+                applicantName: applicant.fullName,
+                teamId: team.id,
+                teamName: team.name
+              });
+              assigned = true;
+              break;
+            }
+          }
+        }
+
+        // If not assigned via preferences, try any available team
+        if (!assigned) {
+          for (const team of technicalTeams) {
+            const currentMembers = await storage.db.select().from(storage.applications)
+              .where(storage.eq(storage.applications.assignedTeamId, team.id));
+
+            if (currentMembers.length < team.maxCapacity) {
+              await storage.db.update(storage.applications)
+                .set({ 
+                  assignedTeamId: team.id,
+                  status: "accepted"
+                })
+                .where(storage.eq(storage.applications.id, applicant.id));
+
+              assignments.push({
+                applicantId: applicant.id,
+                applicantName: applicant.fullName,
+                teamId: team.id,
+                teamName: team.name
+              });
+              assigned = true;
+              break;
+            }
+          }
+        }
+
+        // If still not assigned, add to waitlist
+        if (!assigned) {
+          await storage.db.update(storage.applications)
+            .set({ status: "waitlisted" })
+            .where(storage.eq(storage.applications.id, applicant.id));
+
+          waitlisted.push({
+            applicantId: applicant.id,
+            applicantName: applicant.fullName
+          });
+        }
+      }
+
+      // Handle additional team signups - auto-assign all of them
+      const additionalSignups = await storage.db.select().from(storage.additionalTeamSignups);
+      const additionalTeams = await storage.db.select().from(storage.teams)
+        .where(storage.eq(storage.teams.type, "additional"));
+
+      for (const signup of additionalSignups) {
+        if (signup.selectedTeams && signup.selectedTeams.length > 0) {
+          // Auto-assign to all selected additional teams
+          for (const teamType of signup.selectedTeams) {
+            const team = additionalTeams.find(t => t.name.toLowerCase().includes(teamType));
+            if (team) {
+              // Check if already assigned
+              const existingAssignment = await storage.db.select().from(storage.applications)
+                .where(storage.and(
+                  storage.eq(storage.applications.email, signup.email),
+                  storage.eq(storage.applications.assignedTeamId, team.id)
+                ));
+
+              if (existingAssignment.length === 0) {
+                // Create application entry for additional team assignment
+                await storage.db.insert(storage.applications).values({
+                  id: crypto.randomUUID(),
+                  fullName: signup.fullName,
+                  email: signup.email,
+                  ufid: signup.ufid,
+                  status: "accepted",
+                  assignedTeamId: team.id,
+                  submittedAt: new Date(),
+                  teamPreferences: [team.id],
+                  skills: [],
+                  timeAvailability: {}
+                });
+              }
+            }
+          }
+        }
+      }
+
+      res.json({ 
+        success: true, 
+        assignments,
+        waitlisted,
+        message: `Assigned ${assignments.length} members, ${waitlisted.length} waitlisted`
+      });
     } catch (error) {
-      console.error("Failed to perform team assignments:", error);
-      res.status(500).json({ message: "Failed to perform team assignments" });
+      console.error("Assignment error:", error);
+      res.status(500).json({ error: "Failed to assign teams" });
     }
   });
 
