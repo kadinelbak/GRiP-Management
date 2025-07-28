@@ -150,6 +150,11 @@
   background-color: hsl(60, 4.8%, 95.9%);
 }
 
+/* Ensure dropdown triggers maintain active state */
+.tab-button.active[data-state="open"] {
+  @apply bg-blue-50 text-blue-700 border-b-2 border-blue-500;
+}
+
 .admin-tab-button.active {
   color: var(--grip-primary);
   border-bottom-color: var(--grip-primary);
