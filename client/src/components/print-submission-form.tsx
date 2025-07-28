@@ -384,7 +384,7 @@ export default function PrintSubmissionForm() {
                 <Button 
                   type="submit" 
                   disabled={submitMutation.isPending}
-                  className="w-full grip-success text-white hover:bg-emerald-700"
+                  className="w-full bg-emerald-600 text-white hover:bg-emerald-700"
                 >
                   <FileText className="w-4 h-4 mr-2" />
                   {submitMutation.isPending ? "Submitting..." : "Submit Print Request"}
