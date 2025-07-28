@@ -785,6 +785,8 @@ export default function AdminDashboard() {
                         <div><strong>UFID:</strong> {selectedMember.ufid}</div>
                         <div><strong>Team:</strong> {getTeamName(selectedMember.assignedTeamId)}</div>
                         <div><strong>Status:</strong> {selectedMember.status}</div>
+                        <div><strong>Points:</strong> {selectedMember.points || 0}</div>
+                        <div><strong>Events Attended:</strong> {Array.isArray(selectedMember.events) ? selectedMember.events.length : 0}</div>
                         <div><strong>Submitted:</strong> {new Date(selectedMember.submittedAt).toLocaleDateString()}</div>
 
                         {selectedMember.skills && (
