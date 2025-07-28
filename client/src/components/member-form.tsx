@@ -388,7 +388,7 @@ export default function MemberForm() {
                         return (
                           <div key={`${teamId}-${index}`} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                             <div className="flex items-center">
-                              <span className="text-sm font-medium bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center mr-3">
+                              <span className="text-sm font-medium grip-orange text-white rounded-full w-6 h-6 flex items-center justify-center mr-3">
                                 {index + 1}
                               </span>
                               <span className="font-medium">{team?.name || "Unknown Team"}</span>
@@ -547,7 +547,7 @@ export default function MemberForm() {
                             onClick={() => !isDragging && toggleTimeSlot(day, time)}
                             className={`p-2 rounded border transition-colors select-none ${
                               isTimeSlotSelected(day, time)
-                                ? 'bg-blue-500 border-blue-600 text-white'
+                                ? 'grip-blue border-grip-blue text-white'
                                 : 'bg-white border-slate-200 hover:bg-slate-50'
                             }`}
                             style={{ userSelect: 'none' }}
@@ -603,9 +603,50 @@ export default function MemberForm() {
                 </div>
               </div>
 
+              {/* Technical Teams Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-slate-900 border-b border-grip-blue pb-2">
+                  Available Technical Teams
+                </h3>
+                <p className="text-sm text-slate-600">
+                  These are the technical teams available for assignment. You'll rank your preferences above.
+                </p>
+
+                <div className="grid grid-cols-1 gap-3">
+                  {technicalTeams.map((team) => (
+                    <div key={team.id} className="p-4 border border-grip-blue rounded-lg bg-blue-50">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="font-medium text-grip-blue text-lg">{team.name}</div>
+                          {team.description && (
+                            <div className="text-sm text-slate-700 mt-2">{team.description}</div>
+                          )}
+                          <div className="text-xs text-slate-600 mt-2">
+                            <div><strong>Meeting Time:</strong> {team.meetingTime}</div>
+                            <div><strong>Capacity:</strong> {team.currentSize}/{team.maxCapacity} members</div>
+                            {team.requiredSkills && (
+                              <div><strong>Skills:</strong> {team.requiredSkills}</div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="ml-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            team.currentSize >= team.maxCapacity 
+                              ? 'bg-red-100 text-red-800' 
+                              : 'bg-grip-green text-white'
+                          }`}>
+                            {team.currentSize >= team.maxCapacity ? 'Full' : 'Available'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* Additional Teams Section */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-slate-900 border-b border-slate-200 pb-2">
+                <h3 className="text-lg font-semibold text-slate-900 border-b border-grip-green pb-2">
                   Additional Teams (Optional)
                 </h3>
                 <p className="text-sm text-slate-600">
@@ -613,10 +654,8 @@ export default function MemberForm() {
                 </p>
 
                 <div className="space-y-3">
-                  {constantTeams
-                          .filter((team) => !selectedAdditionalTeams.includes(team.id))
-                          .map((team) => (
-                    <label key={team.id} className="flex items-start space-x-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50">
+                  {constantTeams.map((team) => (
+                    <label key={team.id} className="flex items-start space-x-3 p-3 border border-grip-green rounded-lg hover:bg-green-50 transition-colors">
                       <Checkbox
                         checked={selectedAdditionalTeams.includes(team.id)}
                         onCheckedChange={(checked) => {
@@ -632,12 +671,16 @@ export default function MemberForm() {
                         }}
                       />
                       <div className="flex-1">
-                        <div className="font-medium text-slate-900">{team.name}</div>
+                        <div className="font-medium text-grip-green">{team.name}</div>
                         {team.description && (
                           <div className="text-sm text-slate-600 mt-1">{team.description}</div>
                         )}
-                        <div className="text-xs text-green-600 mt-1">
-                          ✓ Unlimited capacity - Open to all members
+                        <div className="text-xs text-slate-500 mt-1">
+                          <div><strong>Meeting Time:</strong> {team.meetingTime}</div>
+                          <div><strong>Capacity:</strong> {team.currentSize}/{team.maxCapacity} members</div>
+                        </div>
+                        <div className="text-xs text-grip-green mt-2 font-medium">
+                          ✓ Open to all members
                         </div>
                       </div>
                     </label>
@@ -645,11 +688,11 @@ export default function MemberForm() {
                 </div>
 
                 {selectedAdditionalTeams.length > 0 && (
-                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <div className="text-sm text-green-800">
+                  <div className="p-3 bg-green-50 border border-grip-green rounded-lg">
+                    <div className="text-sm text-grip-green font-medium">
                       <strong>Selected additional teams:</strong> {selectedAdditionalTeams.length}
                     </div>
-                    <div className="text-xs text-green-600 mt-1">
+                    <div className="text-xs text-slate-600 mt-1">
                       You can join these teams regardless of your technical team assignment.
                     </div>
                   </div>
@@ -660,7 +703,7 @@ export default function MemberForm() {
                 <Button 
                   type="submit" 
                   disabled={submitMutation.isPending}
-                  className="w-full grip-primary text-white hover:bg-cyan-700 disabled:opacity-50"
+                  className="w-full grip-blue text-white hover:bg-grip-orange disabled:opacity-50 transition-colors"
                   onClick={() => {
                     console.log("Submit button clicked");
                     console.log("Current team preferences:", teamPreferences);

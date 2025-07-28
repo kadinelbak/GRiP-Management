@@ -1,4 +1,4 @@
-import { HandHeart, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function Header() {
@@ -8,9 +8,11 @@ export default function Header() {
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <div className="w-10 h-10 grip-primary rounded-lg flex items-center justify-center">
-                <HandHeart className="text-white text-lg" />
-              </div>
+              <img 
+                src="/attached_assets/LogoEmblem_1753688453831.png" 
+                alt="GRiP Logo" 
+                className="w-12 h-12 object-contain"
+              />
             </div>
             <div className="ml-4">
               <h1 className="text-xl font-bold text-slate-900">GRiP</h1>
