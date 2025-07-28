@@ -887,7 +887,7 @@ function AbsenceManagementSection() {
                     <p className="text-xs text-muted-foreground">
                       External project submissions
                     </p>
-                  </Card</CardContent>
+                  </CardContent>
                 </Card>
               </div>
             </div>
