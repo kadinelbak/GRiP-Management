@@ -247,6 +247,7 @@ export const printSubmissions = pgTable("print_submissions", {
   generalPrintDescription: text("general_print_description"),
   fileSpecifications: text("file_specifications"),
   comments: text("comments"),
+  deadline: timestamp("deadline"), // When the print is needed by
   status: text("status").notNull().default("submitted"), // submitted, in_progress, completed, cancelled
   progress: integer("progress").notNull().default(0), // 0-100
   submittedAt: timestamp("submitted_at").notNull().defaultNow(),
@@ -271,6 +272,7 @@ export const insertPrintSubmissionSchema = createInsertSchema(printSubmissions).
   uploadFiles: z.string().optional(),
   generalPrintDescription: z.string().optional(),
   fileSpecifications: z.string().optional(),
-  comments: z.string().optional()
+  comments: z.string().optional(),
+  deadline: z.string().optional().transform((val) => val ? new Date(val) : undefined)
 });
 export type InsertPrintSubmission = z.infer<typeof insertPrintSubmissionSchema>;

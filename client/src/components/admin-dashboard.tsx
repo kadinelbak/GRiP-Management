@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { 
   BarChart3, Users, Inbox, Settings, Plus, Download, 
   Wand2, Eye, Edit, Trash2, CheckCircle, Clock, UserMinus, Calendar, 
-  CalendarX, Search, Filter, UserCheck, Save, X, Printer
+  CalendarX, Search, Filter, UserCheck, Save, X, Printer, Camera
 } from "lucide-react";
 import type { Team, Application, ProjectRequest } from "@shared/schema";
 import type { z } from "zod";
@@ -548,6 +548,7 @@ function PrintManagementSection() {
                     <th className="text-left p-3">Submitter</th>
                     <th className="text-left p-3">Request Type</th>
                     <th className="text-left p-3">Team</th>
+                    <th className="text-left p-3">Deadline</th>
                     <th className="text-left p-3">Status</th>
                     <th className="text-left p-3">Progress</th>
                     <th className="text-left p-3">Actions</th>
@@ -561,12 +562,24 @@ function PrintManagementSection() {
                       </td>
                       <td className="p-3">
                         <div>
-                          <p className="font-medium">{submission.submitterName}</p>
-                          <p className="text-xs text-slate-600">{submission.emailAddress}</p>
+                          <div className="font-medium text-slate-900">{submission.submitterName}</div>
+                          <div className="text-sm text-slate-500">{submission.emailAddress}</div>
                         </div>
                       </td>
-                      <td className="p-3 capitalize">{submission.requestType.replace("-", " ")}</td>
+                      <td className="p-3">
+                        <span className="capitalize">{submission.requestType.replace('-', ' ')}</span>
+                      </td>
                       <td className="p-3">{submission.teamName || "N/A"}</td>
+                      <td className="p-3">
+                        {submission.deadline ? (
+                          <div className="text-sm">
+                            <div>{new Date(submission.deadline).toLocaleDateString()}</div>
+                            <div className="text-slate-500">{new Date(submission.deadline).toLocaleTimeString()}</div>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400">No deadline</span>
+                        )}
+                      </td>
                       <td className="p-3">
                         <span className={`px-2 py-1 rounded text-xs capitalize ${getStatusColor(submission.status)}`}>
                           {submission.status.replace("_", " ")}

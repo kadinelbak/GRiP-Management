@@ -61,6 +61,7 @@ export default function PrintSubmissionForm() {
       generalPrintDescription: "",
       fileSpecifications: "",
       comments: "",
+      deadline: "",
     },
   });
 
@@ -263,6 +264,24 @@ export default function PrintSubmissionForm() {
                           ))}
                         </SelectContent>
                       </Select>
+                      <FormMessage className="text-red-600" />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="deadline"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Deadline (When do you need this by?)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          type="datetime-local" 
+                          placeholder="Select deadline date and time"
+                        />
+                      </FormControl>
                       <FormMessage className="text-red-600" />
                     </FormItem>
                   )}

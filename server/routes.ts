@@ -738,6 +738,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const multer = require('multer');
       const path = require('path');
       const fs = require('fs');
+      
+      // Import storage after requiring dependencies
+      const { storage: dbStorage } = await import('./storage');
 
       // Create uploads directory if it doesn't exist
       const uploadsDir = path.join(process.cwd(), 'uploads', 'print-submissions');
@@ -780,7 +783,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             uploadFiles: JSON.stringify(filePaths)
           });
 
-          const submission = await storage.createPrintSubmission(submissionData);
+          const submission = await dbStorage.createPrintSubmission(submissionData);
           res.status(201).json(submission);
         } catch (error) {
           if (error instanceof z.ZodError) {
