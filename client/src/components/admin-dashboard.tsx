@@ -255,8 +255,10 @@ export default function AdminDashboard() {
   };
 
   const convertToTeamMutation = useMutation({
-    mutationFn: ({ projectId, teamData }: { projectId: string; teamData: any }) => 
-      apiRequest("POST", "/api/admin/convert-project-to-team", { projectId, teamData }),
+    mutationFn: async ({ projectId, teamData }: { projectId: string; teamData: any }) => {
+      const response = await apiRequest("POST", "/api/admin/convert-project-to-team", { projectId, teamData });
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
       queryClient.invalidateQueries({ queryKey: ["/api/project-requests"] });
@@ -265,10 +267,11 @@ export default function AdminDashboard() {
         description: "Project converted to team successfully",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error("Convert to team error:", error);
       toast({
         title: "Error",
-        description: "Failed to convert project to team",
+        description: error.message || "Failed to convert project to team",
         variant: "destructive",
       });
     },
@@ -317,9 +320,8 @@ export default function AdminDashboard() {
       type: "technical" as const,
       description: project.description,
       maxCapacity: 8, // Default capacity
-      currentSize: 0,
       meetingTime: "TBD - Contact team lead for meeting times",
-      requiredSkills: project.description, // Use description as skills info
+      requiredSkills: project.description || "", // Use description as skills info
     };
 
     convertToTeamMutation.mutate({ projectId: project.id, teamData });

@@ -8,7 +8,7 @@ async function throwIfResNotOk(res: Response) {
 }
 
 export async function apiRequest(
-  method: string,
+  method: "GET" | "POST" | "PUT" | "DELETE",
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
@@ -19,7 +19,10 @@ export async function apiRequest(
     credentials: "include",
   });
 
-  await throwIfResNotOk(res);
+  if (!res.ok) {
+    throw new Error(`HTTP error! status: ${res.status}`);
+  }
+
   return res;
 }
 
