@@ -236,7 +236,7 @@ export type InsertEventAttendance = z.infer<typeof insertEventAttendanceSchema>;
 
 // Print Submissions
 export const printSubmissions = pgTable("print_submissions", {
-  id: text("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   timestamp: timestamp("timestamp").notNull().defaultNow(),
   submitterName: text("submitter_name").notNull(),
   emailAddress: text("email_address").notNull(),

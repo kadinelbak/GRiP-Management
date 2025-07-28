@@ -70,6 +70,12 @@ async function migrate() {
         approved_by TEXT
       )
     `);
+
+    // Add deadline column to print_submissions table
+    await db.execute(sql`
+      ALTER TABLE print_submissions 
+      ADD COLUMN IF NOT EXISTS deadline TIMESTAMP
+    `);
     
     console.log("Database migration completed successfully!");
   } catch (error) {
