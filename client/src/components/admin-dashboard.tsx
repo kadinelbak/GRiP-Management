@@ -1,3 +1,4 @@
+typescript
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -597,32 +598,39 @@ function PrintManagementSection() {
                         </div>
                       </td>
                       <td className="p-3">
-                        <div className="flex gap-1">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setSelectedSubmission(submission)}
-                          >
-                            <Eye className="w-3 h-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => downloadFilesMutation.mutate(submission.id)}
-                            disabled={downloadFilesMutation.isPending}
-                          >
-                            <Download className="w-3 h-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => deleteSubmissionMutation.mutate(submission.id)}
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      </td>
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setSelectedSubmission(submission)}
+                                title="View Details"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => downloadFilesMutation.mutate(submission.id)}
+                                disabled={downloadFilesMutation.isPending}
+                                title="Download Files"
+                              >
+                                <Download className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  if (confirm("Are you sure you want to delete this submission?")) {
+                                    deleteSubmissionMutation.mutate(submission.id);
+                                  }
+                                }}
+                                className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                                title="Delete Submission"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </td>
                     </tr>
                   ))}
                 </tbody>
@@ -881,8 +889,7 @@ function AbsenceManagementSection() {
                   <CardContent>
                     <div className="text-2xl font-bold">{stats?.totalApplications || 0}</div>
                     <p className="text-xs text-muted-foreground">
-                      {stats?.assignedApplications || 0} assigned, {stats?.waitlistedApplications || 0} waitlisted
-                    </p>
+                      {stats?.assignedApplications || 0} assigned, {stats?.waitlistedApplications || 0} waitlisted                    </p>
                   </CardContent>
                 </Card>
 
