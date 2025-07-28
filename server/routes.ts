@@ -128,6 +128,11 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Health check endpoint for deployments
+  app.get("/", (_req, res) => {
+    res.status(200).json({ status: "ok", message: "Server is running" });
+  });
+
   // Teams API
   app.get("/api/teams", async (_req, res) => {
     try {
