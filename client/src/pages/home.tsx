@@ -125,7 +125,7 @@ function LandingPage() {
   );
 }
 
-export default function Home() {
+export default function HomePage() {
   const [activeTab, setActiveTab] = useState<TabType>("home");
 
   return (
