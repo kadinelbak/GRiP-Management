@@ -256,7 +256,7 @@ export default function AdminDashboard() {
 
   const convertToTeamMutation = useMutation({
     mutationFn: ({ projectId, teamData }: { projectId: string; teamData: any }) => 
-      apiRequest("/api/admin/convert-project-to-team", "POST", { projectId, teamData }),
+      apiRequest("POST", "/api/admin/convert-project-to-team", { projectId, teamData }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
       queryClient.invalidateQueries({ queryKey: ["/api/project-requests"] });
@@ -276,7 +276,7 @@ export default function AdminDashboard() {
 
   const updateProjectMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: any }) => 
-      apiRequest(`/api/project-requests/${id}`, "PUT", updates),
+      apiRequest("PUT", `/api/project-requests/${id}`, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/project-requests"] });
       toast({
@@ -294,7 +294,7 @@ export default function AdminDashboard() {
   });
 
   const deleteProjectMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/project-requests/${id}`, "DELETE"),
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/project-requests/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/project-requests"] });
       toast({
@@ -318,7 +318,7 @@ export default function AdminDashboard() {
       description: project.description,
       maxCapacity: 8, // Default capacity
       currentSize: 0,
-      meetingTime: "TBD",
+      meetingTime: "TBD - Contact team lead for meeting times",
       requiredSkills: project.description, // Use description as skills info
     };
 
@@ -503,8 +503,15 @@ export default function AdminDashboard() {
                           <FormItem>
                             <FormLabel>Meeting Time</FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder="e.g., Tuesdays 7:00 PM - 8:30 PM" value={field.value || ""} />
+                              <Input 
+                                {...field} 
+                                placeholder="e.g., Monday 7:00 PM - 8:30 PM, Room TBD" 
+                                value={field.value || ""} 
+                              />
                             </FormControl>
+                            <p className="text-xs text-slate-500">
+                              Format: Day Time - Time, Location (e.g., "Tuesday 7:00 PM - 8:30 PM, Reitz Union")
+                            </p>
                             <FormMessage className="text-red-600" />
                           </FormItem>
                         )}
