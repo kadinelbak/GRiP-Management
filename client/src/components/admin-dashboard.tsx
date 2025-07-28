@@ -1319,58 +1319,208 @@ function AbsenceManagementSection() {
               {/* Member Detail Modal */}
               {selectedMember && (
                 <Dialog open={!!selectedMember} onOpenChange={() => setSelectedMember(null)}>
-                  <DialogContent className="max-w-2xl">
+                  <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                     <DialogHeader>
-                      <DialogTitle>Member Details</DialogTitle>
+                      <DialogTitle>Member Details - {selectedMember.fullName}</DialogTitle>
                     </DialogHeader>
 
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                          <h3 className="font-semibold text-slate-900 mb-2">Personal Information</h3>
-                          <div className="space-y-1 text-sm">
+                          <h3 className="font-semibold text-slate-900 mb-3">Personal Information</h3>
+                          <div className="space-y-2 text-sm">
                             <p><span className="font-medium">Name:</span> {selectedMember.fullName}</p>
                             <p><span className="font-medium">Email:</span> {selectedMember.email}</p>
                             <p><span className="font-medium">UFID:</span> {selectedMember.ufid}</p>
                             <p><span className="font-medium">Team:</span> {getTeamName(selectedMember.assignedTeamId)}</p>
+                            <p><span className="font-medium">Status:</span> 
+                              <Badge variant="default" className="ml-2">{selectedMember.status}</Badge>
+                            </p>
                           </div>
                         </div>
 
                         <div>
-                          <h3 className="font-semibold text-slate-900 mb-2">Application Details</h3>
-                          <div className="space-y-1 text-sm">
-                            <p><span className="font-medium">Status:</span> {selectedMember.status}</p>
+                          <h3 className="font-semibold text-slate-900 mb-3">Application Details</h3>
+                          <div className="space-y-2 text-sm">
                             <p><span className="font-medium">Submitted:</span> {new Date(selectedMember.submittedAt).toLocaleDateString()}</p>
+                            <p><span className="font-medium">Points:</span> {selectedMember.points || 0}</p>
+                            {selectedMember.assignmentReason && (
+                              <p><span className="font-medium">Assignment Reason:</span> {selectedMember.assignmentReason}</p>
+                            )}
                           </div>
                         </div>
                       </div>
 
+                      {/* Skills Section */}
                       {selectedMember.skills && selectedMember.skills.length > 0 && (
                         <div>
-                          <h3 className="font-semibold text-slate-900 mb-2">Skills</h3>
+                          <h3 className="font-semibold text-slate-900 mb-3">Skills</h3>
                           <div className="flex flex-wrap gap-2">
                             {selectedMember.skills.map((skill, index) => (
-                              <Badge key={index} variant="outline">{skill}</Badge>
+                              <Badge key={index} variant="outline" className="bg-blue-50 border-blue-200 text-blue-800">
+                                {skill}
+                              </Badge>
                             ))}
                           </div>
                         </div>
                       )}
 
+                      {/* Additional Skills */}
                       {selectedMember.additionalSkills && (
                         <div>
-                          <h3 className="font-semibold text-slate-900 mb-2">Additional Skills</h3>
-                          <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded">
+                          <h3 className="font-semibold text-slate-900 mb-3">Additional Skills & Experience</h3>
+                          <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded border">
                             {selectedMember.additionalSkills}
                           </p>
                         </div>
                       )}
 
-                      <div className="flex gap-2 pt-4">
+                      {/* Team Preferences */}
+                      {selectedMember.teamPreferences && selectedMember.teamPreferences.length > 0 && (
+                        <div>
+                          <h3 className="font-semibold text-slate-900 mb-3">Team Preferences</h3>
+                          <div className="space-y-2">
+                            {selectedMember.teamPreferences.map((teamId, index) => (
+                              <div key={teamId} className="flex items-center gap-2">
+                                <Badge variant="outline" className="w-8 h-6 justify-center text-xs">
+                                  #{index + 1}
+                                </Badge>
+                                <span className="text-sm">{getTeamName(teamId)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Absences Section */}
+                      <div>
+                        <h3 className="font-semibold text-slate-900 mb-3">Absence Record</h3>
+                        {(() => {
+                          const memberAbsences = absences.filter(absence => 
+                            absence.applicationId === selectedMember.id && absence.isActive
+                          );
+                          
+                          if (memberAbsences.length === 0) {
+                            return (
+                              <div className="text-center py-6 bg-green-50 border border-green-200 rounded">
+                                <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                                <p className="text-sm text-green-700 font-medium">Perfect Attendance</p>
+                                <p className="text-xs text-green-600">No absences recorded</p>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div className="space-y-3">
+                              <div className="grid grid-cols-3 gap-4 text-sm">
+                                <div className="bg-slate-50 p-3 rounded text-center">
+                                  <div className="font-semibold text-lg">{memberAbsences.length}</div>
+                                  <div className="text-slate-600">Total Absences</div>
+                                </div>
+                                <div className="bg-slate-50 p-3 rounded text-center">
+                                  <div className="font-semibold text-lg">
+                                    {memberAbsences.filter(a => new Date(a.startDate) > new Date(Date.now() - 30*24*60*60*1000)).length}
+                                  </div>
+                                  <div className="text-slate-600">Last 30 Days</div>
+                                </div>
+                                <div className="bg-slate-50 p-3 rounded text-center">
+                                  <div className={`font-semibold text-lg ${
+                                    memberAbsences.length >= 3 ? 'text-red-600' : 
+                                    memberAbsences.length >= 2 ? 'text-orange-600' : 
+                                    memberAbsences.length >= 1 ? 'text-yellow-600' : 'text-green-600'
+                                  }`}>
+                                    {memberAbsences.length >= 3 ? 'High' : 
+                                     memberAbsences.length >= 2 ? 'Medium' : 
+                                     memberAbsences.length >= 1 ? 'Low' : 'None'}
+                                  </div>
+                                  <div className="text-slate-600">Risk Level</div>
+                                </div>
+                              </div>
+
+                              <div className="space-y-2">
+                                <h4 className="font-medium text-slate-800">Absence History</h4>
+                                {memberAbsences.map((absence) => (
+                                  <div key={absence.id} className="border rounded p-3 bg-slate-50">
+                                    <div className="flex justify-between items-start">
+                                      <div className="flex-1">
+                                        <div className="text-sm font-medium">
+                                          {new Date(absence.startDate).toLocaleDateString()}
+                                          {absence.endDate && ` - ${new Date(absence.endDate).toLocaleDateString()}`}
+                                        </div>
+                                        {absence.reason && (
+                                          <div className="text-sm text-slate-600 mt-1">
+                                            Reason: {absence.reason}
+                                          </div>
+                                        )}
+                                        <div className="text-xs text-slate-500 mt-1">
+                                          Added: {new Date(absence.createdAt).toLocaleDateString()}
+                                        </div>
+                                      </div>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={async () => {
+                                          if (confirm("Are you sure you want to clear this absence?")) {
+                                            try {
+                                              await fetch(`/api/absences/${absence.id}`, {
+                                                method: 'DELETE'
+                                              });
+                                              toast({ title: "Absence cleared successfully" });
+                                              queryClient.invalidateQueries({ queryKey: ['/api/absences'] });
+                                              queryClient.invalidateQueries({ queryKey: ['/api/accepted-members'] });
+                                            } catch (error) {
+                                              toast({ title: "Failed to clear absence", variant: "destructive" });
+                                            }
+                                          }
+                                        }}
+                                        className="text-red-600 border-red-200 hover:bg-red-50"
+                                      >
+                                        <X className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+
+                      {/* Time Availability */}
+                      {selectedMember.timeAvailability && selectedMember.timeAvailability.length > 0 && (
+                        <div>
+                          <h3 className="font-semibold text-slate-900 mb-3">Time Availability</h3>
+                          <div className="bg-slate-50 p-3 rounded border">
+                            <div className="text-xs text-slate-600 mb-2">Available time slots:</div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                              {selectedMember.timeAvailability.map((slot, index) => (
+                                <div key={index} className="bg-white px-2 py-1 rounded border text-center">
+                                  {slot}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2 pt-4 border-t">
                         <Button
                           variant="outline"
                           onClick={() => setSelectedMember(null)}
                         >
                           Close
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          onClick={() => {
+                            if (confirm(`Are you sure you want to remove ${selectedMember.fullName} from the system?`)) {
+                              handleDeleteMember(selectedMember.id);
+                            }
+                          }}
+                          disabled={deleteMemberMutation.isPending}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Remove Member
                         </Button>
                       </div>
                     </div>
