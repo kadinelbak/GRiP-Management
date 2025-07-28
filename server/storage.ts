@@ -673,7 +673,42 @@ export class DatabaseStorage implements IStorage {
 
   // Event Attendance
   async getEventAttendance(): Promise<EventAttendance[]> {
-    return await db.select().from(eventAttendance).orderBy(desc(eventAttendance.createdAt));
+    try {
+      const attendanceRecords = await db
+        .select({
+          id: eventAttendance.id,
+          eventId: eventAttendance.eventId,
+          fullName: eventAttendance.fullName,
+          ufid: eventAttendance.ufid,
+          photo: eventAttendance.photo,
+          socialMediaPermission: eventAttendance.socialMediaPermission,
+          status: eventAttendance.status,
+          submittedAt: eventAttendance.submittedAt,
+          approvedAt: eventAttendance.approvedAt,
+          approvedBy: eventAttendance.approvedBy,
+          event: events
+        })
+        .from(eventAttendance)
+        .leftJoin(events, eq(eventAttendance.eventId, events.id))
+        .orderBy(desc(eventAttendance.createdAt));
+
+      return attendanceRecords.map(record => ({
+        id: record.id,
+        eventId: record.eventId,
+        fullName: record.fullName,
+        ufid: record.ufid,
+        photo: record.photo,
+        socialMediaPermission: record.socialMediaPermission,
+        status: record.status,
+        submittedAt: record.submittedAt,
+        approvedAt: record.approvedAt,
+        approvedBy: record.approvedBy,
+        event: record.event
+      }));
+    } catch (error) {
+      console.error("Error fetching event attendance:", error);
+      return [];
+    }
   }
 
   async getEventAttendanceById(id: string): Promise<EventAttendance | undefined> {
