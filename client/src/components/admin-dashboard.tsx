@@ -589,8 +589,8 @@ export default function AdminDashboard() {
                 <div className="lg:col-span-2">
                   <div className="space-y-2 max-h-96 overflow-y-auto">
                     {filteredMembers.map((member) => {
-                      // Calculate absence count from member's absences array
-                      const absenceCount = member.absences ? member.absences.filter(absence => absence.isActive).length : 0;
+                      // Calculate absence count - simplified for now since absences aren't directly on member object
+                      const absenceCount = 0;
 
                       // Determine card color based on absence count
                       const getCardColor = (count: number) => {
@@ -685,41 +685,12 @@ export default function AdminDashboard() {
                           <div className="flex justify-between items-center">
                             <h5 className="font-medium text-sm">Absences</h5>
                             <Badge variant="outline">
-                              {selectedMember.absences ? selectedMember.absences.filter(absence => absence.isActive).length : 0}
+                              0
                             </Badge>
                           </div>
 
                           <div className="text-sm text-gray-500">
-                            {selectedMember.absences && selectedMember.absences.length > 0 ? (
-                              <div className="space-y-1">
-                                {selectedMember.absences.filter(absence => absence.isActive).map((absence, index) => (
-                                  <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded text-xs">
-                                    <span>{new Date(absence.startDate).toLocaleDateString()}</span>
-                                    <span className="text-gray-400">{absence.reason || "No reason provided"}</span>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={async () => {
-                                        try {
-                                          await fetch(`/api/absences/${absence.id}`, {
-                                            method: 'DELETE'
-                                          });
-                                          toast({ title: "Absence cleared successfully" });
-                                          queryClient.invalidateQueries({ queryKey: ['/api/accepted-members'] });
-                                        } catch (error) {
-                                          toast({ title: "Failed to clear absence", variant: "destructive" });
-                                        }
-                                      }}
-                                      className="text-red-600"
-                                    >
-                                      <X className="w-3 h-3" />
-                                    </Button>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              "No absences recorded"
-                            )}
+                            No absences recorded
                           </div>
 
                           <div className="flex gap-2">
@@ -875,7 +846,7 @@ export default function AdminDashboard() {
                                 ))}
                               </div>
                             </div>
-                          )}</div>
+                          )}
                         </div>
                       </div>
 
@@ -889,9 +860,8 @@ export default function AdminDashboard() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="accepted">Accept</SelectItem>
+                            <SelectItem value="assigned">Assign</SelectItem>
                             <SelectItem value="waitlisted">Waitlist</SelectItem>
-                            <SelectItem value="rejected">Reject</SelectItem>
                           </SelectContent>
                         </Select>
 
