@@ -104,6 +104,66 @@ export const eventAttendance = pgTable("event_attendance", {
   approvedBy: text("approved_by"),
 });
 
+// Print Submissions
+export const printSubmissions = pgTable("print_submissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+  submitterName: text("submitter_name").notNull(),
+  emailAddress: text("email_address").notNull(),
+  requestType: text("request_type").notNull(), // "Adaptive Gaming", "Test", etc.
+  teamName: text("team_name"),
+  color: text("color"), // Preferred print color
+  uploadFiles: text("upload_files"), // JSON array of file paths
+  generalPrintDescription: text("general_print_description"),
+  fileSpecifications: text("file_specifications"),
+  comments: text("comments"),
+  deadline: timestamp("deadline"), // When the print is needed by
+  status: text("status").notNull().default("submitted"), // submitted, in_progress, completed, cancelled
+  progress: integer("progress").notNull().default(0), // 0-100
+  submittedAt: timestamp("submitted_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow()
+});
+
+// Special Roles
+export const specialRoles = pgTable("special_roles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  responsibilities: text("responsibilities"),
+  requirements: text("requirements"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Role Applications
+export const roleApplications = pgTable("role_applications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  roleId: varchar("role_id").notNull().references(() => specialRoles.id),
+  applicantName: text("applicant_name").notNull(),
+  applicantEmail: text("applicant_email").notNull(),
+  ufid: text("ufid").notNull(),
+  currentTeam: text("current_team"),
+  experience: text("experience"),
+  motivation: text("motivation"),
+  availability: text("availability"),
+  additionalInfo: text("additional_info"),
+  status: text("status").notNull().default("pending"), // pending, approved, rejected
+  reviewedBy: text("reviewed_by"),
+  reviewNotes: text("review_notes"),
+  submittedAt: timestamp("submitted_at").notNull().defaultNow(),
+  reviewedAt: timestamp("reviewed_at"),
+});
+
+// Member Roles (assigned roles)
+export const memberRoles = pgTable("member_roles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  applicationId: varchar("application_id").notNull().references(() => applications.id),
+  roleId: varchar("role_id").notNull().references(() => specialRoles.id),
+  assignedAt: timestamp("assigned_at").notNull().defaultNow(),
+  assignedBy: text("assigned_by"),
+  isActive: boolean("is_active").notNull().default(true),
+});
+
 // Relations
 export const teamsRelations = relations(teams, ({ many }) => ({
   applications: many(applications),
@@ -256,66 +316,6 @@ export type InsertAdminSetting = z.infer<typeof insertAdminSettingSchema>;
 export type InsertAbsence = z.infer<typeof insertAbsenceSchema>;
 export type InsertEvent = z.infer<typeof insertEventSchema>;
 export type InsertEventAttendance = z.infer<typeof insertEventAttendanceSchema>;
-
-// Print Submissions
-export const printSubmissions = pgTable("print_submissions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  timestamp: timestamp("timestamp").notNull().defaultNow(),
-  submitterName: text("submitter_name").notNull(),
-  emailAddress: text("email_address").notNull(),
-  requestType: text("request_type").notNull(), // "Adaptive Gaming", "Test", etc.
-  teamName: text("team_name"),
-  color: text("color"), // Preferred print color
-  uploadFiles: text("upload_files"), // JSON array of file paths
-  generalPrintDescription: text("general_print_description"),
-  fileSpecifications: text("file_specifications"),
-  comments: text("comments"),
-  deadline: timestamp("deadline"), // When the print is needed by
-  status: text("status").notNull().default("submitted"), // submitted, in_progress, completed, cancelled
-  progress: integer("progress").notNull().default(0), // 0-100
-  submittedAt: timestamp("submitted_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow()
-});
-
-// Special Roles
-export const specialRoles = pgTable("special_roles", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull().unique(),
-  description: text("description"),
-  responsibilities: text("responsibilities"),
-  requirements: text("requirements"),
-  isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
-
-// Role Applications
-export const roleApplications = pgTable("role_applications", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  roleId: varchar("role_id").notNull().references(() => specialRoles.id),
-  applicantName: text("applicant_name").notNull(),
-  applicantEmail: text("applicant_email").notNull(),
-  ufid: text("ufid").notNull(),
-  currentTeam: text("current_team"),
-  experience: text("experience"),
-  motivation: text("motivation"),
-  availability: text("availability"),
-  additionalInfo: text("additional_info"),
-  status: text("status").notNull().default("pending"), // pending, approved, rejected
-  reviewedBy: text("reviewed_by"),
-  reviewNotes: text("review_notes"),
-  submittedAt: timestamp("submitted_at").notNull().defaultNow(),
-  reviewedAt: timestamp("reviewed_at"),
-});
-
-// Member Roles (assigned roles)
-export const memberRoles = pgTable("member_roles", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  applicationId: varchar("application_id").notNull().references(() => applications.id),
-  roleId: varchar("role_id").notNull().references(() => specialRoles.id),
-  assignedAt: timestamp("assigned_at").notNull().defaultNow(),
-  assignedBy: text("assigned_by"),
-  isActive: boolean("is_active").notNull().default(true),
-});
 
 export type PrintSubmission = typeof printSubmissions.$inferSelect;
 
