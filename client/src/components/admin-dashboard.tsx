@@ -185,25 +185,7 @@ export default function AdminDashboard() {
     },
   });
 
-  // Mutation for auto-assigning teams
-  const autoAssignTeamsMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/admin/assign-teams"),
-    onSuccess: () => {
-      toast({
-        title: "Teams Assigned",
-        description: "Teams have been automatically assigned based on preferences.",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/accepted-members"] });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to assign teams.",
-        variant: "destructive",
-      });
-    },
-  });
+  // Remove duplicate - using autoAssignMutation above
 
   // Mutation for updating project request status
   const updateProjectRequestMutation = useMutation({
@@ -259,8 +241,6 @@ export default function AdminDashboard() {
   const handleUpdateApplicationStatus = (id: string, status: string) => {
     updateApplicationMutation.mutate({ id, updates: { status } });
   };
-
-  
 
   const handleUpdateProjectRequest = (id: string, updates: any) => {
     updateProjectRequestMutation.mutate({ id, updates });
