@@ -56,6 +56,7 @@ export const projectRequests = pgTable("project_requests", {
   howHeardAbout: text("how_heard_about"),
   consentGiven: boolean("consent_given").notNull().default(false),
   status: text("status").notNull().default("submitted"), // 'submitted', 'reviewing', 'approved', 'completed'
+  responsiblePerson: text("responsible_person"), // Person responsible when status is 'reaching_out'
   submittedAt: timestamp("submitted_at").notNull().defaultNow(),
 });
 
@@ -137,9 +138,7 @@ export const insertProjectRequestSchema = createInsertSchema(projectRequests).om
   id: true,
   status: true,
   submittedAt: true,
-}).extend({
-  email: z.string().email("Invalid email format"),
-  consentGiven: z.boolean().refine(val => val === true, "Consent must be given"),
+  responsiblePerson: true, // This will be set when status changes to 'reaching_out'
 });
 
 export const insertAdminSettingSchema = createInsertSchema(adminSettings).omit({

@@ -166,7 +166,7 @@ export default function AdminDashboard() {
       queryClient.invalidateQueries({ queryKey: ["/api/accepted-members"] });
       queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
-      
+
       toast({
         title: "Auto Assignment Complete",
         description: `Successfully processed ${data.assignments?.length || 0} applications. Check the assignments for details.`,
@@ -181,24 +181,87 @@ export default function AdminDashboard() {
     },
   });
 
+  // Mutation for auto-assigning teams
+  const autoAssignTeamsMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/assign-teams"),
+    onSuccess: () => {
+      toast({
+        title: "Teams Assigned",
+        description: "Teams have been automatically assigned based on preferences.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/accepted-members"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to assign teams.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation for updating project request status
+  const updateProjectRequestMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: any }) =>
+      apiRequest("PUT", `/api/project-requests/${id}`, updates),
+    onSuccess: () => {
+      toast({
+        title: "Project Request Updated",
+        description: "Project request status has been updated.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/project-requests"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update project request.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation for deleting project requests
+  const deleteProjectRequestMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/project-requests/${id}`),
+    onSuccess: () => {
+      toast({
+        title: "Project Request Deleted",
+        description: "Project request has been deleted.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/project-requests"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete project request.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: TeamFormData) => {
     createTeamMutation.mutate(data);
   };
 
   const handleDeleteApplication = (id: string) => {
-    if (confirm("Are you sure you want to delete this application?")) {
-      deleteApplicationMutation.mutate(id);
-    }
+    deleteApplicationMutation.mutate(id);
+  };
+
+  const handleDeleteMember = (id: string) => {
+    deleteMemberMutation.mutate(id);
   };
 
   const handleUpdateApplicationStatus = (id: string, status: string) => {
     updateApplicationMutation.mutate({ id, updates: { status } });
   };
 
-  const handleDeleteMember = (id: string) => {
-    if (confirm("Are you sure you want to remove this member?")) {
-      deleteMemberMutation.mutate(id);
-    }
+  const handleAutoAssignTeams = () => {
+    autoAssignTeamsMutation.mutate();
+  };
+
+  const handleUpdateProjectRequest = (id: string, updates: any) => {
+    updateProjectRequestMutation.mutate({ id, updates });
   };
 
   const handleExportMembers = () => {
@@ -207,12 +270,6 @@ export default function AdminDashboard() {
 
   const handleExportApplications = () => {
     window.open("/api/export/applications", "_blank");
-  };
-
-  const handleAutoAssignTeams = () => {
-    if (confirm("This will automatically assign teams based on preferences and submission time. Continue?")) {
-      autoAssignMutation.mutate();
-    }
   };
 
   const convertToTeamMutation = useMutation({
@@ -282,7 +339,7 @@ export default function AdminDashboard() {
       meetingTime: "TBD",
       requiredSkills: project.description, // Use description as skills info
     };
-    
+
     convertToTeamMutation.mutate({ projectId: project.id, teamData });
   };
 
@@ -321,7 +378,7 @@ export default function AdminDashboard() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <h1 className="text-3xl font-bold text-slate-900">GRiP Admin Dashboard</h1>
-      
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview">
@@ -540,7 +597,7 @@ export default function AdminDashboard() {
                           {teamMembers.length}/{team.maxCapacity} members
                         </Badge>
                       </div>
-                      
+
                       {teamMembers.length > 0 ? (
                         <div className="space-y-2">
                           {teamMembers.map((member) => (
@@ -636,7 +693,7 @@ export default function AdminDashboard() {
                         <div><strong>Team:</strong> {getTeamName(selectedMember.assignedTeamId)}</div>
                         <div><strong>Status:</strong> {selectedMember.status}</div>
                         <div><strong>Submitted:</strong> {new Date(selectedMember.submittedAt).toLocaleDateString()}</div>
-                        
+
                         {selectedMember.skills && (
                           <div>
                             <strong>Skills:</strong>
@@ -742,12 +799,12 @@ export default function AdminDashboard() {
                             {application.status}
                           </Badge>
                         </div>
-                        
+
                         <div className="text-sm text-gray-600 space-y-1">
                           <div>{application.email} | UFID: {application.ufid}</div>
                           <div>Assigned Team: {getTeamName(application.assignedTeamId)}</div>
                           <div>Submitted: {new Date(application.submittedAt).toLocaleDateString()}</div>
-                          
+
                           {application.teamPreferences && application.teamPreferences.length > 0 && (
                             <div>
                               Team Preferences: {application.teamPreferences.map(teamId => getTeamName(teamId)).join(", ")}
@@ -771,7 +828,7 @@ export default function AdminDashboard() {
                             <SelectItem value="rejected">Reject</SelectItem>
                           </SelectContent>
                         </Select>
-                        
+
                         <Button
                           variant="destructive"
                           size="sm"
@@ -789,107 +846,127 @@ export default function AdminDashboard() {
         </TabsContent>
 
         {/* Projects Tab */}
-        <TabsContent value="projects" className="space-y-6">
+        <TabsContent value="projects">
           <Card>
-            <CardHeader className="flex flex-row justify-between items-center">
+            <CardHeader>
               <CardTitle>Project Requests</CardTitle>
-              <div className="flex gap-2">
-                <Badge variant="outline">
-                  {projectRequests.length} total requests
-                </Badge>
-              </div>
+              <CardDescription>
+                Manage submitted project requests
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {projectRequests.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Wand2 className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Project Requests</h3>
-                    <p className="text-gray-500">Project requests will appear here when submitted.</p>
-                  </div>
-                ) : (
-                  projectRequests.map((project) => (
-                    <Card key={project.id} className="p-4">
+                {projectRequests?.map((request) => (
+                  <Card key={request.id} className="p-4">
+                    <div className="space-y-3">
                       <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-3">
-                            <h4 className="font-semibold text-lg">{project.projectTitle}</h4>
-                            <Badge variant={
-                              project.status === "approved" ? "default" :
-                              project.status === "rejected" ? "destructive" :
-                              project.status === "under-review" ? "secondary" : "outline"
-                            }>
-                              {project.status || "pending"}
-                            </Badge>
-                          </div>
-                          
-                          <div className="space-y-2 text-sm">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
-                                <p><strong>Contact Name:</strong> {project.fullName}</p>
-                                <p><strong>Email:</strong> {project.email}</p>
-                                <p><strong>Phone:</strong> {project.phone || "Not provided"}</p>
-                                <p><strong>Address:</strong> {project.address || "Not provided"}</p>
-                              </div>
-                              <div>
-                                <p><strong>Project Type:</strong> {project.projectType}</p>
-                                <p><strong>Budget Considerations:</strong> {project.budgetConsiderations || "Not specified"}</p>
-                                <p><strong>Priority:</strong> {project.priority}</p>
-                                <p><strong>Submitted:</strong> {new Date(project.submittedAt).toLocaleDateString()}</p>
-                              </div>
-                            </div>
-                            
-                            <div className="mt-3">
-                              <p><strong>Description:</strong></p>
-                              <p className="text-gray-600 mt-1">{project.description}</p>
-                            </div>
-                            
-                            {project.howHeardAbout && (
-                              <div className="mt-3">
-                                <p><strong>How they heard about us:</strong></p>
-                                <p className="text-gray-600 mt-1">{project.howHeardAbout}</p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col gap-2 ml-4">
-                          <Button
-                            onClick={() => handleConvertToTeam(project)}
-                            disabled={convertToTeamMutation.isPending}
-                            size="sm"
-                            className="bg-green-600 hover:bg-green-700"
-                          >
-                            <Users className="w-4 h-4 mr-2" />
-                            Convert to Team
-                          </Button>
-                          
-                          <Select 
-                            value={project.status || "pending"} 
-                            onValueChange={(status) => handleUpdateProjectStatus(project.id, status)}
-                          >
-                            <SelectTrigger className="w-36">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="pending">Pending</SelectItem>
-                              <SelectItem value="under-review">Under Review</SelectItem>
-                              <SelectItem value="approved">Approved</SelectItem>
-                              <SelectItem value="rejected">Rejected</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          
+                        <h4 className="font-medium">{request.projectTitle}</h4>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={
+                            request.status === "approved" ? "default" :
+                            request.status === "rejected" ? "destructive" :
+                            request.status === "reaching_out" ? "secondary" : "outline"
+                          }>
+                            {request.status === "reaching_out" ? "Reaching Out" : request.status}
+                          </Badge>
                           <Button
                             variant="destructive"
                             size="sm"
-                            onClick={() => handleDeleteProject(project.id)}
+                            onClick={() => deleteProjectRequestMutation.mutate(request.id)}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
                       </div>
-                    </Card>
-                  ))
+
+                      <p className="text-sm text-gray-600">{request.description}</p>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-500">
+                        <div>Submitted by: {request.submitterName} ({request.submitterEmail})</div>
+                        <div>Organization: {request.organizationName}</div>
+                        {request.organizationWebsite && (
+                          <div className="md:col-span-2">
+                            Website: <a href={request.organizationWebsite} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                              {request.organizationWebsite}
+                            </a>
+                          </div>
+                        )}
+                        {request.address && (
+                          <div className="md:col-span-2">Address: {request.address}</div>
+                        )}
+                        <div>Submitted: {new Date(request.submittedAt).toLocaleDateString()}</div>
+                        {request.responsiblePerson && (
+                          <div>Responsible: {request.responsiblePerson}</div>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 pt-2">
+                        <Select 
+                          value={request.status} 
+                          onValueChange={(status) => {
+                            if (status === "reaching_out") {
+                              // Prompt for responsible person name
+                              const responsiblePerson = prompt("Enter the name of the person responsible for reaching out:");
+                              if (responsiblePerson) {
+                                handleUpdateProjectRequest(request.id, { status, responsiblePerson });
+                              }
+                            } else {
+                              handleUpdateProjectRequest(request.id, { status });
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="w-40">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="reaching_out">Reaching Out</SelectItem>
+                            <SelectItem value="approved">Approved</SelectItem>
+                            <SelectItem value="rejected">Rejected</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        {request.status === "reaching_out" && (
+                          <Input
+                            placeholder="Update responsible person"
+                            className="w-48"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                const target = e.target as HTMLInputElement;
+                                if (target.value.trim()) {
+                                  handleUpdateProjectRequest(request.id, { 
+                                    responsiblePerson: target.value.trim() 
+                                  });
+                                  target.value = "";
+                                }
+                              }
+                            }}
+                          />
+                        )}
+
+                        {request.status === "approved" && (
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              // Convert to team logic would go here
+                              toast({
+                                title: "Feature Coming Soon",
+                                description: "Team conversion feature will be available soon.",
+                              });
+                            }}
+                          >
+                            Convert to Team
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+
+                {(!projectRequests || projectRequests.length === 0) && (
+                  <div className="text-center py-8 text-gray-500">
+                    No project requests submitted yet.
+                  </div>
                 )}
               </div>
             </CardContent>

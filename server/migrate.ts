@@ -17,7 +17,8 @@ async function migrate() {
     // Add address column to project_requests table
     await db.execute(sql`
       ALTER TABLE project_requests 
-      ADD COLUMN IF NOT EXISTS address TEXT
+      ADD COLUMN IF NOT EXISTS address TEXT,
+      ADD COLUMN IF NOT EXISTS responsible_person TEXT
     `);
     
     // Create absences table if it doesn't exist
