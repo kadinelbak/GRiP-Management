@@ -71,6 +71,10 @@ export default function AdminDashboard() {
     queryKey: ["/api/accepted-members"],
   });
 
+  const { data: absences = [] } = useQuery<any[]>({
+    queryKey: ["/api/absences"],
+  });
+
   const { data: projectRequests = [] } = useQuery<ProjectRequest[]>({
     queryKey: ["/api/project-requests"],
   });
@@ -589,8 +593,10 @@ export default function AdminDashboard() {
                 <div className="lg:col-span-2">
                   <div className="space-y-2 max-h-96 overflow-y-auto">
                     {filteredMembers.map((member) => {
-                      // Calculate absence count - simplified for now since absences aren't directly on member object
-                      const absenceCount = 0;
+                      // Calculate absence count from absences data
+                      const absenceCount = absences.filter(absence => 
+                        absence.applicationId === member.id && absence.isActive
+                      ).length;
 
                       // Determine card color based on absence count
                       const getCardColor = (count: number) => {
@@ -685,12 +691,50 @@ export default function AdminDashboard() {
                           <div className="flex justify-between items-center">
                             <h5 className="font-medium text-sm">Absences</h5>
                             <Badge variant="outline">
-                              0
+                              {absences.filter(absence => 
+                                absence.applicationId === selectedMember.id && absence.isActive
+                              ).length}
                             </Badge>
                           </div>
 
-                          <div className="text-sm text-gray-500">
-                            No absences recorded
+                          <div className="max-h-32 overflow-y-auto space-y-1">
+                            {absences
+                              .filter(absence => absence.applicationId === selectedMember.id && absence.isActive)
+                              .map(absence => (
+                                <div key={absence.id} className="text-xs p-2 bg-gray-50 rounded flex justify-between items-center">
+                                  <div>
+                                    <div className="font-medium">
+                                      {new Date(absence.startDate).toLocaleDateString()}
+                                    </div>
+                                    {absence.reason && (
+                                      <div className="text-gray-500">{absence.reason}</div>
+                                    )}
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={async () => {
+                                      try {
+                                        await fetch(`/api/absences/${absence.id}`, {
+                                          method: 'DELETE'
+                                        });
+                                        toast({ title: "Absence removed successfully" });
+                                        queryClient.invalidateQueries({ queryKey: ['/api/absences'] });
+                                        queryClient.invalidateQueries({ queryKey: ['/api/accepted-members'] });
+                                      } catch (error) {
+                                        toast({ title: "Failed to remove absence", variant: "destructive" });
+                                      }
+                                    }}
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              ))}
+                            {absences.filter(absence => 
+                              absence.applicationId === selectedMember.id && absence.isActive
+                            ).length === 0 && (
+                              <div className="text-sm text-gray-500">No absences recorded</div>
+                            )}
                           </div>
 
                           <div className="flex gap-2">
@@ -713,7 +757,7 @@ export default function AdminDashboard() {
                                     })
                                   });
                                   toast({ title: "Absence added successfully" });
-                                  // Refresh data
+                                  queryClient.invalidateQueries({ queryKey: ['/api/absences'] });
                                   queryClient.invalidateQueries({ queryKey: ['/api/accepted-members'] });
                                 } catch (error) {
                                   toast({ title: "Failed to add absence", variant: "destructive" });
