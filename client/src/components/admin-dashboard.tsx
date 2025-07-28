@@ -486,7 +486,7 @@ export default function AdminDashboard() {
               <div>
                 <h3 className="text-lg font-semibold mb-4">Existing Teams</h3>
                 <div className="space-y-4 max-h-96 overflow-y-auto">
-                  {teams.map((team) => (
+                  {teams.filter(team => team.type === "constant").map((team) => (
                     <Card key={team.id} className="p-4">
                       <div className="flex justify-between items-start">
                         <div>
@@ -496,13 +496,12 @@ export default function AdminDashboard() {
                             Capacity: {team.currentSize}/{team.maxCapacity} | {team.meetingTime}
                           </p>
                         </div>
-                        <Badge variant={team.type === "technical" ? "default" : "secondary"}>
+                        <Badge variant="secondary">
                           {team.type}
                         </Badge>
                       </div>
                     </Card>
-                  ))}
-                </div>
+                  ))}</div>
               </div>
             </CardContent>
           </Card>
