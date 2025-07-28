@@ -561,9 +561,9 @@ function PrintManagementSection() {
                         {new Date(submission.submittedAt).toLocaleDateString()}
                       </td>
                       <td className="p-3">
-                        <div>
-                          <div className="font-medium text-slate-900">{submission.submitterName}</div>
-                          <div className="text-sm text-slate-500">{submission.emailAddress}</div>
+                        <div className="text-sm">
+                          <div className="font-medium">{submission.submitterName}</div>
+                          <div className="text-slate-600">{submission.emailAddress}</div>
                         </div>
                       </td>
                       <td className="p-3">

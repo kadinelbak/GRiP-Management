@@ -268,12 +268,12 @@ export const insertPrintSubmissionSchema = createInsertSchema(printSubmissions).
   emailAddress: z.string().email("Valid email address is required"),
   requestType: z.string().min(1, "Request type is required"),
   teamName: z.string().optional(),
-  color: z.string().optional(),
+  color: z.string().min(1, "Color is required"),
   uploadFiles: z.string().optional(),
   generalPrintDescription: z.string().optional(),
   fileSpecifications: z.string().optional(),
   comments: z.string().optional(),
-  deadline: z.union([z.string(), z.date()]).optional().transform((val) => {
+  deadline: z.union([z.string(), z.date()]).transform((val) => {
     if (!val) return undefined;
     return typeof val === 'string' ? new Date(val) : val;
   })

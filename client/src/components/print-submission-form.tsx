@@ -72,25 +72,17 @@ export default function PrintSubmissionForm() {
 
   const submitMutation = useMutation({
     mutationFn: async (data: PrintSubmissionData) => {
-      const formData = new FormData();
+      // For now, submit without files since file upload isn't implemented on backend
+      // Convert file names to JSON string for storage
+      const fileNames = selectedFiles.map(file => file.name);
+      
+      const submissionData = {
+        ...data,
+        uploadFiles: fileNames.length > 0 ? JSON.stringify(fileNames) : undefined,
+        deadline: data.deadline ? new Date(data.deadline).toISOString() : undefined
+      };
 
-      // Add form fields
-      Object.entries(data).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          formData.append(key, value.toString());
-        }
-      });
-
-      // Add files
-      selectedFiles.forEach((file) => {
-        formData.append('files', file);
-      });
-
-      return apiRequest("POST", "/api/print-submissions", formData, {
-        headers: {
-          // Don't set Content-Type for FormData - browser will set it with boundary
-        }
-      });
+      return apiRequest("POST", "/api/print-submissions", submissionData);
     },
     onSuccess: () => {
       toast({
@@ -120,13 +112,7 @@ export default function PrintSubmissionForm() {
       return;
     }
     
-    // Format the deadline as ISO string if it exists
-    const formattedData = {
-      ...data,
-      deadline: data.deadline ? data.deadline.toISOString() : undefined
-    };
-    
-    submitMutation.mutate(formattedData);
+    submitMutation.mutate(data);
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {

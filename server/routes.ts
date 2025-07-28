@@ -734,11 +734,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/print-submissions", async (req, res) => {
     try {
+      console.log("Received print submission data:", req.body);
+      
+      // Validate and transform the data
       const submissionData = insertPrintSubmissionSchema.parse(req.body);
+      console.log("Validated submission data:", submissionData);
+      
       const submission = await storage.createPrintSubmission(submissionData);
       res.status(201).json(submission);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("Validation errors:", error.errors);
         res.status(400).json({ message: "Invalid submission data", errors: error.errors });
       } else {
         console.error("Print submission error:", error);
