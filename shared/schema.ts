@@ -136,6 +136,29 @@ export const eventAttendanceRelations = relations(eventAttendance, ({ one }) => 
   }),
 }));
 
+export const specialRolesRelations = relations(specialRoles, ({ many }) => ({
+  applications: many(roleApplications),
+  assignments: many(memberRoles),
+}));
+
+export const roleApplicationsRelations = relations(roleApplications, ({ one }) => ({
+  role: one(specialRoles, {
+    fields: [roleApplications.roleId],
+    references: [specialRoles.id],
+  }),
+}));
+
+export const memberRolesRelations = relations(memberRoles, ({ one }) => ({
+  application: one(applications, {
+    fields: [memberRoles.applicationId],
+    references: [applications.id],
+  }),
+  role: one(specialRoles, {
+    fields: [memberRoles.roleId],
+    references: [specialRoles.id],
+  }),
+}));
+
 // Insert schemas
 export const insertTeamSchema = createInsertSchema(teams).omit({
   id: true,
@@ -254,6 +277,46 @@ export const printSubmissions = pgTable("print_submissions", {
   updatedAt: timestamp("updated_at").notNull().defaultNow()
 });
 
+// Special Roles
+export const specialRoles = pgTable("special_roles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  responsibilities: text("responsibilities"),
+  requirements: text("requirements"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Role Applications
+export const roleApplications = pgTable("role_applications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  roleId: varchar("role_id").notNull().references(() => specialRoles.id),
+  applicantName: text("applicant_name").notNull(),
+  applicantEmail: text("applicant_email").notNull(),
+  ufid: text("ufid").notNull(),
+  currentTeam: text("current_team"),
+  experience: text("experience"),
+  motivation: text("motivation"),
+  availability: text("availability"),
+  additionalInfo: text("additional_info"),
+  status: text("status").notNull().default("pending"), // pending, approved, rejected
+  reviewedBy: text("reviewed_by"),
+  reviewNotes: text("review_notes"),
+  submittedAt: timestamp("submitted_at").notNull().defaultNow(),
+  reviewedAt: timestamp("reviewed_at"),
+});
+
+// Member Roles (assigned roles)
+export const memberRoles = pgTable("member_roles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  applicationId: varchar("application_id").notNull().references(() => applications.id),
+  roleId: varchar("role_id").notNull().references(() => specialRoles.id),
+  assignedAt: timestamp("assigned_at").notNull().defaultNow(),
+  assignedBy: text("assigned_by"),
+  isActive: boolean("is_active").notNull().default(true),
+});
+
 export type PrintSubmission = typeof printSubmissions.$inferSelect;
 
 export const insertPrintSubmissionSchema = createInsertSchema(printSubmissions).omit({
@@ -278,4 +341,49 @@ export const insertPrintSubmissionSchema = createInsertSchema(printSubmissions).
     return typeof val === 'string' ? new Date(val) : val;
   })
 });
+
+export const insertSpecialRoleSchema = createInsertSchema(specialRoles).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  name: z.string().min(1, "Role name is required"),
+  description: z.string().optional(),
+  responsibilities: z.string().optional(),
+  requirements: z.string().optional(),
+});
+
+export const insertRoleApplicationSchema = createInsertSchema(roleApplications).omit({
+  id: true,
+  status: true,
+  reviewedBy: true,
+  reviewNotes: true,
+  submittedAt: true,
+  reviewedAt: true,
+}).extend({
+  roleId: z.string().min(1, "Role ID is required"),
+  applicantName: z.string().min(1, "Applicant name is required"),
+  applicantEmail: z.string().email("Valid email address is required"),
+  ufid: z.string().regex(/^\d{8}$/, "UFID must be exactly 8 digits"),
+  currentTeam: z.string().optional(),
+  experience: z.string().min(1, "Experience is required"),
+  motivation: z.string().min(1, "Motivation is required"),
+  availability: z.string().min(1, "Availability is required"),
+  additionalInfo: z.string().optional(),
+});
+
+export const insertMemberRoleSchema = createInsertSchema(memberRoles).omit({
+  id: true,
+  assignedAt: true,
+}).extend({
+  applicationId: z.string().min(1, "Application ID is required"),
+  roleId: z.string().min(1, "Role ID is required"),
+  assignedBy: z.string().optional(),
+});
+
 export type InsertPrintSubmission = z.infer<typeof insertPrintSubmissionSchema>;
+export type SpecialRole = typeof specialRoles.$inferSelect;
+export type RoleApplication = typeof roleApplications.$inferSelect;
+export type MemberRole = typeof memberRoles.$inferSelect;
+export type InsertSpecialRole = z.infer<typeof insertSpecialRoleSchema>;
+export type InsertRoleApplication = z.infer<typeof insertRoleApplicationSchema>;
+export type InsertMemberRole = z.infer<typeof insertMemberRoleSchema>;

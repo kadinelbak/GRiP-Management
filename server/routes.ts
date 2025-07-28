@@ -4,7 +4,8 @@ import { storage } from "./storage";
 import { 
   insertTeamSchema, insertApplicationSchema, insertAdditionalTeamSignupSchema, 
   insertProjectRequestSchema, insertAdminSettingSchema, insertAbsenceSchema,
-  insertEventSchema, insertEventAttendanceSchema, insertPrintSubmissionSchema
+  insertEventSchema, insertEventAttendanceSchema, insertPrintSubmissionSchema,
+  insertSpecialRoleSchema, insertRoleApplicationSchema
 } from "@shared/schema";
 import { z } from "zod";
 import multer from 'multer';
@@ -885,6 +886,142 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete print submission" });
+    }
+  });
+
+  // Special Roles API
+  app.get("/api/special-roles", async (_req, res) => {
+    try {
+      const roles = await storage.getSpecialRoles();
+      res.json(roles);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch special roles" });
+    }
+  });
+
+  app.post("/api/special-roles", async (req, res) => {
+    try {
+      const roleData = insertSpecialRoleSchema.parse(req.body);
+      const role = await storage.createSpecialRole(roleData);
+      res.status(201).json(role);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid role data", errors: error.errors });
+      } else {
+        res.status(500).json({ message: "Failed to create special role" });
+      }
+    }
+  });
+
+  app.put("/api/special-roles/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      const role = await storage.updateSpecialRole(id, updates);
+      res.json(role);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update special role" });
+    }
+  });
+
+  app.delete("/api/special-roles/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteSpecialRole(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete special role" });
+    }
+  });
+
+  // Role Applications API
+  app.get("/api/role-applications", async (_req, res) => {
+    try {
+      const applications = await storage.getRoleApplications();
+      res.json(applications);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch role applications" });
+    }
+  });
+
+  app.post("/api/role-applications", async (req, res) => {
+    try {
+      const applicationData = insertRoleApplicationSchema.parse(req.body);
+      
+      // Check for duplicate applications from the same UFID for the same role
+      const existingApplications = await storage.getRoleApplications();
+      const isDuplicate = existingApplications.some(app => 
+        app.ufid === applicationData.ufid && 
+        app.roleId === applicationData.roleId && 
+        app.status === "pending"
+      );
+
+      if (isDuplicate) {
+        return res.status(400).json({ 
+          message: "You already have a pending application for this role." 
+        });
+      }
+
+      const application = await storage.createRoleApplication(applicationData);
+      res.status(201).json(application);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid application data", errors: error.errors });
+      } else {
+        res.status(500).json({ message: "Failed to submit role application" });
+      }
+    }
+  });
+
+  app.put("/api/role-applications/:id/approve", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { reviewedBy, reviewNotes } = req.body;
+      const result = await storage.approveRoleApplication(id, reviewedBy, reviewNotes);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to approve role application" });
+    }
+  });
+
+  app.put("/api/role-applications/:id/reject", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { reviewedBy, reviewNotes } = req.body;
+      const application = await storage.rejectRoleApplication(id, reviewedBy, reviewNotes);
+      res.json(application);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to reject role application" });
+    }
+  });
+
+  app.delete("/api/role-applications/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteRoleApplication(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete role application" });
+    }
+  });
+
+  // Member Roles API
+  app.get("/api/member-roles", async (_req, res) => {
+    try {
+      const memberRoles = await storage.getMemberRoles();
+      res.json(memberRoles);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch member roles" });
+    }
+  });
+
+  app.delete("/api/member-roles/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.revokeMemberRole(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to revoke member role" });
     }
   });
 

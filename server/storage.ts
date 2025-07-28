@@ -1,7 +1,13 @@
 import { 
-  teams, applications, additionalTeamSignups, projectRequests, adminSettings, absences, events, eventAttendance, printSubmissions,
-  type Team, type Application, type AdditionalTeamSignup, type ProjectRequest, type AdminSetting, type Absence, type Event, type EventAttendance, type PrintSubmission,
-  type InsertTeam, type InsertApplication, type InsertAdditionalTeamSignup, type InsertProjectRequest, type InsertAdminSetting, type InsertAbsence, type InsertEvent, type InsertEventAttendance, type InsertPrintSubmission
+  teams, applications, additionalTeamSignups, projectRequests, adminSettings, 
+  absences, events, eventAttendance, printSubmissions, specialRoles, roleApplications, memberRoles,
+  type Team, type Application, type AdditionalTeamSignup, type ProjectRequest, 
+  type AdminSetting, type Absence, type Event, type EventAttendance, type PrintSubmission,
+  type SpecialRole, type RoleApplication, type MemberRole,
+  type InsertTeam, type InsertApplication, type InsertAdditionalTeamSignup, 
+  type InsertProjectRequest, type InsertAdminSetting, type InsertAbsence, 
+  type InsertEvent, type InsertEventAttendance, type InsertPrintSubmission,
+  type InsertSpecialRole, type InsertRoleApplication, type InsertMemberRole
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, asc, and, isNull, sql, or } from "drizzle-orm";
@@ -76,6 +82,24 @@ export interface IStorage {
   createPrintSubmission(submission: InsertPrintSubmission): Promise<PrintSubmission>;
   updatePrintSubmission(id: string, updates: Partial<PrintSubmission>): Promise<PrintSubmission>;
   deletePrintSubmission(id: string): Promise<void>;
+
+    // Special Roles Methods
+  getSpecialRoles(): Promise<SpecialRole[]>;
+  createSpecialRole(insertRole: InsertSpecialRole): Promise<SpecialRole>;
+  updateSpecialRole(id: string, updates: Partial<SpecialRole>): Promise<SpecialRole>;
+  deleteSpecialRole(id: string): Promise<void>;
+
+  // Role Applications Methods
+  getRoleApplications(): Promise<(RoleApplication & { role: SpecialRole })[]>;
+  createRoleApplication(insertApplication: InsertRoleApplication): Promise<RoleApplication>;
+  updateRoleApplication(id: string, updates: Partial<RoleApplication>): Promise<RoleApplication>;
+  approveRoleApplication(id: string, reviewedBy: string, reviewNotes?: string): Promise<{ application: RoleApplication; memberRole?: MemberRole }>;
+  rejectRoleApplication(id: string, reviewedBy: string, reviewNotes?: string): Promise<RoleApplication>;
+  deleteRoleApplication(id: string): Promise<void>;
+
+  // Member Roles Methods
+  getMemberRoles(): Promise<(MemberRole & { application: Application; role: SpecialRole })[]>;
+  revokeMemberRole(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -748,6 +772,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Update attendance status
+    ```python
     await db.update(eventAttendance)
       .set({ 
         status: "approved", 
@@ -832,7 +857,7 @@ export class DatabaseStorage implements IStorage {
       try {
         const fileData = JSON.parse(submission.uploadFiles);
         const fs = await import('fs');
-        
+
         fileData.forEach((file: any) => {
           const filePath = typeof file === 'string' ? file : file.path;
           if (fs.existsSync(filePath)) {
@@ -846,6 +871,143 @@ export class DatabaseStorage implements IStorage {
     }
 
     await db.delete(printSubmissions).where(eq(printSubmissions.id, id));
+  }
+
+  // Special Roles Methods
+  async getSpecialRoles(): Promise<SpecialRole[]> {
+    return await db.select().from(specialRoles).where(eq(specialRoles.isActive, true));
+  }
+
+  async createSpecialRole(insertRole: InsertSpecialRole): Promise<SpecialRole> {
+    const [role] = await db.insert(specialRoles).values(insertRole).returning();
+    return role;
+  }
+
+  async updateSpecialRole(id: string, updates: Partial<SpecialRole>): Promise<SpecialRole> {
+    const [role] = await db
+      .update(specialRoles)
+      .set(updates)
+      .where(eq(specialRoles.id, id))
+      .returning();
+    return role;
+  }
+
+  async deleteSpecialRole(id: string): Promise<void> {
+    await db.update(specialRoles)
+      .set({ isActive: false })
+      .where(eq(specialRoles.id, id));
+  }
+
+  // Role Applications Methods
+  async getRoleApplications(): Promise<(RoleApplication & { role: SpecialRole })[]> {
+    return await db
+      .select()
+      .from(roleApplications)
+      .leftJoin(specialRoles, eq(roleApplications.roleId, specialRoles.id))
+      .then(rows => rows.map(row => ({
+        ...row.role_applications!,
+        role: row.special_roles!
+      })));
+  }
+
+  async createRoleApplication(insertApplication: InsertRoleApplication): Promise<RoleApplication> {
+    const [application] = await db.insert(roleApplications).values(insertApplication).returning();
+    return application;
+  }
+
+  async updateRoleApplication(id: string, updates: Partial<RoleApplication>): Promise<RoleApplication> {
+    const [application] = await db
+      .update(roleApplications)
+      .set(updates)
+      .where(eq(roleApplications.id, id))
+      .returning();
+    return application;
+  }
+
+  async approveRoleApplication(id: string, reviewedBy: string, reviewNotes?: string): Promise<{ application: RoleApplication; memberRole?: MemberRole }> {
+    // Get the application details
+    const [application] = await db
+      .select()
+      .from(roleApplications)
+      .where(eq(roleApplications.id, id));
+
+    if (!application) {
+      throw new Error("Application not found");
+    }
+
+    // Update application status
+    const [updatedApplication] = await db
+      .update(roleApplications)
+      .set({
+        status: "approved",
+        reviewedBy,
+        reviewNotes,
+        reviewedAt: new Date()
+      })
+      .where(eq(roleApplications.id, id))
+      .returning();
+
+    // Find the member by UFID
+    const [member] = await db
+      .select()
+      .from(applications)
+      .where(eq(applications.ufid, application.ufid));
+
+    let memberRole: MemberRole | undefined;
+
+    if (member) {
+      // Assign the role to the member
+      [memberRole] = await db
+        .insert(memberRoles)
+        .values({
+          applicationId: member.id,
+          roleId: application.roleId,
+          assignedBy: reviewedBy
+        })
+        .returning();
+    }
+
+    return { application: updatedApplication, memberRole };
+  }
+
+  async rejectRoleApplication(id: string, reviewedBy: string, reviewNotes?: string): Promise<RoleApplication> {
+    const [application] = await db
+      .update(roleApplications)
+      .set({
+        status: "rejected",
+        reviewedBy,
+        reviewNotes,
+        reviewedAt: new Date()
+      })
+      .where(eq(roleApplications.id, id))
+      .returning();
+    return application;
+  }
+
+  async deleteRoleApplication(id: string): Promise<void> {
+    await db.delete(roleApplications).where(eq(roleApplications.id, id));
+  }
+
+  // Member Roles Methods
+  async getMemberRoles(): Promise<(MemberRole & { application: Application; role: SpecialRole })[]> {
+    return await db
+      .select()
+      .from(memberRoles)
+      .leftJoin(applications, eq(memberRoles.applicationId, applications.id))
+      .leftJoin(specialRoles, eq(memberRoles.roleId, specialRoles.id))
+      .where(eq(memberRoles.isActive, true))
+      .then(rows => rows.map(row => ({
+        ...row.member_roles!,
+        application: row.applications!,
+        role: row.special_roles!
+      })));
+  }
+
+  async revokeMemberRole(id: string): Promise<void> {
+    await db
+      .update(memberRoles)
+      .set({ isActive: false })
+      .where(eq(memberRoles.id, id));
   }
 }
 

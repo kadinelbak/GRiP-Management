@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { 
   BarChart3, Users, Inbox, Settings, Plus, Download, 
   Wand2, Eye, Edit, Trash2, CheckCircle, Clock, UserMinus, Calendar, 
-  CalendarX, Search, Filter, UserCheck, Save, X, Printer, Camera
+  CalendarX, Search, Filter, UserCheck, Save, X, Printer, Camera, Star
 } from "lucide-react";
 import type { Team, Application, ProjectRequest } from "@shared/schema";
 import type { z } from "zod";
@@ -779,7 +779,419 @@ function AbsenceManagementSection() {
   );
 }
 
-  const [activeSection, setActiveSection] = useState<"overview" | "applications" | "teams" | "members" | "projects" | "settings" | "event-attendance" | "print-management">("overview");
+// Special Roles Management Section
+function SpecialRolesSection() {
+  const { data: specialRoles = [] } = useQuery({
+    queryKey: ["/api/special-roles"],
+  });
+
+  const { data: roleApplications = [] } = useQuery({
+    queryKey: ["/api/role-applications"],
+  });
+
+  const { data: memberRoles = [] } = useQuery({
+    queryKey: ["/api/member-roles"],
+  });
+
+  const [newRoleData, setNewRoleData] = useState({
+    name: "",
+    description: "",
+    responsibilities: "",
+    requirements: "",
+  });
+
+  const [selectedApplication, setSelectedApplication] = useState<any>(null);
+
+  const createRoleMutation = useMutation({
+    mutationFn: async (roleData: any) => apiRequest("POST", "/api/special-roles", roleData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/special-roles"] });
+      setNewRoleData({ name: "", description: "", responsibilities: "", requirements: "" });
+      toast({
+        title: "Role Created",
+        description: "New special role has been created successfully.",
+      });
+    },
+  });
+
+  const approveApplicationMutation = useMutation({
+    mutationFn: async ({ id, reviewedBy, reviewNotes }: { id: string; reviewedBy: string; reviewNotes?: string }) =>
+      apiRequest("PUT", `/api/role-applications/${id}/approve`, { reviewedBy, reviewNotes }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/role-applications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/member-roles"] });
+      toast({
+        title: "Application Approved",
+        description: "Role application has been approved and role assigned.",
+      });
+      setSelectedApplication(null);
+    },
+  });
+
+  const rejectApplicationMutation = useMutation({
+    mutationFn: async ({ id, reviewedBy, reviewNotes }: { id: string; reviewedBy: string; reviewNotes?: string }) =>
+      apiRequest("PUT", `/api/role-applications/${id}/reject`, { reviewedBy, reviewNotes }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/role-applications"] });
+      toast({
+        title: "Application Rejected",
+        description: "Role application has been rejected.",
+      });
+      setSelectedApplication(null);
+    },
+  });
+
+  const deleteRoleMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/special-roles/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/special-roles"] });
+      toast({
+        title: "Role Deleted",
+        description: "Special role has been deleted.",
+      });
+    },
+  });
+
+  const revokeMemberRoleMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/member-roles/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/member-roles"] });
+      toast({
+        title: "Role Revoked",
+        description: "Member role has been revoked.",
+      });
+    },
+  });
+
+  const pendingApplications = roleApplications.filter((app: any) => app.status === "pending");
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-slate-900">Special Roles Management</h2>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Create New Role */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Create New Special Role</CardTitle>
+            <CardDescription>Add a new special role that members can apply for</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Input
+              placeholder="Role name"
+              value={newRoleData.name}
+              onChange={(e) => setNewRoleData({...newRoleData, name: e.target.value})}
+            />
+            <Textarea
+              placeholder="Role description"
+              value={newRoleData.description}
+              onChange={(e) => setNewRoleData({...newRoleData, description: e.target.value})}
+              rows={2}
+            />
+            <Textarea
+              placeholder="Responsibilities"
+              value={newRoleData.responsibilities}
+              onChange={(e) => setNewRoleData({...newRoleData, responsibilities: e.target.value})}
+              rows={2}
+            />
+            <Textarea
+              placeholder="Requirements"
+              value={newRoleData.requirements}
+              onChange={(e) => setNewRoleData({...newRoleData, requirements: e.target.value})}
+              rows={2}
+            />
+            <Button
+              onClick={() => createRoleMutation.mutate(newRoleData)}
+              disabled={!newRoleData.name || createRoleMutation.isPending}
+              className="w-full"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Create Role
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Role Applications Overview */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Applications Overview</CardTitle>
+            <CardDescription>Quick stats on role applications</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 bg-blue-50 rounded-lg text-center">
+                <div className="text-2xl font-bold text-blue-600">{pendingApplications.length}</div>
+                <div className="text-sm text-blue-600">Pending Applications</div>
+              </div>
+              <div className="p-4 bg-green-50 rounded-lg text-center">
+                <div className="text-2xl font-bold text-green-600">{memberRoles.length}</div>
+                <div className="text-sm text-green-600">Active Role Assignments</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Existing Roles */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Existing Special Roles</CardTitle>
+          <CardDescription>Manage available special roles</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4">
+            {specialRoles.map((role: any) => (
+              <div key={role.id} className="border rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Star className="w-5 h-5 text-yellow-500" />
+                    <h3 className="font-semibold">{role.name}</h3>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => {
+                      if (confirm(`Are you sure you want to delete the "${role.name}" role?`)) {
+                        deleteRoleMutation.mutate(role.id);
+                      }
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+                {role.description && (
+                  <p className="text-sm text-slate-600 mb-2">{role.description}</p>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-slate-500">
+                  {role.responsibilities && (
+                    <div>
+                      <span className="font-medium">Responsibilities:</span> {role.responsibilities}
+                    </div>
+                  )}
+                  {role.requirements && (
+                    <div>
+                      <span className="font-medium">Requirements:</span> {role.requirements}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Pending Applications */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Pending Role Applications</CardTitle>
+          <CardDescription>Review and approve role applications</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {pendingApplications.length === 0 ? (
+            <p className="text-slate-500 text-center py-8">No pending applications</p>
+          ) : (
+            <div className="space-y-4">
+              {pendingApplications.map((application: any) => (
+                <div key={application.id} className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <h3 className="font-semibold">{application.applicantName}</h3>
+                      <p className="text-sm text-slate-600">
+                        Applying for: <span className="font-medium">{application.role?.name}</span>
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        UFID: {application.ufid} | {application.applicantEmail}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setSelectedApplication(application)}
+                      >
+                        <Eye className="w-4 h-4 mr-1" />
+                        Review
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => approveApplicationMutation.mutate({
+                          id: application.id,
+                          reviewedBy: "Admin"
+                        })}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                      >
+                        <CheckCircle className="w-4 h-4 mr-1" />
+                        Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => rejectApplicationMutation.mutate({
+                          id: application.id,
+                          reviewedBy: "Admin"
+                        })}
+                      >
+                        Reject
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="text-sm text-slate-600">
+                    <p><span className="font-medium">Current Team:</span> {application.currentTeam || "Not specified"}</p>
+                    <p><span className="font-medium">Submitted:</span> {new Date(application.submittedAt).toLocaleDateString()}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Active Role Assignments */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Active Role Assignments</CardTitle>
+          <CardDescription>Current members with special roles</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {memberRoles.length === 0 ? (
+            <p className="text-slate-500 text-center py-8">No active role assignments</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left p-2">Member</th>
+                    <th className="text-left p-2">Role</th>
+                    <th className="text-left p-2">Assigned</th>
+                    <th className="text-left p-2">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {memberRoles.map((memberRole: any) => (
+                    <tr key={memberRole.id} className="border-b">
+                      <td className="p-2">
+                        <div>
+                          <div className="font-medium">{memberRole.application.fullName}</div>
+                          <div className="text-slate-500 text-xs">{memberRole.application.email}</div>
+                        </div>
+                      </td>
+                      <td className="p-2">
+                        <Badge variant="outline" className="flex items-center gap-1 w-fit">
+                          <Star className="w-3 h-3" />
+                          {memberRole.role.name}
+                        </Badge>
+                      </td>
+                      <td className="p-2 text-slate-500">
+                        {new Date(memberRole.assignedAt).toLocaleDateString()}
+                      </td>
+                      <td className="p-2">
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => {
+                            if (confirm(`Revoke ${memberRole.role.name} role from ${memberRole.application.fullName}?`)) {
+                              revokeMemberRoleMutation.mutate(memberRole.id);
+                            }
+                          }}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Application Detail Modal */}
+      {selectedApplication && (
+        <Dialog open={!!selectedApplication} onOpenChange={() => setSelectedApplication(null)}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto bg-white">
+            <DialogHeader>
+              <DialogTitle>Role Application Details</DialogTitle>
+              <DialogDescription>Review application for {selectedApplication.role?.name}</DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h3 className="font-semibold mb-2">Applicant Information</h3>
+                  <div className="text-sm space-y-1">
+                    <p><span className="font-medium">Name:</span> {selectedApplication.applicantName}</p>
+                    <p><span className="font-medium">Email:</span> {selectedApplication.applicantEmail}</p>
+                    <p><span className="font-medium">UFID:</span> {selectedApplication.ufid}</p>
+                    <p><span className="font-medium">Current Team:</span> {selectedApplication.currentTeam || "Not specified"}</p>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-2">Role Information</h3>
+                  <div className="text-sm space-y-1">
+                    <p><span className="font-medium">Role:</span> {selectedApplication.role?.name}</p>
+                    <p><span className="font-medium">Submitted:</span> {new Date(selectedApplication.submittedAt).toLocaleDateString()}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-2">Experience</h3>
+                <p className="text-sm bg-slate-50 p-3 rounded">{selectedApplication.experience}</p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-2">Motivation</h3>
+                <p className="text-sm bg-slate-50 p-3 rounded">{selectedApplication.motivation}</p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-2">Availability</h3>
+                <p className="text-sm bg-slate-50 p-3 rounded">{selectedApplication.availability}</p>
+              </div>
+
+              {selectedApplication.additionalInfo && (
+                <div>
+                  <h3 className="font-semibold mb-2">Additional Information</h3>
+                  <p className="text-sm bg-slate-50 p-3 rounded">{selectedApplication.additionalInfo}</p>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-4">
+                <Button
+                  onClick={() => approveApplicationMutation.mutate({
+                    id: selectedApplication.id,
+                    reviewedBy: "Admin"
+                  })}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Approve Application
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => rejectApplicationMutation.mutate({
+                    id: selectedApplication.id,
+                    reviewedBy: "Admin"
+                  })}
+                >
+                  Reject Application
+                </Button>
+                <Button variant="outline" onClick={() => setSelectedApplication(null)}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
+}
+
+  const [activeSection, setActiveSection] = useState<"overview" | "applications" | "teams" | "members" | "projects" | "settings" | "event-attendance" | "print-management" | "special-roles">("overview");
 
   const deleteAttendanceMutation = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/event-attendance/${id}`),
@@ -871,6 +1283,15 @@ function AbsenceManagementSection() {
             >
               <Printer className="w-4 h-4 mr-2" />
               Print Management
+            </Button>
+
+            <Button
+              variant={activeSection === "special-roles" ? "default" : "ghost"}
+              onClick={() => setActiveSection("special-roles")}
+              className="justify-start"
+            >
+              <Star className="w-4 h-4 mr-2" />
+              Special Roles
             </Button>
           </nav>
         </aside>
@@ -2020,6 +2441,10 @@ function AbsenceManagementSection() {
 
           {activeSection === "print-management" && (
             <PrintManagementSection />
+          )}
+
+          {activeSection === "special-roles" && (
+            <SpecialRolesSection />
           )}
         </main>
       </div>
