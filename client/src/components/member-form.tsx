@@ -157,9 +157,15 @@ export default function MemberForm() {
   };
 
   const onSubmit = (data: ApplicationFormData) => {
+    console.log("Form submitted with data:", data);
+    console.log("Team preferences:", teamPreferences);
+    console.log("Time availability:", timeAvailability);
+    console.log("Selected skills:", selectedSkills);
+    
     // Validate that all acknowledgments are checked
     const allAcknowledged = data.acknowledgments.every(ack => ack === true);
     if (!allAcknowledged) {
+      console.log("Acknowledgments validation failed:", data.acknowledgments);
       toast({
         title: "Incomplete Form",
         description: "Please check all required acknowledgments before submitting.",
@@ -170,6 +176,7 @@ export default function MemberForm() {
 
     // Validate team preferences
     if (teamPreferences.length === 0) {
+      console.log("Team preferences validation failed");
       toast({
         title: "Incomplete Form", 
         description: "Please select at least one team preference.",
@@ -181,6 +188,7 @@ export default function MemberForm() {
     // Validate time availability
     const selectedTimeSlots = Object.values(timeAvailability).filter(Boolean);
     if (selectedTimeSlots.length === 0) {
+      console.log("Time availability validation failed");
       toast({
         title: "Incomplete Form",
         description: "Please select at least one time availability slot.",
@@ -205,7 +213,7 @@ export default function MemberForm() {
       timeAvailability: timeSlotData,
     };
     
-    console.log("Submitting form data:", formData);
+    console.log("Final form data being submitted:", formData);
     submitMutation.mutate(formData);
   };
 
@@ -564,15 +572,21 @@ export default function MemberForm() {
               <div className="pt-6">
                 <Button 
                   type="submit" 
-                  disabled={submitMutation.isPending || teamPreferences.length === 0 || Object.values(timeAvailability).filter(Boolean).length === 0}
+                  disabled={submitMutation.isPending}
                   className="w-full grip-primary text-white hover:bg-cyan-700 disabled:opacity-50"
+                  onClick={() => {
+                    console.log("Submit button clicked");
+                    console.log("Current team preferences:", teamPreferences);
+                    console.log("Current time availability:", timeAvailability);
+                    console.log("Form errors:", form.formState.errors);
+                  }}
                 >
                   <NotebookPen className="w-4 h-4 mr-2" />
                   {submitMutation.isPending ? "Submitting..." : "Submit Application"}
                 </Button>
                 {(teamPreferences.length === 0 || Object.values(timeAvailability).filter(Boolean).length === 0) && (
                   <p className="text-sm text-red-600 mt-2 text-center">
-                    Please complete all required fields: team preferences and time availability
+                    Please complete all required fields: team preferences and time availability (Debug: teams={teamPreferences.length}, time={Object.values(timeAvailability).filter(Boolean).length})
                   </p>
                 )}
               </div>
