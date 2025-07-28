@@ -460,6 +460,7 @@ export default function MemberForm() {
                             {...field} 
                             rows={3} 
                             placeholder="Describe any additional skills or experience..."
+                            value={field.value || ""}
                           />
                         </FormControl>
                         <FormMessage className="text-red-600" />
