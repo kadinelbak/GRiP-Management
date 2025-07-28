@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx server/migrate.ts",
-    "db:seed": "tsx server/seed-dummy-data.ts"
+    "db:seed": "tsx server/seed-dummy-data.ts",
+    "build:production": "node scripts/build-production.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

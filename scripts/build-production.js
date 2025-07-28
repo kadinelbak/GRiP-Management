@@ -77,8 +77,35 @@ export default {
         'import viteConfig from "../vite.config.js";'
       );
       
+      // Fix the serveStatic path issue for production
+      serverViteContent = serverViteContent.replace(
+        'path.resolve(import.meta.dirname, "public")',
+        'path.resolve(import.meta.dirname, "..", "public")'
+      );
+      
       await fs.writeFile(serverVitePath, serverViteContent);
       console.log('✅ Fixed vite config import in server/vite.js');
+    }
+    
+    // Fix the static file paths in server/index.js
+    const serverIndexPath = path.join('dist', 'server', 'index.js');
+    if (await fs.access(serverIndexPath).then(() => true).catch(() => false)) {
+      let serverIndexContent = await fs.readFile(serverIndexPath, 'utf-8');
+      
+      // Fix the static file serving paths for production
+      serverIndexContent = serverIndexContent.replace(
+        'path.join(import.meta.dirname, "../dist/public")',
+        'path.join(import.meta.dirname, "..", "public")'
+      );
+      
+      // Fix the fallback HTML path
+      serverIndexContent = serverIndexContent.replace(
+        'path.join(import.meta.dirname, "../dist/public/index.html")',
+        'path.join(import.meta.dirname, "..", "public", "index.html")'
+      );
+      
+      await fs.writeFile(serverIndexPath, serverIndexContent);
+      console.log('✅ Fixed static file paths in server/index.js');
     }
     
     // Create a package.json in dist to ensure ES module resolution works properly

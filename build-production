@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# Production build script for deployment
+echo "🚀 Starting production build..."
+
+# Run client build
+echo "📦 Building client..."
+npm run build:client
+if [ $? -ne 0 ]; then
+    echo "❌ Client build failed"
+    exit 1
+fi
+
+# Run server build  
+echo "🔧 Building server..."
+npm run build:server
+if [ $? -ne 0 ]; then
+    echo "❌ Server build failed"
+    exit 1
+fi
+
+# Run the JavaScript build script for additional setup
+echo "⚙️ Running production setup..."
+node scripts/build-production.js
+if [ $? -ne 0 ]; then
+    echo "❌ Production setup failed"
+    exit 1
+fi
+
+echo "✅ Production build completed successfully!"
