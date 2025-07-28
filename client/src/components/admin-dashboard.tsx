@@ -530,15 +530,78 @@ export default function AdminDashboard() {
 
                       {teamMembers.length > 0 ? (
                         <div className="space-y-2">
-                          {teamMembers.map((member) => (
-                            <div key={member.id} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded">
-                              <div>
-                                <span className="font-medium">{member.fullName}</span>
-                                <span className="text-sm text-gray-500 ml-2">({member.email})</span>
+                          {teamMembers.map((member) => {
+                            const memberAbsences = absences.filter(absence => 
+                              absence.applicationId === member.id && absence.isActive
+                            );
+                            const absenceCount = memberAbsences.length;
+
+                            const getAbsenceColor = (count: number) => {
+                              if (count === 0) return "text-green-600";
+                              if (count === 1) return "text-yellow-600";
+                              if (count === 2) return "text-orange-600";
+                              return "text-red-600";
+                            };
+
+                            return (
+                              <div key={member.id} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded hover:bg-gray-100">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">{member.fullName}</span>
+                                    {absenceCount > 0 && (
+                                      <Badge variant="outline" className={`text-xs ${getAbsenceColor(absenceCount)} border-current`}>
+                                        {absenceCount} absence{absenceCount !== 1 ? 's' : ''}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="text-sm text-gray-500">
+                                    {member.email} | UFID: {member.ufid}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={async () => {
+                                      const reason = prompt("Reason for absence (optional):");
+                                      const date = new Date().toISOString().split('T')[0];
+
+                                      try {
+                                        await fetch('/api/absences', {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({
+                                            applicationId: member.id,
+                                            reason: reason || '',
+                                            startDate: date
+                                          })
+                                        });
+                                        toast({ title: "Absence added successfully" });
+                                        queryClient.invalidateQueries({ queryKey: ['/api/absences'] });
+                                        queryClient.invalidateQueries({ queryKey: ['/api/accepted-members'] });
+                                      } catch (error) {
+                                        toast({ title: "Failed to add absence", variant: "destructive" });
+                                      }
+                                    }}
+                                  >
+                                    <CalendarX className="w-3 h-3" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => {
+                                      if (confirm(`Are you sure you want to remove ${member.fullName} from the system?`)) {
+                                        handleDeleteMember(member.id);
+                                      }
+                                    }}
+                                    disabled={deleteMemberMutation.isPending}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </div>
                               </div>
-                              <span className="text-xs text-gray-500">{member.ufid}</span>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       ) : (
                         <p className="text-sm text-gray-500 italic">No active members assigned</p>
