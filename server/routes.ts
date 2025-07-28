@@ -450,6 +450,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/project-requests/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteProjectRequest(id);
+      res.json({ message: "Project request deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete project request" });
+    }
+  });
+
+  app.post("/api/admin/convert-project-to-team", async (req, res) => {
+    try {
+      const { projectId, teamData } = req.body;
+      
+      // Create the team
+      const teamDataWithValidation = insertTeamSchema.parse(teamData);
+      const team = await storage.createTeam(teamDataWithValidation);
+      
+      // Update project status to indicate it was converted
+      await storage.updateProjectRequest(projectId, { 
+        status: "approved"
+      });
+      
+      res.json({ team, message: "Project successfully converted to team" });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid team data", errors: error.errors });
+      } else {
+        console.error("Failed to convert project to team:", error);
+        res.status(500).json({ message: "Failed to convert project to team" });
+      }
+    }
+  });
+
   // Admin Settings API
   app.get("/api/admin/settings", async (_req, res) => {
     try {

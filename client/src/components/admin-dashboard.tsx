@@ -160,7 +160,7 @@ export default function AdminDashboard() {
   });
 
   const autoAssignMutation = useMutation({
-    mutationFn: () => apiRequest("/api/admin/assign-teams", { method: "POST" }),
+    mutationFn: () => apiRequest("/api/admin/assign-teams", "POST"),
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
       queryClient.invalidateQueries({ queryKey: ["/api/accepted-members"] });
@@ -215,6 +215,87 @@ export default function AdminDashboard() {
     }
   };
 
+  const convertToTeamMutation = useMutation({
+    mutationFn: ({ projectId, teamData }: { projectId: string; teamData: any }) => 
+      apiRequest("/api/admin/convert-project-to-team", "POST", { projectId, teamData }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/project-requests"] });
+      toast({
+        title: "Success",
+        description: "Project converted to team successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to convert project to team",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateProjectMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: any }) => 
+      apiRequest(`/api/project-requests/${id}`, "PUT", updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/project-requests"] });
+      toast({
+        title: "Success",
+        description: "Project request updated successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update project request",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteProjectMutation = useMutation({
+    mutationFn: (id: string) => apiRequest(`/api/project-requests/${id}`, "DELETE"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/project-requests"] });
+      toast({
+        title: "Success",
+        description: "Project request deleted successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete project request",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleConvertToTeam = (project: ProjectRequest) => {
+    const teamData = {
+      name: project.projectTitle,
+      type: "technical" as const,
+      description: project.description,
+      maxCapacity: 8, // Default capacity
+      currentSize: 0,
+      meetingTime: "TBD",
+      requiredSkills: project.description, // Use description as skills info
+    };
+    
+    convertToTeamMutation.mutate({ projectId: project.id, teamData });
+  };
+
+  const handleUpdateProjectStatus = (id: string, status: string) => {
+    updateProjectMutation.mutate({ id, updates: { status } });
+  };
+
+  const handleDeleteProject = (id: string) => {
+    if (confirm("Are you sure you want to delete this project request?")) {
+      deleteProjectMutation.mutate(id);
+    }
+  };
+
   // Filter applications based on search and status
   const filteredApplications = applications.filter(app => {
     const matchesSearch = app.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -242,7 +323,7 @@ export default function AdminDashboard() {
       <h1 className="text-3xl font-bold text-slate-900">GRiP Admin Dashboard</h1>
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview">
             <BarChart3 className="w-4 h-4 mr-2" />
             Overview
@@ -258,6 +339,10 @@ export default function AdminDashboard() {
           <TabsTrigger value="submissions">
             <Inbox className="w-4 h-4 mr-2" />
             Submissions
+          </TabsTrigger>
+          <TabsTrigger value="projects">
+            <Wand2 className="w-4 h-4 mr-2" />
+            Projects
           </TabsTrigger>
           <TabsTrigger value="settings">
             <Settings className="w-4 h-4 mr-2" />
@@ -698,6 +783,114 @@ export default function AdminDashboard() {
                     </div>
                   </Card>
                 ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Projects Tab */}
+        <TabsContent value="projects" className="space-y-6">
+          <Card>
+            <CardHeader className="flex flex-row justify-between items-center">
+              <CardTitle>Project Requests</CardTitle>
+              <div className="flex gap-2">
+                <Badge variant="outline">
+                  {projectRequests.length} total requests
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {projectRequests.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Wand2 className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Project Requests</h3>
+                    <p className="text-gray-500">Project requests will appear here when submitted.</p>
+                  </div>
+                ) : (
+                  projectRequests.map((project) => (
+                    <Card key={project.id} className="p-4">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-3">
+                            <h4 className="font-semibold text-lg">{project.projectTitle}</h4>
+                            <Badge variant={
+                              project.status === "approved" ? "default" :
+                              project.status === "rejected" ? "destructive" :
+                              project.status === "under-review" ? "secondary" : "outline"
+                            }>
+                              {project.status || "pending"}
+                            </Badge>
+                          </div>
+                          
+                          <div className="space-y-2 text-sm">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <p><strong>Contact Name:</strong> {project.fullName}</p>
+                                <p><strong>Email:</strong> {project.email}</p>
+                                <p><strong>Phone:</strong> {project.phone || "Not provided"}</p>
+                                <p><strong>Address:</strong> {project.address || "Not provided"}</p>
+                              </div>
+                              <div>
+                                <p><strong>Project Type:</strong> {project.projectType}</p>
+                                <p><strong>Budget Considerations:</strong> {project.budgetConsiderations || "Not specified"}</p>
+                                <p><strong>Priority:</strong> {project.priority}</p>
+                                <p><strong>Submitted:</strong> {new Date(project.submittedAt).toLocaleDateString()}</p>
+                              </div>
+                            </div>
+                            
+                            <div className="mt-3">
+                              <p><strong>Description:</strong></p>
+                              <p className="text-gray-600 mt-1">{project.description}</p>
+                            </div>
+                            
+                            {project.howHeardAbout && (
+                              <div className="mt-3">
+                                <p><strong>How they heard about us:</strong></p>
+                                <p className="text-gray-600 mt-1">{project.howHeardAbout}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2 ml-4">
+                          <Button
+                            onClick={() => handleConvertToTeam(project)}
+                            disabled={convertToTeamMutation.isPending}
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            <Users className="w-4 h-4 mr-2" />
+                            Convert to Team
+                          </Button>
+                          
+                          <Select 
+                            value={project.status || "pending"} 
+                            onValueChange={(status) => handleUpdateProjectStatus(project.id, status)}
+                          >
+                            <SelectTrigger className="w-36">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pending">Pending</SelectItem>
+                              <SelectItem value="under-review">Under Review</SelectItem>
+                              <SelectItem value="approved">Approved</SelectItem>
+                              <SelectItem value="rejected">Rejected</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDeleteProject(project.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
