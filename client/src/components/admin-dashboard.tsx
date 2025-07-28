@@ -1039,15 +1039,10 @@ export default function AdminDashboard() {
                         {request.status === "approved" && (
                           <Button
                             size="sm"
-                            onClick={() => {
-                              // Convert to team logic would go here
-                              toast({
-                                title: "Feature Coming Soon",
-                                description: "Team conversion feature will be available soon.",
-                              });
-                            }}
+                            onClick={() => handleConvertToTeam(request)}
+                            disabled={convertToTeamMutation.isPending}
                           >
-                            Convert to Team
+                            {convertToTeamMutation.isPending ? "Converting..." : "Convert to Team"}
                           </Button>
                         )}
                       </div>
