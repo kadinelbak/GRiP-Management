@@ -874,39 +874,68 @@ export class DatabaseStorage implements IStorage {
 
   // Special Roles Methods
   async getSpecialRoles(): Promise<SpecialRole[]> {
-    return await db.select().from(specialRoles).where(eq(specialRoles.isActive, true));
+    try {
+      return await db.select().from(specialRoles).where(eq(specialRoles.isActive, true));
+    } catch (error) {
+      console.error("Error fetching special roles:", error);
+      return [];
+    }
   }
 
   async createSpecialRole(insertRole: InsertSpecialRole): Promise<SpecialRole> {
-    const [role] = await db.insert(specialRoles).values(insertRole).returning();
-    return role;
+    try {
+      const [role] = await db.insert(specialRoles).values(insertRole).returning();
+      return role;
+    } catch (error) {
+      console.error("Error creating special role:", error);
+      throw error;
+    }
   }
 
   async updateSpecialRole(id: string, updates: Partial<SpecialRole>): Promise<SpecialRole> {
-    const [role] = await db
-      .update(specialRoles)
-      .set(updates)
-      .where(eq(specialRoles.id, id))
-      .returning();
-    return role;
+    try {
+      const [role] = await db
+        .update(specialRoles)
+        .set(updates)
+        .where(eq(specialRoles.id, id))
+        .returning();
+      return role;
+    } catch (error) {
+      console.error("Error updating special role:", error);
+      throw error;
+    }
   }
 
   async deleteSpecialRole(id: string): Promise<void> {
-    await db.update(specialRoles)
-      .set({ isActive: false })
-      .where(eq(specialRoles.id, id));
+    try {
+      await db.update(specialRoles)
+        .set({ isActive: false })
+        .where(eq(specialRoles.id, id));
+    } catch (error) {
+      console.error("Error deleting special role:", error);
+      throw error;
+    }
   }
 
   // Role Applications Methods
   async getRoleApplications(): Promise<(RoleApplication & { role: SpecialRole })[]> {
-    return await db
-      .select()
-      .from(roleApplications)
-      .leftJoin(specialRoles, eq(roleApplications.roleId, specialRoles.id))
-      .then(rows => rows.map(row => ({
-        ...row.role_applications!,
-        role: row.special_roles!
-      })));
+    try {
+      const result = await db
+        .select({
+          roleApplication: roleApplications,
+          role: specialRoles
+        })
+        .from(roleApplications)
+        .leftJoin(specialRoles, eq(roleApplications.roleId, specialRoles.id));
+      
+      return result.map(row => ({
+        ...row.roleApplication,
+        role: row.role!
+      }));
+    } catch (error) {
+      console.error("Error fetching role applications:", error);
+      return [];
+    }
   }
 
   async createRoleApplication(insertApplication: InsertRoleApplication): Promise<RoleApplication> {
@@ -989,17 +1018,27 @@ export class DatabaseStorage implements IStorage {
 
   // Member Roles Methods
   async getMemberRoles(): Promise<(MemberRole & { application: Application; role: SpecialRole })[]> {
-    return await db
-      .select()
-      .from(memberRoles)
-      .leftJoin(applications, eq(memberRoles.applicationId, applications.id))
-      .leftJoin(specialRoles, eq(memberRoles.roleId, specialRoles.id))
-      .where(eq(memberRoles.isActive, true))
-      .then(rows => rows.map(row => ({
-        ...row.member_roles!,
-        application: row.applications!,
-        role: row.special_roles!
-      })));
+    try {
+      const result = await db
+        .select({
+          memberRole: memberRoles,
+          application: applications,
+          role: specialRoles
+        })
+        .from(memberRoles)
+        .leftJoin(applications, eq(memberRoles.applicationId, applications.id))
+        .leftJoin(specialRoles, eq(memberRoles.roleId, specialRoles.id))
+        .where(eq(memberRoles.isActive, true));
+      
+      return result.map(row => ({
+        ...row.memberRole,
+        application: row.application!,
+        role: row.role!
+      }));
+    } catch (error) {
+      console.error("Error fetching member roles:", error);
+      return [];
+    }
   }
 
   async revokeMemberRole(id: string): Promise<void> {
