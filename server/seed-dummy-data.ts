@@ -1,6 +1,6 @@
 
 import { db } from "./db.js";
-import { teams, applications, additionalTeamSignups } from "@shared/schema";
+import { teams, applications, additionalTeamSignups } from "../shared/schema.js";
 import { sql } from "drizzle-orm";
 
 async function seedDummyData() {

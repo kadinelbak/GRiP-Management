@@ -8,7 +8,7 @@ import {
   type InsertProjectRequest, type InsertAdminSetting, type InsertAbsence, 
   type InsertEvent, type InsertEventAttendance, type InsertPrintSubmission,
   type InsertSpecialRole, type InsertRoleApplication, type InsertMemberRole
-} from "@shared/schema";
+} from "../shared/schema.js";
 import { db } from "./db.js";
 import { eq, desc, asc, and, isNull, sql, or } from "drizzle-orm";
 

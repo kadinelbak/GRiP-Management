@@ -6,7 +6,7 @@ import {
   insertProjectRequestSchema, insertAdminSettingSchema, insertAbsenceSchema,
   insertEventSchema, insertEventAttendanceSchema, insertPrintSubmissionSchema,
   insertSpecialRoleSchema, insertRoleApplicationSchema
-} from "@shared/schema";
+} from "../shared/schema.js";
 import { z } from "zod";
 import multer from 'multer';
 import path from 'path';

@@ -89,4 +89,12 @@ The application is optimized for Replit deployment:
 - ✓ Added proper file extensions to all local imports in server files
 - ✓ Verified successful build process generating dist/server/vite.js correctly
 
+### Module Resolution Fix (July 28, 2025)
+- ✓ Replaced @shared/schema path alias imports with relative imports in all server files
+- ✓ Updated server/routes.ts, server/storage.ts, server/db.ts, and server/seed-dummy-data.ts
+- ✓ Changed from `import from "@shared/schema"` to `import from "../shared/schema.js"`
+- ✓ Verified compiled dist/server files use correct relative imports
+- ✓ Tested production build successfully imports shared schema modules
+- ✓ Fixed deployment-time module resolution without breaking development workflow
+
 The system is designed for simplicity and ease of use, with a focus on student onboarding and administrative efficiency. The architecture supports future extensions like authentication, email notifications, and advanced team matching algorithms.
