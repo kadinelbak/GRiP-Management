@@ -1,6 +1,18 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import path from "path";
+import { fileURLToPath } from "url";
+
+// Handle both development and production environments
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// For production builds, adjust path to account for dist directory structure
+const isProduction = process.env.NODE_ENV === "production";
+const publicPath = isProduction 
+  ? path.join(__dirname, "../public")
+  : path.join(__dirname, "../dist/public");
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -54,7 +66,13 @@ app.use((req, res, next) => {
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
-    serveStatic(app);
+    // Serve static files from the client dist directory
+  app.use(express.static(publicPath));
+
+  // Serve the main HTML file for any unmatched routes (SPA support)
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(publicPath, "index.html"));
+  });
   }
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
