@@ -164,7 +164,7 @@ export default function AdminDashboard() {
   });
 
   const autoAssignMutation = useMutation({
-    mutationFn: () => apiRequest("/api/admin/assign-teams", "POST"),
+    mutationFn: () => apiRequest("POST", "/api/admin/assign-teams"),
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
       queryClient.invalidateQueries({ queryKey: ["/api/accepted-members"] });
