@@ -85,9 +85,18 @@ The application is optimized for Replit deployment:
 - ✓ Resolved module resolution errors with @shared/schema imports
 - ✓ Added skipLibCheck to bypass third-party library type conflicts
 - ✓ Fixed ES module import paths with explicit .js extensions for production builds
-- ✓ Updated tsconfig.server.json to include vite.config.ts in compilation
+- ✓ Updated tsconfig.server.json to exclude vite.config.ts from compilation
 - ✓ Added proper file extensions to all local imports in server files
 - ✓ Verified successful build process generating dist/server/vite.js correctly
+
+### Deployment Fix (July 28, 2025)
+- ✓ Resolved "Cannot find module vite.config" deployment error
+- ✓ Created post-build transformation to fix import paths in compiled server code
+- ✓ Enhanced build-production.js script with vite config handling
+- ✓ Added scripts/copy-vite-config.js for regular builds
+- ✓ Implemented proper ES module resolution in production environment
+- ✓ Verified production server starts and responds correctly
+- ✓ All suggested deployment fixes successfully applied
 
 ### Module Resolution Fix (July 28, 2025)
 - ✓ Replaced @shared/schema path alias imports with relative imports in all server files

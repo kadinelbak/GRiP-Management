@@ -26,10 +26,68 @@ async function main() {
     await execAsync('npm run build:server');
     console.log('✅ Server build completed');
     
-    // Step 3: Copy vite.config.js to dist for runtime
-    console.log('📋 Copying vite config...');
-    await fs.copyFile('vite.config.ts', 'dist/vite.config.js');
-    console.log('✅ Config files copied');
+    // Step 3: Set up vite config for production runtime
+    console.log('📋 Setting up vite config for production...');
+    
+    // Ensure dist directory exists
+    await fs.mkdir('dist', { recursive: true });
+    
+    // Create a production-compatible vite config
+    const prodConfig = `
+// Production vite config for deployment
+import path from "path";
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export default {
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "..", "client", "src"),
+      "@shared": path.resolve(__dirname, "..", "shared"),
+      "@assets": path.resolve(__dirname, "..", "attached_assets"),
+    },
+  },
+  root: path.resolve(__dirname, "..", "client"), 
+  build: {
+    outDir: path.resolve(__dirname, "..", "dist/public"),
+    emptyOutDir: true,
+  },
+  server: {
+    fs: {
+      strict: true,
+      deny: ["**/.*"],
+    },
+  },
+};
+`;
+    
+    // Write the main vite config file
+    await fs.writeFile('dist/vite.config.js', prodConfig);
+    
+    // Create an import map for extensionless imports by modifying the compiled server file
+    const serverVitePath = path.join('dist', 'server', 'vite.js');
+    if (await fs.access(serverVitePath).then(() => true).catch(() => false)) {
+      let serverViteContent = await fs.readFile(serverVitePath, 'utf-8');
+      
+      // Replace the problematic import with a working one
+      serverViteContent = serverViteContent.replace(
+        'import viteConfig from "../vite.config";',
+        'import viteConfig from "../vite.config.js";'
+      );
+      
+      await fs.writeFile(serverVitePath, serverViteContent);
+      console.log('✅ Fixed vite config import in server/vite.js');
+    }
+    
+    // Create a package.json in dist to ensure ES module resolution works properly
+    const distPackageJson = {
+      "type": "module"
+    };
+    await fs.writeFile('dist/package.json', JSON.stringify(distPackageJson, null, 2));
+    
+    console.log('✅ Vite config setup completed');
     
     // Step 4: Verify build integrity
     console.log('🔍 Verifying build...');

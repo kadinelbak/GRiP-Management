@@ -1,7 +1,7 @@
 
 {
-  "include": ["server/**/*", "shared/**/*", "vite.config.ts"],
-  "exclude": ["client/**/*", "node_modules", "dist", "**/*.test.ts"],
+  "include": ["server/**/*", "shared/**/*"],
+  "exclude": ["client/**/*", "node_modules", "dist", "**/*.test.ts", "vite.config.ts"],
   "compilerOptions": {
     "incremental": false,
     "noEmit": false,
