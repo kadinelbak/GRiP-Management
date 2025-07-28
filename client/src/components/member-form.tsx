@@ -106,10 +106,23 @@ export default function MemberForm() {
 
   const toggleTimeSlot = (day: string, time: string) => {
     const key = `${day}-${time}`;
-    setTimeAvailability(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
+    setTimeAvailability(prev => {
+      const newAvailability = {
+        ...prev,
+        [key]: !prev[key]
+      };
+      
+      // Update form field
+      const timeSlotData = Object.entries(newAvailability)
+        .filter(([_, selected]) => selected)
+        .map(([key, _]) => {
+          const [day, time] = key.split('-');
+          return { day, startTime: time, endTime: time };
+        });
+      
+      form.setValue("timeAvailability", timeSlotData);
+      return newAvailability;
+    });
   };
 
   const isTimeSlotSelected = (day: string, time: string) => {
@@ -148,12 +161,14 @@ export default function MemberForm() {
     if (newIndex >= 0 && newIndex < newPreferences.length) {
       [newPreferences[index], newPreferences[newIndex]] = [newPreferences[newIndex], newPreferences[index]];
       setTeamPreferences(newPreferences);
+      form.setValue("teamPreferences", newPreferences);
     }
   };
 
   const removeTeamPreference = (index: number) => {
     const newPreferences = teamPreferences.filter((_, i) => i !== index);
     setTeamPreferences(newPreferences);
+    form.setValue("teamPreferences", newPreferences);
   };
 
   const onSubmit = (data: ApplicationFormData) => {
@@ -162,10 +177,27 @@ export default function MemberForm() {
     console.log("Time availability:", timeAvailability);
     console.log("Selected skills:", selectedSkills);
     
+    // Convert grid selections to time slots format
+    const timeSlotData = Object.entries(timeAvailability)
+      .filter(([_, selected]) => selected)
+      .map(([key, _]) => {
+        const [day, time] = key.split('-');
+        return { day, startTime: time, endTime: time };
+      });
+
+    // Override form data with component state values
+    const formData = {
+      ...data,
+      fullName: `${data.firstName} ${data.lastName}`.trim(),
+      skills: selectedSkills,
+      teamPreferences: teamPreferences,
+      timeAvailability: timeSlotData,
+    };
+
     // Validate that all acknowledgments are checked
-    const allAcknowledged = data.acknowledgments.every(ack => ack === true);
+    const allAcknowledged = formData.acknowledgments.every(ack => ack === true);
     if (!allAcknowledged) {
-      console.log("Acknowledgments validation failed:", data.acknowledgments);
+      console.log("Acknowledgments validation failed:", formData.acknowledgments);
       toast({
         title: "Incomplete Form",
         description: "Please check all required acknowledgments before submitting.",
@@ -175,7 +207,7 @@ export default function MemberForm() {
     }
 
     // Validate team preferences
-    if (teamPreferences.length === 0) {
+    if (formData.teamPreferences.length === 0) {
       console.log("Team preferences validation failed");
       toast({
         title: "Incomplete Form", 
@@ -186,8 +218,7 @@ export default function MemberForm() {
     }
 
     // Validate time availability
-    const selectedTimeSlots = Object.values(timeAvailability).filter(Boolean);
-    if (selectedTimeSlots.length === 0) {
+    if (formData.timeAvailability.length === 0) {
       console.log("Time availability validation failed");
       toast({
         title: "Incomplete Form",
@@ -196,22 +227,6 @@ export default function MemberForm() {
       });
       return;
     }
-
-    // Convert grid selections to time slots format
-    const timeSlotData = Object.entries(timeAvailability)
-      .filter(([_, selected]) => selected)
-      .map(([key, _]) => {
-        const [day, time] = key.split('-');
-        return { day, startTime: time, endTime: time };
-      });
-
-    const formData = {
-      ...data,
-      fullName: `${data.firstName} ${data.lastName}`.trim(),
-      skills: selectedSkills,
-      teamPreferences,
-      timeAvailability: timeSlotData,
-    };
     
     console.log("Final form data being submitted:", formData);
     submitMutation.mutate(formData);
@@ -408,7 +423,9 @@ export default function MemberForm() {
                       <Select
                         onValueChange={(teamId) => {
                           if (!teamPreferences.includes(teamId)) {
-                            setTeamPreferences([...teamPreferences, teamId]);
+                            const newPreferences = [...teamPreferences, teamId];
+                            setTeamPreferences(newPreferences);
+                            form.setValue("teamPreferences", newPreferences);
                           }
                         }}
                       >
@@ -447,9 +464,13 @@ export default function MemberForm() {
                           checked={selectedSkills.includes(skill)}
                           onCheckedChange={(checked) => {
                             if (checked) {
-                              setSelectedSkills([...selectedSkills, skill]);
+                              const newSkills = [...selectedSkills, skill];
+                              setSelectedSkills(newSkills);
+                              form.setValue("skills", newSkills);
                             } else {
-                              setSelectedSkills(selectedSkills.filter(s => s !== skill));
+                              const newSkills = selectedSkills.filter(s => s !== skill);
+                              setSelectedSkills(newSkills);
+                              form.setValue("skills", newSkills);
                             }
                           }}
                         />
