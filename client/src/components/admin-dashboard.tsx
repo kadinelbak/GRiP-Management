@@ -634,7 +634,7 @@ export default function AdminDashboard() {
                     {filteredMembers.map((member) => {
                       // Calculate absence count for color coding
                       const absenceCount = member.absences?.filter(absence => absence.isActive).length || 0;
-                      
+
                       // Determine card color based on absence count
                       const getCardColor = (count: number) => {
                         if (count === 0) return "border-green-300 bg-green-50"; // Green - No absences
@@ -727,7 +727,7 @@ export default function AdminDashboard() {
                               {selectedMember.absences?.filter(a => a.isActive).length || 0}
                             </Badge>
                           </div>
-                          
+
                           {selectedMember.absences && selectedMember.absences.length > 0 && (
                             <div className="space-y-1 max-h-24 overflow-y-auto">
                               {selectedMember.absences
@@ -759,7 +759,7 @@ export default function AdminDashboard() {
                               ))}
                             </div>
                           )}
-                          
+
                           <div className="flex gap-2">
                             <Button 
                               size="sm" 
@@ -768,7 +768,7 @@ export default function AdminDashboard() {
                               onClick={async () => {
                                 const reason = prompt("Reason for absence (optional):");
                                 const date = new Date().toISOString().split('T')[0];
-                                
+
                                 try {
                                   await fetch('/api/absences', {
                                     method: 'POST',
@@ -875,7 +875,7 @@ export default function AdminDashboard() {
 
                           {application.teamPreferences && application.teamPreferences.length > 0 && (
                             <div>
-                              Team Preferences: {application.teamPreferences.map(teamId => getTeamName(teamId)).join(", ")}
+                              TeamPreferences: {application.teamPreferences.map(teamId => getTeamName(teamId)).join(", ")}
                             </div>
                           )}
                         </div>
@@ -960,10 +960,9 @@ export default function AdminDashboard() {
                             })}
                           </div>
                         </div>
-                      )}
-                    </div>
-                  </Card>
-                ))}
+                      </div>
+                    </Card>
+                  ))}
 
                 {(!additionalSignups || additionalSignups.length === 0) && (
                   <div className="text-center py-8 text-gray-500">

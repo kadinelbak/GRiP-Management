@@ -57,7 +57,7 @@ export default function MemberForm() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{day: string, time: string} | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  
+
 
   const form = useForm<ApplicationFormData>({
     resolver: zodResolver(insertApplicationSchema),
@@ -121,7 +121,7 @@ export default function MemberForm() {
         ...prev,
         [key]: !prev[key]
       };
-      
+
       // Update form field
       const timeSlotData = Object.entries(newAvailability)
         .filter(([_, selected]) => selected)
@@ -129,7 +129,7 @@ export default function MemberForm() {
           const [day, time] = key.split('-');
           return { day, startTime: time, endTime: time };
         });
-      
+
       form.setValue("timeAvailability", timeSlotData);
       return newAvailability;
     });
@@ -186,7 +186,7 @@ export default function MemberForm() {
     console.log("Team preferences:", teamPreferences);
     console.log("Time availability:", timeAvailability);
     console.log("Selected skills:", selectedSkills);
-    
+
     // Convert grid selections to time slots format
     const timeSlotData = Object.entries(timeAvailability)
       .filter(([_, selected]) => selected)
@@ -238,7 +238,7 @@ export default function MemberForm() {
       });
       return;
     }
-    
+
     console.log("Final form data being submitted:", formData);
     submitMutation.mutate(formData);
   };
@@ -565,7 +565,7 @@ export default function MemberForm() {
                 </div>
               </div>
 
-              
+
 
               {/* Required Acknowledgments */}
               <div className="space-y-4">
@@ -613,7 +613,9 @@ export default function MemberForm() {
                 </p>
 
                 <div className="space-y-3">
-                  {constantTeams.map((team: Team) => (
+                  {constantTeams
+                          .filter((team) => !selectedAdditionalTeams.includes(team.id))
+                          .map((team) => (
                     <label key={team.id} className="flex items-start space-x-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50">
                       <Checkbox
                         checked={selectedAdditionalTeams.includes(team.id)}

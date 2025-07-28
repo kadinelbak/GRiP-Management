@@ -254,16 +254,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   async assignTeamsAutomatically(): Promise<{ assignments: Array<{ applicationId: string; studentName: string; assignedTeam: string | null; reason: string }> }> {
-    // Get all pending applications ordered by submission time (first-come, first-served)
+    // Get accepted unassigned members first (priority), then pending applications
+    const acceptedUnassigned = await db
+      .select()
+      .from(applications)
+      .where(and(eq(applications.status, "accepted"), isNull(applications.assignedTeamId)))
+      .orderBy(asc(applications.submittedAt));
+
     const pendingApplications = await db
       .select()
       .from(applications)
       .where(eq(applications.status, "pending"))
       .orderBy(asc(applications.submittedAt));
 
-    // Get all teams with their current sizes
+    // Combine with priority: accepted unassigned first, then pending
+    const allApplicationsToProcess = [...acceptedUnassigned, ...pendingApplications];
+
+    // Get technical teams only for assignment
     const allTeams = await this.getTeams();
-    const teamCapacities = new Map(allTeams.map(team => [team.id, { 
+    const technicalTeams = allTeams.filter(team => team.type === 'technical');
+    const teamCapacities = new Map(technicalTeams.map(team => [team.id, { 
       name: team.name, 
       available: team.maxCapacity - team.currentSize,
       maxCapacity: team.maxCapacity,
@@ -272,9 +282,10 @@ export class DatabaseStorage implements IStorage {
 
     const assignments: Array<{ applicationId: string; studentName: string; assignedTeam: string | null; reason: string }> = [];
 
-    for (const application of pendingApplications) {
+    for (const application of allApplicationsToProcess) {
       let assignedTeamId: string | null = null;
       let reason = "";
+      const isAcceptedMember = application.status === "accepted";
 
       // Check if application has complete information
       if (!application.teamPreferences || application.teamPreferences.length === 0) {
@@ -308,22 +319,31 @@ export class DatabaseStorage implements IStorage {
       }
 
       // Try to assign based on team preferences (in order of preference)
-      for (let i = 0; i < application.teamPreferences.length; i++) {
-        const preferredTeamId = application.teamPreferences[i];
+      // Filter team preferences to only include technical teams
+      const technicalTeamPreferences = application.teamPreferences.filter(teamId => 
+        technicalTeams.some(team => team.id === teamId)
+      );
+
+      for (let i = 0; i < technicalTeamPreferences.length; i++) {
+        const preferredTeamId = technicalTeamPreferences[i];
         const teamCapacity = teamCapacities.get(preferredTeamId);
 
         if (!teamCapacity) {
-          continue; // Team doesn't exist
+          continue; // Team doesn't exist or isn't technical
         }
 
         if (teamCapacity.available > 0) {
           assignedTeamId = preferredTeamId;
-          reason = `Assigned to preference #${i + 1}: ${teamCapacity.name} (${teamCapacity.available} slots available)`;
+          const memberType = isAcceptedMember ? "accepted member" : "new applicant";
+          reason = `${memberType} assigned to preference #${i + 1}: ${teamCapacity.name} (${teamCapacity.available} slots available)`;
 
-          // Update application
+          // Update application - if they were accepted and unassigned, keep them accepted
+          // If they were pending, mark as assigned
+          const newStatus = isAcceptedMember ? "accepted" : "assigned";
+          
           await this.updateApplication(application.id, {
             assignedTeamId,
-            status: "assigned",
+            status: newStatus,
             assignmentReason: reason
           });
 
@@ -339,16 +359,21 @@ export class DatabaseStorage implements IStorage {
             currentSize: teamCapacity.currentSize + 1
           });
 
+          // Handle additional teams - auto-assign to any additional teams they selected
+          if (application.additionalTeams && application.additionalTeams.length > 0) {
+            await this.assignToAdditionalTeams(application.id, application.additionalTeams);
+          }
+
           break;
         }
       }
 
       // If no preferred teams available, add to waitlist
       if (!assignedTeamId) {
-        const preferredTeamNames = application.teamPreferences
+        const preferredTeamNames = technicalTeamPreferences
           .map(id => teamCapacities.get(id)?.name || "Unknown")
           .join(", ");
-        reason = `All preferred teams full: ${preferredTeamNames} - moved to waitlist`;
+        reason = `All preferred technical teams full: ${preferredTeamNames} - moved to waitlist`;
 
         await this.updateApplication(application.id, {
           status: "waitlisted",
@@ -365,6 +390,29 @@ export class DatabaseStorage implements IStorage {
     }
 
     return { assignments };
+  }
+
+  private async assignToAdditionalTeams(applicationId: string, additionalTeamIds: string[]): Promise<void> {
+    // Get constant teams for additional assignments
+    const allTeams = await this.getTeams();
+    const constantTeams = allTeams.filter(team => team.type === 'constant');
+    
+    for (const teamId of additionalTeamIds) {
+      const team = constantTeams.find(t => t.id === teamId);
+      if (team && team.currentSize < team.maxCapacity) {
+        // Create additional team signup record
+        await this.createAdditionalTeamSignup({
+          applicationId,
+          teamId,
+          submittedAt: new Date()
+        });
+        
+        // Update team size
+        await this.updateTeam(teamId, {
+          currentSize: team.currentSize + 1
+        });
+      }
+    }
   }
 
   async getTeamMembers(teamId: string): Promise<Application[]> {
