@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import type { Team, Application, ProjectRequest } from "@shared/schema";
 import type { z } from "zod";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 type TeamFormData = z.infer<typeof insertTeamSchema>;
 
@@ -635,9 +635,10 @@ function PrintManagementSection() {
       {/* Submission Detail Modal */}
       {selectedSubmission && (
         <Dialog open={!!selectedSubmission} onOpenChange={() => setSelectedSubmission(null)}>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto bg-white">
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto bg-white" >
             <DialogHeader>
               <DialogTitle>Print Submission Details</DialogTitle>
+              <DialogDescription>Details of the selected print submission</DialogDescription>
             </DialogHeader>
 
             <div className="space-y-6">
@@ -1238,7 +1239,7 @@ function AbsenceManagementSection() {
                                 <div>{member.email} | UFID: {member.ufid}</div>
                                 <div>Team: {getTeamName(member.assignedTeamId)}</div>
                                 <div>Joined: {new Date(member.submittedAt).toLocaleDateString()}</div>
-                                
+
                                 {member.skills && member.skills.length > 0 && (
                                   <div className="mt-2">
                                     <span className="text-xs font-medium text-gray-700">Skills:</span>
@@ -1322,6 +1323,7 @@ function AbsenceManagementSection() {
                   <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto bg-white">
                     <DialogHeader>
                       <DialogTitle>Member Details - {selectedMember.fullName}</DialogTitle>
+					  <DialogDescription>View details about the selected member</DialogDescription>
                     </DialogHeader>
 
                     <div className="space-y-6">
@@ -1399,7 +1401,7 @@ function AbsenceManagementSection() {
                           const memberAbsences = absences.filter(absence => 
                             absence.applicationId === selectedMember.id && absence.isActive
                           );
-                          
+
                           if (memberAbsences.length === 0) {
                             return (
                               <div className="text-center py-6 bg-green-50 border border-green-200 rounded">
@@ -1495,7 +1497,7 @@ function AbsenceManagementSection() {
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
                               {selectedMember.timeAvailability.map((slot, index) => (
                                 <div key={index} className="bg-white px-2 py-1 rounded border text-center">
-                                  {typeof slot === 'string' ? slot : `${slot.day}: ${slot.startTime} - ${slot.endTime}`}
+                                  {slot.day}: {slot.startTime} - {slot.endTime}
                                 </div>
                               ))}
                             </div>
