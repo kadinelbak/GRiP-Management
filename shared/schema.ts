@@ -197,7 +197,7 @@ export const insertEventSchema = createInsertSchema(events).omit({
   createdAt: true,
 }).extend({
   title: z.string().min(1, "Event title is required"),
-  eventDate: z.string().min(1, "Event date is required"),
+  eventDate: z.string().min(1, "Event date is required").transform((val) => new Date(val)),
   location: z.string().min(1, "Event location is required"),
   points: z.number().min(0, "Points must be 0 or greater"),
 });
