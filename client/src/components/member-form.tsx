@@ -52,6 +52,7 @@ export default function MemberForm() {
   const queryClient = useQueryClient();
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [teamPreferences, setTeamPreferences] = useState<string[]>([]);
+  const [selectedAdditionalTeams, setSelectedAdditionalTeams] = useState<string[]>([]);
   const [timeAvailability, setTimeAvailability] = useState<TimeAvailability>({});
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{day: string, time: string} | null>(null);
@@ -67,6 +68,7 @@ export default function MemberForm() {
       email: "",
       ufid: "",
       teamPreferences: [],
+      additionalTeams: [],
       skills: [],
       additionalSkills: "",
       timeAvailability: [],
@@ -74,8 +76,12 @@ export default function MemberForm() {
     },
   });
 
-  const { data: teams = [] } = useQuery<Team[]>({
+  const { data: technicalTeams = [] } = useQuery<Team[]>({
     queryKey: ["/api/teams/type/technical"],
+  });
+
+  const { data: constantTeams = [] } = useQuery<Team[]>({
+    queryKey: ["/api/teams/type/constant"],
   });
 
   const { data: existingApplications = [] } = useQuery({
@@ -96,6 +102,7 @@ export default function MemberForm() {
       setSelectedSkills([]);
       setTimeAvailability({});
       setTeamPreferences([]);
+      setSelectedAdditionalTeams([]);
       queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
     },
     onError: (error: any) => {
@@ -194,6 +201,7 @@ export default function MemberForm() {
       fullName: `${data.firstName} ${data.lastName}`.trim(),
       skills: selectedSkills,
       teamPreferences: teamPreferences,
+      additionalTeams: selectedAdditionalTeams,
       timeAvailability: timeSlotData,
     };
 
@@ -376,7 +384,7 @@ export default function MemberForm() {
                   {teamPreferences.length > 0 && (
                     <div className="space-y-2">
                       {teamPreferences.map((teamId, index) => {
-                        const team = teams.find(t => t.id === teamId);
+                        const team = technicalTeams.find(t => t.id === teamId);
                         return (
                           <div key={`${teamId}-${index}`} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                             <div className="flex items-center">
@@ -436,9 +444,9 @@ export default function MemberForm() {
                           <SelectValue placeholder="Select a team to add" />
                         </SelectTrigger>
                         <SelectContent>
-                          {teams
-                            .filter(team => !teamPreferences.includes(team.id))
-                            .map((team) => (
+                          {technicalTeams
+                            .filter((team: Team) => !teamPreferences.includes(team.id))
+                            .map((team: Team) => (
                               <SelectItem key={team.id} value={team.id}>
                                 {team.name}
                                 {team.description && (
@@ -593,6 +601,57 @@ export default function MemberForm() {
                     />
                   ))}
                 </div>
+              </div>
+
+              {/* Additional Teams Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-slate-900 border-b border-slate-200 pb-2">
+                  Additional Teams (Optional)
+                </h3>
+                <p className="text-sm text-slate-600">
+                  Select additional teams you'd like to join alongside your technical team assignment. These teams have unlimited capacity and are open to all members.
+                </p>
+
+                <div className="space-y-3">
+                  {constantTeams.map((team: Team) => (
+                    <label key={team.id} className="flex items-start space-x-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50">
+                      <Checkbox
+                        checked={selectedAdditionalTeams.includes(team.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            const newTeams = [...selectedAdditionalTeams, team.id];
+                            setSelectedAdditionalTeams(newTeams);
+                            form.setValue("additionalTeams", newTeams);
+                          } else {
+                            const newTeams = selectedAdditionalTeams.filter(id => id !== team.id);
+                            setSelectedAdditionalTeams(newTeams);
+                            form.setValue("additionalTeams", newTeams);
+                          }
+                        }}
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium text-slate-900">{team.name}</div>
+                        {team.description && (
+                          <div className="text-sm text-slate-600 mt-1">{team.description}</div>
+                        )}
+                        <div className="text-xs text-green-600 mt-1">
+                          ✓ Unlimited capacity - Open to all members
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+
+                {selectedAdditionalTeams.length > 0 && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="text-sm text-green-800">
+                      <strong>Selected additional teams:</strong> {selectedAdditionalTeams.length}
+                    </div>
+                    <div className="text-xs text-green-600 mt-1">
+                      You can join these teams regardless of your technical team assignment.
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="pt-6">

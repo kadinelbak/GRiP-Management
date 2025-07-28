@@ -6,7 +6,7 @@ import { z } from "zod";
 export const teams = pgTable("teams", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
-  type: text("type").notNull(), // 'technical' or 'additional'
+  type: text("type").notNull(), // 'technical', 'additional', or 'constant'
   maxCapacity: integer("max_capacity").notNull(),
   currentSize: integer("current_size").notNull().default(0),
   meetingTime: text("meeting_time"),
@@ -23,6 +23,7 @@ export const applications = pgTable("applications", {
   email: text("email").notNull(),
   ufid: text("ufid").notNull(),
   teamPreferences: json("team_preferences").$type<string[]>().notNull().default([]), // Up to 9 ranked preferences
+  additionalTeams: json("additional_teams").$type<string[]>().notNull().default([]), // Additional teams they want to join
   skills: json("skills").$type<string[]>().notNull().default([]),
   additionalSkills: text("additional_skills"),
   timeAvailability: json("time_availability").$type<{ day: string; startTime: string; endTime: string }[]>().notNull().default([]),
@@ -56,7 +57,6 @@ export const projectRequests = pgTable("project_requests", {
   howHeardAbout: text("how_heard_about"),
   consentGiven: boolean("consent_given").notNull().default(false),
   status: text("status").notNull().default("submitted"), // 'submitted', 'reviewing', 'approved', 'completed'
-  responsiblePerson: text("responsible_person"), // Person responsible when status is 'reaching_out'
   submittedAt: timestamp("submitted_at").notNull().defaultNow(),
 });
 
@@ -117,6 +117,7 @@ export const insertApplicationSchema = createInsertSchema(applications).omit({
   email: z.string().email("Invalid email format"),
   ufid: z.string().regex(/^\d{8}$/, "UFID must be exactly 8 digits"),
   teamPreferences: z.array(z.string()).min(1, "At least one team preference required").max(9, "Maximum 9 team preferences allowed"),
+  additionalTeams: z.array(z.string()).optional().default([]),
   timeAvailability: z.array(z.object({
     day: z.string(),
     startTime: z.string(),
