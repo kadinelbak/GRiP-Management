@@ -62,10 +62,13 @@ export interface IStorage {
   deleteEvent(id: string): Promise<void>;
 
   // Event Attendance
-  getEventAttendances(): Promise<EventAttendance[]>;
+  getEventAttendance(): Promise<EventAttendance[]>;
   getEventAttendanceById(id: string): Promise<EventAttendance | undefined>;
   createEventAttendance(attendance: InsertEventAttendance): Promise<EventAttendance>;
   getEventAttendancesByEvent(eventId: string): Promise<EventAttendance[]>;
+  approveEventAttendance(id: string): Promise<{ message: string; pointsAdded?: number }>;
+  rejectEventAttendance(id: string): Promise<void>;
+  deleteEventAttendance(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -669,7 +672,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Event Attendance
-  async getEventAttendances(): Promise<EventAttendance[]> {
+  async getEventAttendance(): Promise<EventAttendance[]> {
     return await db.select().from(eventAttendance).orderBy(desc(eventAttendance.createdAt));
   }
 
@@ -684,8 +687,77 @@ export class DatabaseStorage implements IStorage {
   }
 
     async getEventAttendancesByEvent(eventId: string): Promise<EventAttendance[]> {
-        return await db.select().from(eventAttendance).where(eq(eventAttendance.eventId, eventId));
+    return await db.select().from(eventAttendance).where(eq(eventAttendance.eventId, eventId));
+  }
+
+  async approveEventAttendance(id: string): Promise<{ message: string; pointsAdded?: number }> {
+    // Get the attendance record with event details
+    const [attendance] = await db
+      .select({
+        attendance: eventAttendance,
+        event: events
+      })
+      .from(eventAttendance)
+      .leftJoin(events, eq(eventAttendance.eventId, events.id))
+      .where(eq(eventAttendance.id, id));
+
+    if (!attendance) {
+      throw new Error("Attendance record not found");
     }
+
+    // Update attendance status
+    await db.update(eventAttendance)
+      .set({ 
+        status: "approved", 
+        approvedAt: new Date(),
+        approvedBy: "Admin" 
+      })
+      .where(eq(eventAttendance.id, id));
+
+    // Find the user's application and add points
+    if (attendance.event) {
+      const [application] = await db
+        .select()
+        .from(applications)
+        .where(eq(applications.ufid, attendance.attendance.ufid))
+        .limit(1);
+
+      if (application) {
+        // Add points to user
+        const newPoints = application.points + attendance.event.points;
+        
+        // Add event to user's events array
+        const userEvents = Array.isArray(application.events) ? application.events : [];
+        if (!userEvents.includes(attendance.event.id)) {
+          userEvents.push(attendance.event.id);
+        }
+
+        await db.update(applications)
+          .set({ 
+            points: newPoints,
+            events: userEvents
+          })
+          .where(eq(applications.id, application.id));
+
+        return { 
+          message: `Attendance approved! ${attendance.event.points} points added to ${attendance.attendance.fullName}`,
+          pointsAdded: attendance.event.points
+        };
+      }
+    }
+
+    return { message: "Attendance approved" };
+  }
+
+  async rejectEventAttendance(id: string): Promise<void> {
+    await db.update(eventAttendance)
+      .set({ status: "rejected" })
+      .where(eq(eventAttendance.id, id));
+  }
+
+  async deleteEventAttendance(id: string): Promise<void> {
+    await db.delete(eventAttendance).where(eq(eventAttendance.id, id));
+  }
 }
 
 export const storage = new DatabaseStorage();
