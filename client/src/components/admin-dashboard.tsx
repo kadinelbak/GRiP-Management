@@ -47,15 +47,11 @@ export default function AdminDashboard() {
     resolver: zodResolver(insertTeamSchema),
     defaultValues: {
       name: "",
-      type: "",
-      maxCapacity: 0,
+      type: "technical",
+      maxCapacity: 15,
       meetingTime: "",
-      location: "",
       requiredSkills: "",
       description: "",
-      meetingDay: "",
-      meetingStartTime: "",
-      meetingEndTime: "",
     },
   });
 
@@ -82,6 +78,64 @@ export default function AdminDashboard() {
   const { data: additionalSignups = [] } = useQuery<any[]>({
     queryKey: ["/api/additional-signups"],
   });
+
+  // Initialize permanent teams
+  const initializePermanentTeams = async () => {
+    const permanentTeams = [
+      {
+        name: "Marketing Team",
+        type: "constant",
+        maxCapacity: 9999,
+        meetingTime: "Wednesdays 6:00 PM - 7:30 PM",
+        description: "Help promote GRiP events, manage social media, and create marketing materials."
+      },
+      {
+        name: "Outreach Team", 
+        type: "constant",
+        maxCapacity: 9999,
+        meetingTime: "Fridays 4:00 PM - 5:30 PM",
+        description: "Organize community events, school visits, and educational workshops."
+      },
+      {
+        name: "3D Printing Team",
+        type: "constant", 
+        maxCapacity: 9999,
+        meetingTime: "Mondays 5:00 PM - 6:30 PM",
+        description: "Operate and maintain 3D printers, train members on printing technology."
+      },
+      {
+        name: "Art Team",
+        type: "constant",
+        maxCapacity: 9999, 
+        meetingTime: "Tuesdays 7:00 PM - 8:30 PM",
+        description: "Design graphics, create visual content, and work on artistic elements of prosthetics."
+      },
+      {
+        name: "Events Team",
+        type: "constant",
+        maxCapacity: 9999,
+        meetingTime: "Thursdays 6:30 PM - 8:00 PM", 
+        description: "Plan and coordinate GRiP social events, meetings, and special activities."
+      }
+    ];
+
+    try {
+      for (const team of permanentTeams) {
+        await apiRequest("POST", "/api/teams", team);
+      }
+      toast({
+        title: "Permanent Teams Initialized",
+        description: "Successfully created all 5 permanent teams.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
+    } catch (error: any) {
+      toast({
+        title: "Failed to Initialize Teams",
+        description: error.message || "Failed to create permanent teams.",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Mutation for creating teams
   const createTeamMutation = useMutation({
@@ -882,7 +936,8 @@ export default function AdminDashboard() {
                             <SelectItem value="pending">Pending</SelectItem>
                             <SelectItem value="accepted">Accept</SelectItem>
                             <SelectItem value="waitlisted">Waitlist</SelectItem>
-                            <SelectItem value="rejected">Reject</SelectItem                          </SelectContent>
+                            <SelectItem value="rejected">Reject</SelectItem>
+                          </SelectContent>
                         </Select>
 
                         <Button

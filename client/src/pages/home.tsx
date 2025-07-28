@@ -5,7 +5,8 @@ import MemberForm from "@/components/member-form";
 import ProjectRequestForm from "@/components/project-request-form";
 import AdminDashboard from "@/components/admin-dashboard";
 import { Button } from "@/components/ui/button";
-import { UserPlus, Users, Lightbulb, Settings } from "lucide-react";
+import { UserPlus, Users, Lightbulb, Settings, Plus } from "lucide-react";
+import { Link } from "wouter";
 
 type TabType = "member" | "project" | "admin";
 
@@ -39,6 +40,16 @@ export default function Home() {
                 {label}
               </Button>
             ))}
+            
+            {/* Add Team Creation Link for Admins */}
+            {activeTab === "admin" && (
+              <Link href="/team-creation">
+                <Button variant="outline" className="px-4 py-3 text-sm font-medium rounded-t-lg whitespace-nowrap ml-4">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Team
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
       </nav>
