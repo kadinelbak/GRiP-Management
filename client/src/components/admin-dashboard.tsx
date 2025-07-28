@@ -163,6 +163,29 @@ export default function AdminDashboard() {
     },
   });
 
+  // Mutation for removing all members
+  const removeAllMembersMutation = useMutation({
+    mutationFn: () => apiRequest("DELETE", "/api/admin/remove-all-members"),
+    onSuccess: () => {
+      toast({
+        title: "All Members Removed",
+        description: "All members have been removed from their teams.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/accepted-members"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      setSelectedMember(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to remove all members.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const autoAssignMutation = useMutation({
     mutationFn: () => apiRequest("POST", "/api/admin/assign-teams"),
     onSuccess: (data: any) => {
@@ -522,6 +545,19 @@ export default function AdminDashboard() {
                   <Download className="w-4 h-4 mr-2" />
                   Export CSV
                 </Button>
+                <Button 
+                  onClick={() => {
+                    if (confirm("Are you sure you want to remove ALL members from all teams? This action cannot be undone.")) {
+                      removeAllMembersMutation.mutate();
+                    }
+                  }}
+                  variant="destructive" 
+                  size="sm"
+                  disabled={removeAllMembersMutation.isPending}
+                >
+                  <UserMinus className="w-4 h-4 mr-2" />
+                  {removeAllMembersMutation.isPending ? "Removing..." : "Remove All Members"}
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -541,8 +577,8 @@ export default function AdminDashboard() {
                 <div className="lg:col-span-2">
                   <div className="space-y-2 max-h-96 overflow-y-auto">
                     {filteredMembers.map((member) => {
-                      // Calculate absence count for color coding - we'll need to query absences separately
-                      const absenceCount = 0; // TODO: Query absences for this member
+                      // Calculate absence count from member's absences array
+                      const absenceCount = member.absences ? member.absences.filter(absence => absence.isActive).length : 0;
 
                       // Determine card color based on absence count
                       const getCardColor = (count: number) => {
@@ -637,12 +673,41 @@ export default function AdminDashboard() {
                           <div className="flex justify-between items-center">
                             <h5 className="font-medium text-sm">Absences</h5>
                             <Badge variant="outline">
-                              0
+                              {selectedMember.absences ? selectedMember.absences.filter(absence => absence.isActive).length : 0}
                             </Badge>
                           </div>
 
                           <div className="text-sm text-gray-500">
-                            No absences recorded
+                            {selectedMember.absences && selectedMember.absences.length > 0 ? (
+                              <div className="space-y-1">
+                                {selectedMember.absences.filter(absence => absence.isActive).map((absence, index) => (
+                                  <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded text-xs">
+                                    <span>{new Date(absence.startDate).toLocaleDateString()}</span>
+                                    <span className="text-gray-400">{absence.reason || "No reason provided"}</span>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={async () => {
+                                        try {
+                                          await fetch(`/api/absences/${absence.id}`, {
+                                            method: 'DELETE'
+                                          });
+                                          toast({ title: "Absence cleared successfully" });
+                                          queryClient.invalidateQueries({ queryKey: ['/api/accepted-members'] });
+                                        } catch (error) {
+                                          toast({ title: "Failed to clear absence", variant: "destructive" });
+                                        }
+                                      }}
+                                      className="text-red-600"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              "No absences recorded"
+                            )}
                           </div>
 
                           <div className="flex gap-2">
