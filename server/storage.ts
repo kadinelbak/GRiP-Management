@@ -5,7 +5,7 @@ import {
   type InsertProjectRequest, type InsertAdminSetting, type InsertAbsence
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, asc, and, isNull, sql } from "drizzle-orm";
+import { eq, desc, asc, and, isNull, sql, or } from "drizzle-orm";
 
 export interface IStorage {
   // Teams
@@ -141,7 +141,7 @@ export class DatabaseStorage implements IStorage {
       })
       .from(applications)
       .leftJoin(absences, and(eq(applications.id, absences.applicationId), eq(absences.isActive, true)))
-      .where(eq(applications.status, "accepted"))
+      .where(or(eq(applications.status, "accepted"), eq(applications.status, "assigned")))
       .orderBy(asc(applications.fullName));
 
     // Group absences by application

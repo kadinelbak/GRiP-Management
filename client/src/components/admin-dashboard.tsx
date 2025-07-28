@@ -470,10 +470,10 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
 
-          {/* Team Assignments - Only Accepted Members */}
+          {/* Team Assignments - Accepted and Assigned Members */}
           <Card>
             <CardHeader>
-              <CardTitle>Team Assignments (Accepted Members Only)</CardTitle>
+              <CardTitle>Team Assignments (Active Members)</CardTitle></old_str>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4">
@@ -501,7 +501,7 @@ export default function AdminDashboard() {
                           ))}
                         </div>
                       ) : (
-                        <p className="text-sm text-gray-500 italic">No accepted members assigned</p>
+                        <p className="text-sm text-gray-500 italic">No active members assigned</p>
                       )}
                     </Card>
                   );
@@ -515,7 +515,7 @@ export default function AdminDashboard() {
         <TabsContent value="members" className="space-y-6">
           <Card>
             <CardHeader className="flex flex-row justify-between items-center">
-              <CardTitle>Current Members (Accepted)</CardTitle>
+              <CardTitle>Current Members (Accepted & Assigned)</CardTitle>
               <div className="flex gap-2">
                 <Button onClick={handleExportMembers} variant="outline" size="sm">
                   <Download className="w-4 h-4 mr-2" />
