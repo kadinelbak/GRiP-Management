@@ -771,7 +771,7 @@ function AbsenceManagementSection() {
   );
 }
 
-  const [activeSection, setActiveSection] = useState<"overview" | "applications" | "teams" | "projects" | "settings" | "event-attendance" | "print-management">("overview");
+  const [activeSection, setActiveSection] = useState<"overview" | "applications" | "teams" | "members" | "projects" | "settings" | "event-attendance" | "print-management">("overview");
 
   const deleteAttendanceMutation = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/event-attendance/${id}`),
@@ -822,6 +822,14 @@ function AbsenceManagementSection() {
             >
               <Users className="w-4 h-4 mr-2" />
               Teams
+            </Button>
+            <Button
+              variant={activeSection === "members" ? "default" : "ghost"}
+              onClick={() => setActiveSection("members")}
+              className="justify-start"
+            >
+              <UserCheck className="w-4 h-4 mr-2" />
+              Members
             </Button>
             <Button
               variant={activeSection === "projects" ? "default" : "ghost"}
@@ -1153,6 +1161,222 @@ function AbsenceManagementSection() {
                   </div>
                 </CardContent>
               </Card>
+            </div>
+          )}
+
+          {activeSection === "members" && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-slate-900">Members Management</h2>
+                <div className="flex gap-2">
+                  <Button onClick={handleExportMembers} variant="outline" size="sm">
+                    <Download className="w-4 h-4 mr-2" />
+                    Export Members CSV
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      if (confirm("Are you sure you want to remove ALL members from their teams? This action cannot be undone.")) {
+                        removeAllMembersMutation.mutate();
+                      }
+                    }}
+                    variant="destructive"
+                    size="sm"
+                    disabled={removeAllMembersMutation.isPending}
+                  >
+                    <UserMinus className="w-4 h-4 mr-2" />
+                    {removeAllMembersMutation.isPending ? "Removing..." : "Remove All Members"}
+                  </Button>
+                </div>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Active Members</CardTitle>
+                  <CardDescription>
+                    Members who have been assigned to teams
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="mb-4">
+                    <Input
+                      placeholder="Search members by name, email, or UFID..."
+                      value={memberSearchTerm}
+                      onChange={(e) => setMemberSearchTerm(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {filteredMembers.map((member) => {
+                      const memberAbsences = absences.filter(absence =>
+                        absence.applicationId === member.id && absence.isActive
+                      );
+                      const absenceCount = memberAbsences.length;
+
+                      const getAbsenceColor = (count: number) => {
+                        if (count === 0) return "text-green-600";
+                        if (count === 1) return "text-yellow-600";
+                        if (count === 2) return "text-orange-600";
+                        return "text-red-600";
+                      };
+
+                      return (
+                        <Card key={member.id} className="p-4">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <h4 className="font-medium">{member.fullName}</h4>
+                                <Badge variant="default">Active</Badge>
+                                {absenceCount > 0 && (
+                                  <Badge variant="outline" className={`text-xs ${getAbsenceColor(absenceCount)} border-current`}>
+                                    {absenceCount} absence{absenceCount !== 1 ? 's' : ''}
+                                  </Badge>
+                                )}
+                              </div>
+
+                              <div className="text-sm text-gray-600 space-y-1">
+                                <div>{member.email} | UFID: {member.ufid}</div>
+                                <div>Team: {getTeamName(member.assignedTeamId)}</div>
+                                <div>Joined: {new Date(member.submittedAt).toLocaleDateString()}</div>
+                                
+                                {member.skills && member.skills.length > 0 && (
+                                  <div className="mt-2">
+                                    <span className="text-xs font-medium text-gray-700">Skills:</span>
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {member.skills.map((skill, index) => (
+                                        <Badge key={index} variant="outline" className="text-xs">
+                                          {skill}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setSelectedMember(member)}
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={async () => {
+                                  const reason = prompt("Reason for absence (optional):");
+                                  const date = new Date().toISOString().split('T')[0];
+
+                                  try {
+                                    await fetch('/api/absences', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({
+                                        applicationId: member.id,
+                                        reason: reason || '',
+                                        startDate: date
+                                      })
+                                    });
+                                    toast({ title: "Absence added successfully" });
+                                    queryClient.invalidateQueries({ queryKey: ['/api/absences'] });
+                                    queryClient.invalidateQueries({ queryKey: ['/api/accepted-members'] });
+                                  } catch (error) {
+                                    toast({ title: "Failed to add absence", variant: "destructive" });
+                                  }
+                                }}
+                              >
+                                <CalendarX className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => {
+                                  if (confirm(`Are you sure you want to remove ${member.fullName} from the system?`)) {
+                                    handleDeleteMember(member.id);
+                                  }
+                                }}
+                                disabled={deleteMemberMutation.isPending}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </Card>
+                      );
+                    })}
+
+                    {filteredMembers.length === 0 && (
+                      <div className="text-center py-8 text-gray-500">
+                        {memberSearchTerm ? "No members found matching your search." : "No active members found."}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Member Detail Modal */}
+              {selectedMember && (
+                <Dialog open={!!selectedMember} onOpenChange={() => setSelectedMember(null)}>
+                  <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle>Member Details</DialogTitle>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <h3 className="font-semibold text-slate-900 mb-2">Personal Information</h3>
+                          <div className="space-y-1 text-sm">
+                            <p><span className="font-medium">Name:</span> {selectedMember.fullName}</p>
+                            <p><span className="font-medium">Email:</span> {selectedMember.email}</p>
+                            <p><span className="font-medium">UFID:</span> {selectedMember.ufid}</p>
+                            <p><span className="font-medium">Team:</span> {getTeamName(selectedMember.assignedTeamId)}</p>
+                          </div>
+                        </div>
+
+                        <div>
+                          <h3 className="font-semibold text-slate-900 mb-2">Application Details</h3>
+                          <div className="space-y-1 text-sm">
+                            <p><span className="font-medium">Status:</span> {selectedMember.status}</p>
+                            <p><span className="font-medium">Submitted:</span> {new Date(selectedMember.submittedAt).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {selectedMember.skills && selectedMember.skills.length > 0 && (
+                        <div>
+                          <h3 className="font-semibold text-slate-900 mb-2">Skills</h3>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedMember.skills.map((skill, index) => (
+                              <Badge key={index} variant="outline">{skill}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedMember.additionalSkills && (
+                        <div>
+                          <h3 className="font-semibold text-slate-900 mb-2">Additional Skills</h3>
+                          <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded">
+                            {selectedMember.additionalSkills}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2 pt-4">
+                        <Button
+                          variant="outline"
+                          onClick={() => setSelectedMember(null)}
+                        >
+                          Close
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
             </div>
           )}
 
