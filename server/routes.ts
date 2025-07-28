@@ -11,6 +11,10 @@ import { z } from "zod";
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { applications, teams, projectRequests, events, eventAttendance, printSubmissions, absences, specialRoles, roleApplications, memberRoles } from "./db";
+import { eq } from "drizzle-orm";
+import crypto from "crypto";
+import { db } from "./db";
 
 interface AssignmentResult {
   applicationId: string;
@@ -794,7 +798,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...insertPrintSubmissionSchema.parse(req.body),
         uploadFiles: filePaths.length > 0 ? JSON.stringify(filePaths) : undefined
       };
-      
+
       console.log("Validated submission data:", submissionData);
 
       const submission = await storage.createPrintSubmission(submissionData);
@@ -865,7 +869,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const filePath = typeof file === 'string' ? file : file.path;
           const fileName = typeof file === 'string' ? path.basename(file) : file.originalName;
-          
+
           if (fs.existsSync(filePath)) {
             archive.file(filePath, { name: fileName });
             console.log(`Added file to archive: ${fileName}`);
@@ -895,7 +899,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Special Roles API
-  app.get("/api/special-roles", async (_req, res) => {
+  app.get("/api/special-roles", async (req, res) => {
     try {
       const roles = await storage.getSpecialRoles();
       res.json(roles);
@@ -940,7 +944,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Role Applications API
-  app.get("/api/role-applications", async (_req, res) => {
+  app.get("/api/role-applications", async (req, res) => {
     try {
       const applications = await storage.getRoleApplications();
       res.json(applications);
@@ -952,7 +956,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/role-applications", async (req, res) => {
     try {
       const applicationData = insertRoleApplicationSchema.parse(req.body);
-      
+
       // Check for duplicate applications from the same UFID for the same role
       const existingApplications = await storage.getRoleApplications();
       const isDuplicate = existingApplications.some(app => 
