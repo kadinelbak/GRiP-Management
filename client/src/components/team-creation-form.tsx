@@ -1,3 +1,5 @@
+
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -15,9 +17,19 @@ import type { z } from "zod";
 
 type TeamFormData = z.infer<typeof insertTeamSchema>;
 
+const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const timeSlots = [
+  "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", 
+  "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", 
+  "6:00 PM", "7:00 PM", "8:00 PM", "9:00 PM", "10:00 PM"
+];
+
 export default function TeamCreationForm() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [meetingDay, setMeetingDay] = useState("");
+  const [meetingStartTime, setMeetingStartTime] = useState("");
+  const [meetingEndTime, setMeetingEndTime] = useState("");
 
   const form = useForm<TeamFormData>({
     resolver: zodResolver(insertTeamSchema),
@@ -26,6 +38,7 @@ export default function TeamCreationForm() {
       type: "technical",
       maxCapacity: 15,
       meetingTime: "",
+      location: "",
       requiredSkills: "",
       description: "",
     },
@@ -40,6 +53,9 @@ export default function TeamCreationForm() {
         description: "New team has been created successfully.",
       });
       form.reset();
+      setMeetingDay("");
+      setMeetingStartTime("");
+      setMeetingEndTime("");
       queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
     },
     onError: (error: any) => {
@@ -52,7 +68,21 @@ export default function TeamCreationForm() {
   });
 
   const onSubmit = (data: TeamFormData) => {
-    createTeamMutation.mutate(data);
+    // Combine meeting day, start time, end time, and location into meetingTime
+    let meetingTimeString = "";
+    if (meetingDay && meetingStartTime && meetingEndTime) {
+      meetingTimeString = `${meetingDay} ${meetingStartTime} - ${meetingEndTime}`;
+      if (data.location) {
+        meetingTimeString += `, ${data.location}`;
+      }
+    }
+
+    const finalData = {
+      ...data,
+      meetingTime: meetingTimeString,
+    };
+
+    createTeamMutation.mutate(finalData);
   };
 
   return (
@@ -64,7 +94,7 @@ export default function TeamCreationForm() {
             Create New Team
           </CardTitle>
           <CardDescription>
-            Create a new technical team for GRiP members to join.
+            Create a new team for GRiP members to join. Fill in all required information including meeting details.
           </CardDescription>
         </CardHeader>
 
@@ -130,19 +160,85 @@ export default function TeamCreationForm() {
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="meetingTime"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Meeting Time</FormLabel>
-                    <FormControl>
-                      <Input {...field} value={field.value || ""} placeholder="e.g., Tuesdays 6:00 PM - 7:30 PM" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Meeting Time Configuration */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-slate-900">Meeting Schedule</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <FormLabel>Meeting Day *</FormLabel>
+                    <Select value={meetingDay} onValueChange={setMeetingDay}>
+                      <SelectTrigger className="mt-2">
+                        <SelectValue placeholder="Select day" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {daysOfWeek.map((day) => (
+                          <SelectItem key={day} value={day}>
+                            {day}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <FormLabel>Start Time *</FormLabel>
+                    <Select value={meetingStartTime} onValueChange={setMeetingStartTime}>
+                      <SelectTrigger className="mt-2">
+                        <SelectValue placeholder="Start time" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {timeSlots.map((time) => (
+                          <SelectItem key={time} value={time}>
+                            {time}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <FormLabel>End Time *</FormLabel>
+                    <Select value={meetingEndTime} onValueChange={setMeetingEndTime}>
+                      <SelectTrigger className="mt-2">
+                        <SelectValue placeholder="End time" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {timeSlots.map((time) => (
+                          <SelectItem key={time} value={time}>
+                            {time}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="location"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Meeting Location *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          value={field.value || ""} 
+                          placeholder="e.g., Reitz Union Room 345" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg">
+                  <strong>Preview:</strong> {meetingDay && meetingStartTime && meetingEndTime 
+                    ? `${meetingDay} ${meetingStartTime} - ${meetingEndTime}${form.watch("location") ? `, ${form.watch("location")}` : ""}`
+                    : "Select meeting day, times, and location to see preview"
+                  }
+                </div>
+              </div>
 
               <FormField
                 control={form.control}
@@ -163,7 +259,7 @@ export default function TeamCreationForm() {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Description</FormLabel>
+                    <FormLabel>Description *</FormLabel>
                     <FormControl>
                       <Textarea 
                         {...field} 
@@ -180,7 +276,7 @@ export default function TeamCreationForm() {
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={createTeamMutation.isPending}
+                disabled={createTeamMutation.isPending || !meetingDay || !meetingStartTime || !meetingEndTime}
               >
                 {createTeamMutation.isPending ? "Creating..." : "Create Team"}
               </Button>

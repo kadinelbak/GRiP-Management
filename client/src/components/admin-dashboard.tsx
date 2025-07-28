@@ -496,134 +496,32 @@ export default function AdminDashboard() {
         {/* Teams Tab */}
         <TabsContent value="teams" className="space-y-6">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row justify-between items-center">
               <CardTitle>Team Management</CardTitle>
+              <p className="text-sm text-slate-600">
+                Use the "Create Team" tab to add new teams
+              </p>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Create Team Form */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Create New Team</h3>
-                  <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                      <FormField
-                        control={form.control}
-                        name="name"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Team Name</FormLabel>
-                            <FormControl>
-                              <Input {...field} placeholder="e.g., Design Team" />
-                            </FormControl>
-                            <FormMessage className="text-red-600" />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="type"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Team Type</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select team type" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="technical">Technical</SelectItem>
-                                <SelectItem value="additional">Additional</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage className="text-red-600" />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="maxCapacity"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Max Capacity</FormLabel>
-                            <FormControl>
-                              <Input {...field} type="number" min="1" onChange={e => field.onChange(parseInt(e.target.value))} />
-                            </FormControl>
-                            <FormMessage className="text-red-600" />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="meetingTime"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Meeting Time</FormLabel>
-                            <FormControl>
-                              <Input 
-                                {...field} 
-                                placeholder="e.g., Monday 7:00 PM - 8:30 PM, Room TBD" 
-                                value={field.value || ""} 
-                              />
-                            </FormControl>
-                            <p className="text-xs text-slate-500">
-                              Format: Day Time - Time, Location (e.g., "Tuesday 7:00 PM - 8:30 PM, Reitz Union")
-                            </p>
-                            <FormMessage className="text-red-600" />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="description"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Description</FormLabel>
-                            <FormControl>
-                              <Textarea {...field} placeholder="Team description..." value={field.value || ""} />
-                            </FormControl>
-                            <FormMessage className="text-red-600" />
-                          </FormItem>
-                        )}
-                      />
-
-                      <Button 
-                        type="submit" 
-                        disabled={createTeamMutation.isPending}
-                        className="w-full"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        {createTeamMutation.isPending ? "Creating..." : "Create Team"}
-                      </Button>
-                    </form>
-                  </Form>
-                </div>
-
-                {/* Teams List */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Existing Teams</h3>
-                  <div className="space-y-4 max-h-96 overflow-y-auto">
-                    {teams.map((team) => (
-                      <Card key={team.id} className="p-4">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h4 className="font-medium">{team.name}</h4>
-                            <p className="text-sm text-gray-600">{team.description}</p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              Capacity: {team.currentSize}/{team.maxCapacity} | {team.meetingTime}
-                            </p>
-                          </div>
-                          <Badge variant={team.type === "technical" ? "default" : "secondary"}>
-                            {team.type}
-                          </Badge>
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Existing Teams</h3>
+                <div className="space-y-4 max-h-96 overflow-y-auto">
+                  {teams.map((team) => (
+                    <Card key={team.id} className="p-4">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-medium">{team.name}</h4>
+                          <p className="text-sm text-gray-600">{team.description}</p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Capacity: {team.currentSize}/{team.maxCapacity} | {team.meetingTime}
+                          </p>
                         </div>
-                      </Card>
-                    ))}
-                  </div>
+                        <Badge variant={team.type === "technical" ? "default" : "secondary"}>
+                          {team.type}
+                        </Badge>
+                      </div>
+                    </Card>
+                  ))}
                 </div>
               </div>
             </CardContent>

@@ -1,14 +1,14 @@
 import { useState } from "react";
 import Header from "@/components/header";
 import MemberForm from "@/components/member-form";
-
 import ProjectRequestForm from "@/components/project-request-form";
 import AdminDashboard from "@/components/admin-dashboard";
+import TeamCreationForm from "@/components/team-creation-form";
 import { Button } from "@/components/ui/button";
 import { UserPlus, Users, Lightbulb, Settings, Plus } from "lucide-react";
 import { Link } from "wouter";
 
-type TabType = "member" | "project" | "admin";
+type TabType = "member" | "project" | "admin" | "team";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>("member");
@@ -17,12 +17,13 @@ export default function Home() {
     { id: "member" as TabType, label: "Join Team", icon: UserPlus },
     { id: "project" as TabType, label: "Project Request", icon: Lightbulb },
     { id: "admin" as TabType, label: "Admin", icon: Settings },
+    { id: "team" as TabType, label: "Create Team", icon: Plus },
   ];
 
   return (
     <div className="min-h-screen bg-slate-50">
       <Header />
-      
+
       {/* Navigation Tabs */}
       <nav className="bg-white shadow-sm border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -40,16 +41,6 @@ export default function Home() {
                 {label}
               </Button>
             ))}
-            
-            {/* Add Team Creation Link for Admins */}
-            {activeTab === "admin" && (
-              <Link href="/team-creation">
-                <Button variant="outline" className="px-4 py-3 text-sm font-medium rounded-t-lg whitespace-nowrap ml-4">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Team
-                </Button>
-              </Link>
-            )}
           </div>
         </div>
       </nav>
@@ -59,6 +50,7 @@ export default function Home() {
         {activeTab === "member" && <MemberForm />}
         {activeTab === "project" && <ProjectRequestForm />}
         {activeTab === "admin" && <AdminDashboard />}
+        {activeTab === "team" && <TeamCreationForm />}
       </main>
     </div>
   );
