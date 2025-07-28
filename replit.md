@@ -68,8 +68,21 @@ The application is optimized for Replit deployment:
 
 ### Build Process
 1. Frontend builds to `dist/public` using Vite
-2. Backend bundles to `dist/index.js` using esbuild
+2. Backend compiles to `dist/` using TypeScript compiler with ES2020 module support
 3. Static files served by Express in production
 4. Development mode uses Vite middleware for hot reloading
+
+### TypeScript Configuration (Updated July 28, 2025)
+- **Main tsconfig.json**: Configured for client development with ES modules and JSX
+- **tsconfig.server.json**: Separate configuration for server build with ES2020 support
+- **Import.meta support**: Properly configured to handle ES module features like import.meta.dirname
+- **Build script**: Custom build-server.cjs handles TypeScript compilation with correct module resolution
+
+### Recent Changes
+- ✓ Fixed TypeScript compilation errors for deployment builds
+- ✓ Added proper ES2020 module support for import.meta usage  
+- ✓ Created separate TypeScript configurations for client and server
+- ✓ Resolved module resolution errors with @shared/schema imports
+- ✓ Added skipLibCheck to bypass third-party library type conflicts
 
 The system is designed for simplicity and ease of use, with a focus on student onboarding and administrative efficiency. The architecture supports future extensions like authentication, email notifications, and advanced team matching algorithms.

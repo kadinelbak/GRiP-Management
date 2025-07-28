@@ -19,7 +19,7 @@ import {
   Wand2, Eye, Edit, Trash2, CheckCircle, Clock, UserMinus, Calendar, 
   CalendarX, Search, Filter, UserCheck, Save, X, Printer, Camera, Star
 } from "lucide-react";
-import type { Team, Application, ProjectRequest } from "@shared/schema";
+import type { Team, Application, ProjectRequest, SpecialRole, RoleApplication, MemberRole } from "@shared/schema";
 import type { z } from "zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
@@ -781,15 +781,15 @@ function AbsenceManagementSection() {
 
 // Special Roles Management Section
 function SpecialRolesSection() {
-  const { data: specialRoles = [] } = useQuery({
+  const { data: specialRoles = [] } = useQuery<SpecialRole[]>({
     queryKey: ["/api/special-roles"],
   });
 
-  const { data: roleApplications = [] } = useQuery({
+  const { data: roleApplications = [] } = useQuery<(RoleApplication & { role: SpecialRole })[]>({
     queryKey: ["/api/role-applications"],
   });
 
-  const { data: memberRoles = [] } = useQuery({
+  const { data: memberRoles = [] } = useQuery<(MemberRole & { application: Application; role: SpecialRole })[]>({
     queryKey: ["/api/member-roles"],
   });
 
@@ -863,7 +863,7 @@ function SpecialRolesSection() {
     },
   });
 
-  const pendingApplications = roleApplications.filter((app: any) => app.status === "pending");
+  const pendingApplications = roleApplications.filter((app) => app.status === "pending");
 
   return (
     <div className="space-y-6">
@@ -942,7 +942,7 @@ function SpecialRolesSection() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4">
-            {specialRoles.map((role: any) => (
+            {specialRoles.map((role) => (
               <div key={role.id} className="border rounded-lg p-4">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
@@ -1069,7 +1069,7 @@ function SpecialRolesSection() {
                   </tr>
                 </thead>
                 <tbody>
-                  {memberRoles.map((memberRole: any) => (
+                  {memberRoles.map((memberRole) => (
                     <tr key={memberRole.id} className="border-b">
                       <td className="p-2">
                         <div>
