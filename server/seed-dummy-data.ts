@@ -7,8 +7,12 @@ async function seedDummyData() {
   try {
     console.log("Starting database cleanup and seeding...");
     
-    // Clear existing data
+    // Clear existing data in the correct order to handle foreign key constraints
     await db.delete(additionalTeamSignups);
+    
+    // Delete absences first (they reference applications)
+    await db.execute(sql`DELETE FROM absences`);
+    
     await db.delete(applications);
     await db.delete(teams);
     
