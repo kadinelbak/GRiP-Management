@@ -772,7 +772,6 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Update attendance status
-    ```python
     await db.update(eventAttendance)
       .set({ 
         status: "approved", 

@@ -1927,12 +1927,17 @@ function SpecialRolesSection() {
                                   <div key={index} className="bg-white px-2 py-1 rounded border text-center">
                                     {typeof slot === 'object' && slot.day && slot.startTime && slot.endTime ? 
                                       `${slot.day}: ${slot.startTime} - ${slot.endTime}` : 
-                                      'Available'}
+                                      typeof slot === 'string' ? slot : 'Available'}
                                   </div>
                                 ))}
                               </div>
                             ) : (
-                              <div className="text-sm text-slate-600">No specific time slots available</div>
+                              <div className="text-sm text-slate-600">
+                                {typeof selectedMember.timeAvailability === 'string' 
+                                  ? selectedMember.timeAvailability 
+                                  : "No specific time slots available"
+                                }
+                              </div>
                             )}
                           </div>
                         </div>
