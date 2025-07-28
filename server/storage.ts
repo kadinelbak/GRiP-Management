@@ -782,7 +782,8 @@ export class DatabaseStorage implements IStorage {
           .where(eq(applications.id, application.id));
 
         return { 
-          message: `Attendance approved! ${attendance.event.points} points added to ${attendance.attendance.fullName}`,
+          message: `Attendance approved! ${attendance.event.points} points added to ${attendance.attendance.ufid}
+`,
           pointsAdded: attendance.event.points
         };
       }

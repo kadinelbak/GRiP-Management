@@ -734,67 +734,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/print-submissions", async (req, res) => {
     try {
-      // Handle multipart form data
-      const multer = require('multer');
-      const path = require('path');
-      const fs = require('fs');
-      
-      // Import storage after requiring dependencies
-      const { storage: dbStorage } = await import('./storage');
-
-      // Create uploads directory if it doesn't exist
-      const uploadsDir = path.join(process.cwd(), 'uploads', 'print-submissions');
-      if (!fs.existsSync(uploadsDir)) {
-        fs.mkdirSync(uploadsDir, { recursive: true });
-      }
-
-      const storage = multer.diskStorage({
-        destination: uploadsDir,
-        filename: (req: any, file: any, cb: any) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-          cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-        }
-      });
-
-      const upload = multer({ 
-        storage,
-        fileFilter: (req: any, file: any, cb: any) => {
-          const allowedTypes = ['.zip', '.stl'];
-          const fileExt = path.extname(file.originalname).toLowerCase();
-          if (allowedTypes.includes(fileExt)) {
-            cb(null, true);
-          } else {
-            cb(new Error('Only ZIP and STL files are allowed'));
-          }
-        }
-      });
-
-      upload.array('files')(req, res, async (err: any) => {
-        if (err) {
-          return res.status(400).json({ message: err.message });
-        }
-
-        try {
-          const files = req.files as Express.Multer.File[];
-          const filePaths = files.map(file => file.path);
-
-          const submissionData = insertPrintSubmissionSchema.parse({
-            ...req.body,
-            uploadFiles: JSON.stringify(filePaths)
-          });
-
-          const submission = await dbStorage.createPrintSubmission(submissionData);
-          res.status(201).json(submission);
-        } catch (error) {
-          if (error instanceof z.ZodError) {
-            res.status(400).json({ message: "Invalid submission data", errors: error.errors });
-          } else {
-            res.status(500).json({ message: "Failed to create print submission" });
-          }
-        }
-      });
+      const submissionData = insertPrintSubmissionSchema.parse(req.body);
+      const submission = await storage.createPrintSubmission(submissionData);
+      res.status(201).json(submission);
     } catch (error) {
-      res.status(500).json({ message: "Failed to process print submission" });
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid submission data", errors: error.errors });
+      } else {
+        console.error("Print submission error:", error);
+        res.status(500).json({ message: "Failed to create print submission" });
+      }
     }
   });
 
