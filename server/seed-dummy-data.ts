@@ -1,5 +1,5 @@
 
-import { db } from "./db";
+import { db } from "./db.js";
 import { teams, applications, additionalTeamSignups } from "@shared/schema";
 import { sql } from "drizzle-orm";
 

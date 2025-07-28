@@ -9,7 +9,7 @@ import {
   type InsertEvent, type InsertEventAttendance, type InsertPrintSubmission,
   type InsertSpecialRole, type InsertRoleApplication, type InsertMemberRole
 } from "@shared/schema";
-import { db } from "./db";
+import { db } from "./db.js";
 import { eq, desc, asc, and, isNull, sql, or } from "drizzle-orm";
 
 export interface IStorage {
