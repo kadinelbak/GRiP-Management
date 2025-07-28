@@ -1,5 +1,6 @@
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Home, Users, FileText, Settings, Wrench, Camera, Printer, Star, Send } from "lucide-react";
 
 export default function Header() {
   return (

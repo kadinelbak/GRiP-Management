@@ -5,13 +5,13 @@ import {
   insertTeamSchema, insertApplicationSchema, insertAdditionalTeamSignupSchema, 
   insertProjectRequestSchema, insertAdminSettingSchema, insertAbsenceSchema,
   insertEventSchema, insertEventAttendanceSchema, insertPrintSubmissionSchema,
-  insertSpecialRoleSchema, insertRoleApplicationSchema
+  insertSpecialRoleSchema, insertRoleApplicationSchema, insertMarketingRequestSchema
 } from "../shared/schema.js";
 import { z } from "zod";
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { applications, teams, projectRequests, events, eventAttendance, printSubmissions, absences, specialRoles, roleApplications, memberRoles } from "./db";
+import { applications, teams, projectRequests, events, eventAttendance, printSubmissions, absences, specialRoles, roleApplications, memberRoles, marketingRequests } from "./db";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
 import { db } from "./db";
@@ -1031,6 +1031,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to revoke member role" });
+    }
+  });
+
+  // Marketing Requests API
+  app.get("/api/marketing-requests", async (_req, res) => {
+    try {
+      const requests = await storage.getMarketingRequests();
+      res.json(requests);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch marketing requests" });
+    }
+  });
+
+  app.post("/api/marketing-requests", async (req, res) => {
+    try {
+      const requestData = insertMarketingRequestSchema.parse(req.body);
+      const request = await storage.createMarketingRequest(requestData);
+      res.status(201).json(request);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid marketing request data", errors: error.errors });
+      } else {
+        res.status(500).json({ message: "Failed to submit marketing request" });
+      }
+    }
+  });
+
+  app.put("/api/marketing-requests/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      const request = await storage.updateMarketingRequest(id, updates);
+      res.json(request);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update marketing request" });
+    }
+  });
+
+  app.delete("/api/marketing-requests/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteMarketingRequest(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete marketing request" });
     }
   });
 

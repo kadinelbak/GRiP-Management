@@ -6,13 +6,17 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Home from "@/pages/home";
 import NotFound from "@/pages/not-found";
 import TeamCreationForm from "@/components/team-creation-form";
+import SpecialRoleForm from "@/components/special-role-form";
+import MarketingRequestForm from "@/components/marketing-request-form";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/team-creation" component={TeamCreationForm} />
-      <Route component={NotFound} />
+      <Route path="/special-roles" element={<SpecialRoleForm />} />
+      <Route path="/marketing-request" element={<MarketingRequestForm />} />
+      <Route path="*" element={<NotFound />} />
     </Switch>
   );
 }

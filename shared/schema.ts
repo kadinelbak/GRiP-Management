@@ -164,6 +164,18 @@ export const memberRoles = pgTable("member_roles", {
   isActive: boolean("is_active").notNull().default(true),
 });
 
+// Marketing Requests
+export const marketingRequests = pgTable("marketing_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  fullName: text("full_name").notNull(),
+  email: text("email").notNull(),
+  ufid: text("ufid").notNull(),
+  associatedEventName: text("associated_event_name").notNull(),
+  detailedDescription: text("detailed_description").notNull(),
+  status: text("status").notNull().default("pending"), // 'pending', 'approved', 'rejected'
+  submittedAt: timestamp("submitted_at").notNull().defaultNow(),
+});
+
 // Relations
 export const teamsRelations = relations(teams, ({ many }) => ({
   applications: many(applications),
@@ -218,6 +230,8 @@ export const memberRolesRelations = relations(memberRoles, ({ one }) => ({
     references: [specialRoles.id],
   }),
 }));
+
+export const marketingRequestsRelations = relations(marketingRequests, ({ }) => ({}));
 
 // Insert schemas
 export const insertTeamSchema = createInsertSchema(teams).omit({
@@ -380,10 +394,24 @@ export const insertMemberRoleSchema = createInsertSchema(memberRoles).omit({
   assignedBy: z.string().optional(),
 });
 
+export const insertMarketingRequestSchema = createInsertSchema(marketingRequests).omit({
+  id: true,
+  status: true,
+  submittedAt: true,
+}).extend({
+  fullName: z.string().min(1, "Full name is required"),
+  email: z.string().email("Valid email address is required"),
+  ufid: z.string().regex(/^\d{8}$/, "UFID must be exactly 8 digits"),
+  associatedEventName: z.string().min(1, "Associated event name is required"),
+  detailedDescription: z.string().min(1, "Detailed description is required"),
+});
+
 export type InsertPrintSubmission = z.infer<typeof insertPrintSubmissionSchema>;
 export type SpecialRole = typeof specialRoles.$inferSelect;
 export type RoleApplication = typeof roleApplications.$inferSelect;
 export type MemberRole = typeof memberRoles.$inferSelect;
+export type MarketingRequest = typeof marketingRequests.$inferSelect;
 export type InsertSpecialRole = z.infer<typeof insertSpecialRoleSchema>;
 export type InsertRoleApplication = z.infer<typeof insertRoleApplicationSchema>;
 export type InsertMemberRole = z.infer<typeof insertMemberRoleSchema>;
+export type InsertMarketingRequest = z.infer<typeof insertMarketingRequestSchema>;

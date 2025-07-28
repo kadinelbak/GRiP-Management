@@ -1,13 +1,13 @@
 import { 
   teams, applications, additionalTeamSignups, projectRequests, adminSettings, 
-  absences, events, eventAttendance, printSubmissions, specialRoles, roleApplications, memberRoles,
+  absences, events, eventAttendance, printSubmissions, specialRoles, roleApplications, memberRoles, marketingRequests,
   type Team, type Application, type AdditionalTeamSignup, type ProjectRequest, 
   type AdminSetting, type Absence, type Event, type EventAttendance, type PrintSubmission,
-  type SpecialRole, type RoleApplication, type MemberRole,
+  type SpecialRole, type RoleApplication, type MemberRole, type MarketingRequest,
   type InsertTeam, type InsertApplication, type InsertAdditionalTeamSignup, 
   type InsertProjectRequest, type InsertAdminSetting, type InsertAbsence, 
   type InsertEvent, type InsertEventAttendance, type InsertPrintSubmission,
-  type InsertSpecialRole, type InsertRoleApplication, type InsertMemberRole
+  type InsertSpecialRole, type InsertRoleApplication, type InsertMemberRole, type InsertMarketingRequest
 } from "../shared/schema.js";
 import { db } from "./db.js";
 import { eq, desc, asc, and, isNull, sql, or } from "drizzle-orm";
@@ -100,6 +100,12 @@ export interface IStorage {
   // Member Roles Methods
   getMemberRoles(): Promise<(MemberRole & { application: Application; role: SpecialRole })[]>;
   revokeMemberRole(id: string): Promise<void>;
+
+  // Marketing Requests
+  getMarketingRequests(): Promise<MarketingRequest[]>;
+  createMarketingRequest(data: InsertMarketingRequest): Promise<MarketingRequest>;
+  updateMarketingRequest(id: string, updates: Partial<MarketingRequest>): Promise<MarketingRequest>;
+  deleteMarketingRequest(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -758,7 +764,8 @@ export class DatabaseStorage implements IStorage {
 
   async approveEventAttendance(id: string): Promise<{ message: string; pointsAdded?: number }> {
     // Get the attendance record with event details
-    const [attendance] = await db
+    const [attendance] =```text
+ await db
       .select({
         attendance: eventAttendance,
         event: events
@@ -927,7 +934,7 @@ export class DatabaseStorage implements IStorage {
         })
         .from(roleApplications)
         .leftJoin(specialRoles, eq(roleApplications.roleId, specialRoles.id));
-      
+
       return result.map(row => ({
         ...row.roleApplication,
         role: row.role!
@@ -1029,7 +1036,7 @@ export class DatabaseStorage implements IStorage {
         .leftJoin(applications, eq(memberRoles.applicationId, applications.id))
         .leftJoin(specialRoles, eq(memberRoles.roleId, specialRoles.id))
         .where(eq(memberRoles.isActive, true));
-      
+
       return result.map(row => ({
         ...row.memberRole,
         application: row.application!,
@@ -1046,6 +1053,28 @@ export class DatabaseStorage implements IStorage {
       .update(memberRoles)
       .set({ isActive: false })
       .where(eq(memberRoles.id, id));
+  }
+
+  // Marketing Requests
+  async getMarketingRequests(): Promise<MarketingRequest[]> {
+    return await db.select().from(marketingRequests).orderBy(desc(marketingRequests.submittedAt));
+  }
+
+  async createMarketingRequest(data: InsertMarketingRequest): Promise<MarketingRequest> {
+    const [request] = await db.insert(marketingRequests).values(data).returning();
+    return request;
+  }
+
+  async updateMarketingRequest(id: string, updates: Partial<MarketingRequest>): Promise<MarketingRequest> {
+    const [updatedRequest] = await db.update(marketingRequests)
+      .set(updates)
+      .where(eq(marketingRequests.id, id))
+      .returning();
+    return updatedRequest;
+  }
+
+  async deleteMarketingRequest(id: string): Promise<void> {
+    await db.delete(marketingRequests).where(eq(marketingRequests.id, id));
   }
 }
 

@@ -17,9 +17,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { 
   BarChart3, Users, Inbox, Settings, Plus, Download, 
   Wand2, Eye, Edit, Trash2, CheckCircle, Clock, UserMinus, Calendar, 
-  CalendarX, Search, Filter, UserCheck, Save, X, Printer, Camera, Star
+  CalendarX, Search, Filter, UserCheck, Save, X, Printer, Camera, Star, Send
 } from "lucide-react";
-import type { Team, Application, ProjectRequest, SpecialRole, RoleApplication, MemberRole } from "@shared/schema";
+import type { Team, Application, ProjectRequest, SpecialRole, RoleApplication, MemberRole, MarketingRequest } from "@shared/schema";
 import type { z } from "zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
@@ -793,6 +793,10 @@ function SpecialRolesSection() {
     queryKey: ["/api/member-roles"],
   });
 
+  const { data: marketingRequests = [] } = useQuery<MarketingRequest[]>({
+    queryKey: ["/api/marketing-requests"],
+  });
+
   const [newRoleData, setNewRoleData] = useState({
     name: "",
     description: "",
@@ -859,6 +863,44 @@ function SpecialRolesSection() {
       toast({
         title: "Role Revoked",
         description: "Member role has been revoked.",
+      });
+    },
+  });
+
+  // Marketing requests mutations
+  const updateMarketingRequestMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: Partial<MarketingRequest> }) =>
+      apiRequest("PUT", `/api/marketing-requests/${id}`, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing-requests"] });
+      toast({
+        title: "Marketing Request Updated",
+        description: "Marketing request status has been updated.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update marketing request.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteMarketingRequestMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/marketing-requests/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing-requests"] });
+      toast({
+        title: "Marketing Request Deleted",
+        description: "Marketing request has been deleted.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete marketing request.",
+        variant: "destructive",
       });
     },
   });
@@ -1191,7 +1233,7 @@ function SpecialRolesSection() {
   );
 }
 
-  const [activeSection, setActiveSection] = useState<"overview" | "applications" | "teams" | "members" | "projects" | "settings" | "event-attendance" | "print-management" | "special-roles">("overview");
+  const [activeSection, setActiveSection] = useState<"overview" | "applications" | "teams" | "members" | "projects" | "settings" | "event-attendance" | "print-management" | "special-roles" | "marketing-requests">("overview");
 
   const deleteAttendanceMutation = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/event-attendance/${id}`),
@@ -1292,6 +1334,15 @@ function SpecialRolesSection() {
             >
               <Star className="w-4 h-4 mr-2" />
               Special Roles
+            </Button>
+
+            <Button
+              variant={activeSection === "marketing-requests" ? "default" : "ghost"}
+              onClick={() => setActiveSection("marketing-requests")}
+              className="justify-start"
+            >
+              <Send className="w-4 h-4 mr-2" />
+              Marketing Requests
             </Button>
           </nav>
         </aside>
@@ -2450,6 +2501,94 @@ function SpecialRolesSection() {
 
           {activeSection === "special-roles" && (
             <SpecialRolesSection />
+          )}
+
+          {activeSection === "marketing-requests" && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-slate-900">Marketing Requests</h2>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Marketing Request Submissions</CardTitle>
+                  <CardDescription>Review and manage marketing requests from users</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {marketingRequests.length === 0 ? (
+                    <p className="text-slate-500 text-center py-8">No marketing requests submitted yet</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {marketingRequests.map((request) => (
+                        <Card key={request.id} className="p-4">
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <h4 className="font-semibold">{request.fullName}</h4>
+                                <Badge variant={
+                                  request.status === "approved" ? "default" :
+                                  request.status === "rejected" ? "destructive" : "secondary"
+                                }>
+                                  {request.status}
+                                </Badge>
+                              </div>
+                              
+                              <div className="text-sm text-slate-600 space-y-1">
+                                <div><span className="font-medium">Email:</span> {request.email}</div>
+                                <div><span className="font-medium">UFID:</span> {request.ufid}</div>
+                                <div><span className="font-medium">Event:</span> {request.associatedEventName}</div>
+                                <div><span className="font-medium">Submitted:</span> {new Date(request.submittedAt).toLocaleString()}</div>
+                              </div>
+
+                              <div className="mt-3">
+                                <div className="text-sm font-medium text-slate-700 mb-1">Request Description:</div>
+                                <div className="text-sm text-slate-600 bg-slate-50 p-3 rounded border max-h-32 overflow-y-auto">
+                                  {request.detailedDescription}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2 ml-4">
+                              <Select
+                                value={request.status}
+                                onValueChange={(status) => 
+                                  updateMarketingRequestMutation.mutate({ 
+                                    id: request.id, 
+                                    updates: { status } 
+                                  })
+                                }
+                              >
+                                <SelectTrigger className="w-32">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="pending">Pending</SelectItem>
+                                  <SelectItem value="approved">Approved</SelectItem>
+                                  <SelectItem value="rejected">Rejected</SelectItem>
+                                </SelectContent>
+                              </Select>
+
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => {
+                                  if (confirm("Are you sure you want to delete this marketing request?")) {
+                                    deleteMarketingRequestMutation.mutate(request.id);
+                                  }
+                                }}
+                                disabled={deleteMarketingRequestMutation.isPending}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           )}
         </main>
       </div>
