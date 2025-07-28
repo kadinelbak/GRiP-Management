@@ -67,12 +67,18 @@ app.use((req, res, next) => {
     await setupVite(app, server);
   } else {
     // Serve static files from the client dist directory
-  app.use(express.static(publicPath));
+    // Serve static assets
+    app.use(express.static(path.join(import.meta.dirname, "../dist/public"), {
+      index: false // Don't automatically serve index.html for directory requests
+    }));
 
-  // Serve the main HTML file for any unmatched routes (SPA support)
-  app.get("*", (req, res) => {
-    res.sendFile(path.join(publicPath, "index.html"));
-  });
+    // Handle client-side routing - serve index.html for all non-API routes
+    app.get("*", (req, res) => {
+      if (req.path.startsWith("/api")) {
+        return res.status(404).json({ message: "API endpoint not found" });
+      }
+      res.sendFile(path.join(import.meta.dirname, "../dist/public/index.html"));
+    });
   }
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
