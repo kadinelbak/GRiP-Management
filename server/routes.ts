@@ -28,7 +28,7 @@ interface TeamAssignmentReport {
 function performTeamAssignment(applications: any[], teams: any[]): TeamAssignmentReport {
   const assignments: AssignmentResult[] = [];
   const teamCapacities = new Map(teams.map(team => [team.id, { current: 0, max: team.maxCapacity }]));
-  
+
   // Sort applications by timestamp (first-come, first-served priority)
   const sortedApplications = [...applications].sort((a, b) => 
     new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime()
@@ -37,18 +37,18 @@ function performTeamAssignment(applications: any[], teams: any[]): TeamAssignmen
   for (const application of sortedApplications) {
     let assigned = false;
     let reasoning = `Application submitted at ${new Date(application.submittedAt).toLocaleString()}. `;
-    
+
     // Try each team preference in order
     for (let i = 0; i < application.teamPreferences.length; i++) {
       const teamId = application.teamPreferences[i];
       const team = teams.find(t => t.id === teamId);
       const capacity = teamCapacities.get(teamId);
-      
+
       if (!team || !capacity) {
         reasoning += `Team preference ${i + 1} (${teamId}) not found. `;
         continue;
       }
-      
+
       if (capacity.current < capacity.max) {
         // Assign to this team
         capacity.current++;
@@ -65,7 +65,7 @@ function performTeamAssignment(applications: any[], teams: any[]): TeamAssignmen
         reasoning += `Team preference ${i + 1} "${team.name}" is at full capacity (${capacity.max}/${capacity.max}). `;
       }
     }
-    
+
     if (!assigned) {
       assignments.push({
         applicationId: application.id,
@@ -159,7 +159,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check email domain
       const allowedDomains = await storage.getAdminSetting("allowed_email_domains");
       const domains = allowedDomains ? JSON.parse(allowedDomains.value) : ["@ufl.edu"];
-      
+
       const emailDomain = req.body.email?.split("@")[1];
       const isValidDomain = domains.some((domain: string) => 
         domain.startsWith("@") ? emailDomain === domain.substring(1) : emailDomain === domain
@@ -173,7 +173,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check for duplicate email or UFID
       const existingApplications = await storage.getApplications();
-      
+
       const isDuplicate = existingApplications.some((app: any) => 
         app.email.toLowerCase() === req.body.email.toLowerCase() || 
         app.ufid === req.body.ufid
@@ -234,10 +234,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const members = await storage.getAcceptedMembers();
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', 'attachment; filename="members.csv"');
-      
+
       const headers = ['Name', 'Email', 'UFID', 'Team', 'Skills', 'Submitted At'];
       const csvData = [headers.join(',')];
-      
+
       members.forEach(member => {
         const row = [
           `"${member.fullName}"`,
@@ -249,7 +249,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ];
         csvData.push(row.join(','));
       });
-      
+
       res.send(csvData.join('\n'));
     } catch (error) {
       res.status(500).json({ message: "Failed to export members CSV" });
@@ -261,10 +261,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const applications = await storage.getApplications();
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', 'attachment; filename="applications.csv"');
-      
+
       const headers = ['Name', 'Email', 'UFID', 'Status', 'Team Preferences', 'Skills', 'Submitted At'];
       const csvData = [headers.join(',')];
-      
+
       applications.forEach(app => {
         const row = [
           `"${app.fullName}"`,
@@ -277,7 +277,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ];
         csvData.push(row.join(','));
       });
-      
+
       res.send(csvData.join('\n'));
     } catch (error) {
       res.status(500).json({ message: "Failed to export applications CSV" });
@@ -342,7 +342,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const timeAvailability = Array.isArray(app.timeAvailability) 
           ? app.timeAvailability.map(slot => `${slot.day}: ${slot.startTime}-${slot.endTime}`).join("; ")
           : "";
-        
+
         return [
           `"${app.fullName}"`,
           `"${app.email}"`,
@@ -358,7 +358,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }).join("\n");
 
       const csv = csvHeader + csvRows;
-      
+
       res.setHeader("Content-Type", "text/csv");
       res.setHeader("Content-Disposition", "attachment; filename=grip-applications.csv");
       res.send(csv);
@@ -383,7 +383,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const applications = await storage.getApplications();
       const teams = await storage.getTeams();
       const technicalTeams = teams.filter(team => team.type === 'technical');
-      
+
       const report = performTeamAssignment(applications, technicalTeams);
       res.json(report);
     } catch (error) {
@@ -463,16 +463,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/convert-project-to-team", async (req, res) => {
     try {
       const { projectId, teamData } = req.body;
-      
+
       // Create the team
       const teamDataWithValidation = insertTeamSchema.parse(teamData);
       const team = await storage.createTeam(teamDataWithValidation);
-      
+
       // Update project status to indicate it was converted
       await storage.updateProjectRequest(projectId, { 
         status: "approved"
       });
-      
+
       res.json({ team, message: "Project successfully converted to team" });
     } catch (error) {
       if (error instanceof z.ZodError) {

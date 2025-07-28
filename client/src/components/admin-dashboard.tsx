@@ -75,6 +75,10 @@ export default function AdminDashboard() {
     queryKey: ["/api/project-requests"],
   });
 
+  const { data: additionalSignups = [] } = useQuery<any[]>({
+    queryKey: ["/api/additional-signups"],
+  });
+
   // Mutation for creating teams
   const createTeamMutation = useMutation({
     mutationFn: (data: TeamFormData) =>
@@ -256,9 +260,7 @@ export default function AdminDashboard() {
     updateApplicationMutation.mutate({ id, updates: { status } });
   };
 
-  const handleAutoAssignTeams = () => {
-    autoAssignTeamsMutation.mutate();
-  };
+  
 
   const handleUpdateProjectRequest = (id: string, updates: any) => {
     updateProjectRequestMutation.mutate({ id, updates });
@@ -380,7 +382,7 @@ export default function AdminDashboard() {
       <h1 className="text-3xl font-bold text-slate-900">GRiP Admin Dashboard</h1>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="overview">
             <BarChart3 className="w-4 h-4 mr-2" />
             Overview
@@ -396,6 +398,10 @@ export default function AdminDashboard() {
           <TabsTrigger value="submissions">
             <Inbox className="w-4 h-4 mr-2" />
             Submissions
+          </TabsTrigger>
+          <TabsTrigger value="additional">
+            <Plus className="w-4 h-4 mr-2" />
+            Additional Teams
           </TabsTrigger>
           <TabsTrigger value="projects">
             <Wand2 className="w-4 h-4 mr-2" />
@@ -746,7 +752,7 @@ export default function AdminDashboard() {
               <CardTitle>Application Submissions</CardTitle>
               <div className="flex gap-2">
                 <Button 
-                  onClick={handleAutoAssignTeams} 
+                  onClick={() => autoAssignMutation.mutate()} 
                   variant="default" 
                   size="sm"
                   disabled={autoAssignMutation.isPending}
@@ -840,6 +846,68 @@ export default function AdminDashboard() {
                     </div>
                   </Card>
                 ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Additional Teams Tab */}
+        <TabsContent value="additional" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Additional Team Signups</CardTitle>
+              <CardDescription>
+                View and manage additional team signups (non-technical teams)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {additionalSignups?.map((signup) => (
+                  <Card key={signup.id} className="p-4">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-start">
+                        <h4 className="font-medium">{signup.fullName}</h4>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary">
+                            {signup.selectedTeams?.length || 0} teams
+                          </Badge>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600">
+                        <div>Email: {signup.email}</div>
+                        <div>UFID: {signup.ufid}</div>
+                        <div>Submitted: {new Date(signup.submittedAt).toLocaleDateString()}</div>
+                      </div>
+
+                      {signup.selectedTeams && signup.selectedTeams.length > 0 && (
+                        <div>
+                          <p className="text-sm font-medium text-gray-700 mb-2">Selected Teams:</p>
+                          <div className="flex flex-wrap gap-2">
+                            {signup.selectedTeams.map((teamId: string, index: number) => {
+                              const teamNames: { [key: string]: string } = {
+                                'marketing': 'Marketing Team',
+                                'outreach': 'Outreach Team',
+                                'art': 'Art Team'
+                              };
+                              return (
+                                <Badge key={index} variant="outline">
+                                  {teamNames[teamId] || teamId}
+                                </Badge>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                ))}
+
+                {(!additionalSignups || additionalSignups.length === 0) && (
+                  <div className="text-center py-8 text-gray-500">
+                    No additional team signups yet.
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
