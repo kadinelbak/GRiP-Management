@@ -829,13 +829,20 @@ export class DatabaseStorage implements IStorage {
     // Get submission to delete associated files
     const submission = await this.getPrintSubmissionById(id);
     if (submission && submission.uploadFiles) {
-      const filePaths = JSON.parse(submission.uploadFiles);
-      const fs = require('fs');
-      filePaths.forEach((filePath: string) => {
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
-      });
+      try {
+        const fileData = JSON.parse(submission.uploadFiles);
+        const fs = await import('fs');
+        
+        fileData.forEach((file: any) => {
+          const filePath = typeof file === 'string' ? file : file.path;
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+            console.log(`Deleted file: ${filePath}`);
+          }
+        });
+      } catch (error) {
+        console.error('Error deleting files:', error);
+      }
     }
 
     await db.delete(printSubmissions).where(eq(printSubmissions.id, id));

@@ -7,6 +7,9 @@ import {
   insertEventSchema, insertEventAttendanceSchema, insertPrintSubmissionSchema
 } from "@shared/schema";
 import { z } from "zod";
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 interface AssignmentResult {
   applicationId: string;
@@ -88,6 +91,40 @@ function performTeamAssignment(applications: any[], teams: any[]): TeamAssignmen
     }
   };
 }
+
+// Configure multer for file uploads
+const uploadDir = path.join(process.cwd(), 'uploads', 'print-submissions');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage_multer = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    // Generate unique filename with timestamp
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage: storage_multer,
+  fileFilter: (req, file, cb) => {
+    // Accept only ZIP and STL files
+    const allowedTypes = ['.zip', '.stl'];
+    const fileExt = path.extname(file.originalname).toLowerCase();
+    if (allowedTypes.includes(fileExt)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only ZIP and STL files are allowed'));
+    }
+  },
+  limits: {
+    fileSize: 50 * 1024 * 1024 // 50MB limit
+  }
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Teams API
@@ -732,17 +769,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/print-submissions", async (req, res) => {
+  app.post("/api/print-submissions", upload.array('files', 10), async (req, res) => {
     try {
       console.log("Received print submission data:", req.body);
+      console.log("Received files:", req.files);
+
+      // Get uploaded file paths
+      const files = req.files as Express.Multer.File[];
+      const filePaths = files ? files.map(file => ({
+        originalName: file.originalname,
+        filename: file.filename,
+        path: file.path,
+        size: file.size
+      })) : [];
 
       // Validate and transform the data
-      const submissionData = insertPrintSubmissionSchema.parse(req.body);
+      const submissionData = {
+        ...insertPrintSubmissionSchema.parse(req.body),
+        uploadFiles: filePaths.length > 0 ? JSON.stringify(filePaths) : undefined
+      };
+      
       console.log("Validated submission data:", submissionData);
 
       const submission = await storage.createPrintSubmission(submissionData);
       res.status(201).json(submission);
     } catch (error) {
+      // Clean up uploaded files if submission fails
+      if (req.files) {
+        const files = req.files as Express.Multer.File[];
+        files.forEach(file => {
+          if (fs.existsSync(file.path)) {
+            fs.unlinkSync(file.path);
+          }
+        });
+      }
+
       if (error instanceof z.ZodError) {
         console.error("Validation errors:", error.errors);
         res.status(400).json({ message: "Invalid submission data", errors: error.errors });
@@ -775,16 +836,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Submission not found" });
       }
 
-      const filePaths = submission.uploadFiles ? JSON.parse(submission.uploadFiles) : [];
+      const fileData = submission.uploadFiles ? JSON.parse(submission.uploadFiles) : [];
 
-      if (filePaths.length === 0) {
+      if (fileData.length === 0) {
         return res.status(404).json({ message: "No files found for this submission" });
       }
 
       // Import required modules
       const { default: archiver } = await import('archiver');
-      const fs = await import('fs');
-      const path = await import('path');
 
       const archive = archiver('zip', {
         zlib: { level: 9 } // Sets the compression level.
@@ -796,14 +855,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       archive.pipe(res);
 
       // Add each file to the archive
-      for (const filePath of filePaths) {
+      for (const file of fileData) {
         try {
+          const filePath = typeof file === 'string' ? file : file.path;
+          const fileName = typeof file === 'string' ? path.basename(file) : file.originalName;
+          
           if (fs.existsSync(filePath)) {
-            const fileName = path.basename(filePath);
             archive.file(filePath, { name: fileName });
+            console.log(`Added file to archive: ${fileName}`);
+          } else {
+            console.log(`File not found: ${filePath}`);
           }
         } catch (fileError) {
-          console.error(`Error adding file ${filePath} to archive:`, fileError);
+          console.error(`Error adding file to archive:`, fileError);
         }
       }
 

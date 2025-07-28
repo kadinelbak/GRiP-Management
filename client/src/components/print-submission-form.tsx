@@ -72,17 +72,37 @@ export default function PrintSubmissionForm() {
 
   const submitMutation = useMutation({
     mutationFn: async (data: PrintSubmissionData) => {
-      // For now, submit without files since file upload isn't implemented on backend
-      // Convert file names to JSON string for storage
-      const fileNames = selectedFiles.map(file => file.name);
+      // Create FormData for file upload
+      const formData = new FormData();
       
-      const submissionData = {
-        ...data,
-        uploadFiles: fileNames.length > 0 ? JSON.stringify(fileNames) : undefined,
-        deadline: data.deadline ? new Date(data.deadline).toISOString() : undefined
-      };
+      // Add form fields
+      Object.entries(data).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          if (key === 'deadline' && value) {
+            formData.append(key, new Date(value).toISOString());
+          } else {
+            formData.append(key, value.toString());
+          }
+        }
+      });
 
-      return apiRequest("POST", "/api/print-submissions", submissionData);
+      // Add files
+      selectedFiles.forEach((file) => {
+        formData.append('files', file);
+      });
+
+      // Use fetch instead of apiRequest for file upload
+      const response = await fetch('/api/print-submissions', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to submit print request');
+      }
+
+      return response.json();
     },
     onSuccess: () => {
       toast({
