@@ -690,15 +690,19 @@ export default function AdminDashboard() {
                               </p>
                             </div>
                             <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteMember(member.id);
-                              }}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                                type="button"
+                                variant="destructive"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (confirm(`Are you sure you want to remove ${member.fullName} from the system?`)) {
+                                    handleDeleteMember(member.id);
+                                  }
+                                }}
+                                disabled={deleteMemberMutation.isPending}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
                           </div>
                         </Card>
                       );
@@ -878,8 +882,7 @@ export default function AdminDashboard() {
                             <SelectItem value="pending">Pending</SelectItem>
                             <SelectItem value="accepted">Accept</SelectItem>
                             <SelectItem value="waitlisted">Waitlist</SelectItem>
-                            <SelectItem value="rejected">Reject</SelectItem>
-                          </SelectContent>
+                            <SelectItem value="rejected">Reject</SelectItem                          </SelectContent>
                         </Select>
 
                         <Button

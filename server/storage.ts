@@ -115,7 +115,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteApplication(id: string): Promise<void> {
-    await db.delete(applications).where(eq(applications.id, id));
+    try {
+      // First, remove any absences for this application
+      await db.delete(absences).where(eq(absences.applicationId, id));
+
+      // Then delete the application itself
+      await db.delete(applications).where(eq(applications.id, id));
+
+      return;
+    } catch (error) {
+      console.error("Error deleting application:", error);
+      throw error;
+    }
   }
 
   async getApplicationsByTeam(teamId: string): Promise<Application[]> {
@@ -340,7 +351,7 @@ export class DatabaseStorage implements IStorage {
           // Update application - if they were accepted and unassigned, keep them accepted
           // If they were pending, mark as assigned
           const newStatus = isAcceptedMember ? "accepted" : "assigned";
-          
+
           await this.updateApplication(application.id, {
             assignedTeamId,
             status: newStatus,
@@ -396,7 +407,7 @@ export class DatabaseStorage implements IStorage {
     // Get constant teams for additional assignments
     const allTeams = await this.getTeams();
     const constantTeams = allTeams.filter(team => team.type === 'constant');
-    
+
     for (const teamId of additionalTeamIds) {
       const team = constantTeams.find(t => t.id === teamId);
       if (team && team.currentSize < team.maxCapacity) {
@@ -406,7 +417,7 @@ export class DatabaseStorage implements IStorage {
           teamId,
           submittedAt: new Date()
         });
-        
+
         // Update team size
         await this.updateTeam(teamId, {
           currentSize: team.currentSize + 1
@@ -421,10 +432,10 @@ export class DatabaseStorage implements IStorage {
 
   async removeUserFromTeam(applicationId: string): Promise<void> {
     const application = await db.select().from(applications).where(eq(applications.id, applicationId)).limit(1);
-    
+
     if (application.length > 0 && application[0].assignedTeamId) {
       const teamId = application[0].assignedTeamId;
-      
+
       // Remove user from team
       await db.update(applications)
         .set({ 
@@ -433,7 +444,7 @@ export class DatabaseStorage implements IStorage {
           assignmentReason: null 
         })
         .where(eq(applications.id, applicationId));
-      
+
       // Update team current size
       await db.update(teams)
         .set({ currentSize: sql`${teams.currentSize} - 1` })
@@ -449,7 +460,7 @@ export class DatabaseStorage implements IStorage {
         status: "pending",
         assignmentReason: null 
       });
-    
+
     // Reset all team sizes
     await db.update(teams)
       .set({ currentSize: 0 });
