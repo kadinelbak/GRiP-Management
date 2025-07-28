@@ -1,8 +1,8 @@
 import { 
-  teams, applications, additionalTeamSignups, projectRequests, adminSettings,
-  type Team, type Application, type AdditionalTeamSignup, type ProjectRequest, type AdminSetting,
+  teams, applications, additionalTeamSignups, projectRequests, adminSettings, absences,
+  type Team, type Application, type AdditionalTeamSignup, type ProjectRequest, type AdminSetting, type Absence,
   type InsertTeam, type InsertApplication, type InsertAdditionalTeamSignup, 
-  type InsertProjectRequest, type InsertAdminSetting
+  type InsertProjectRequest, type InsertAdminSetting, type InsertAbsence
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, asc, and } from "drizzle-orm";
@@ -24,8 +24,13 @@ export interface IStorage {
   getApplicationsByTeam(teamId: string): Promise<Application[]>;
   deleteApplication(id: string): Promise<void>;
   getAcceptedMembers(): Promise<Application[]>;
-  addAbsence(applicationId: string, date: string, reason?: string): Promise<void>;
-  removeAbsence(applicationId: string, date: string): Promise<void>;
+  addAbsence(applicationId: string, startDate: string, reason?: string): Promise<void>;
+  removeAbsence(absenceId: string): Promise<void>;
+  getAbsences(): Promise<Absence[]>;
+  createAbsence(absence: InsertAbsence): Promise<Absence>;
+  getAbsencesByApplication(applicationId: string): Promise<Absence[]>;
+  clearAbsence(id: string): Promise<void>;
+  clearAllAbsencesForUser(applicationId: string): Promise<void>;
 
   // Additional Team Signups
   getAdditionalTeamSignups(): Promise<AdditionalTeamSignup[]>;
@@ -118,17 +123,66 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAcceptedMembers(): Promise<Application[]> {
-    return await db.select().from(applications).where(eq(applications.status, "accepted")).orderBy(asc(applications.fullName));
+    const members = await db
+      .select({
+        application: applications,
+        absences: absences,
+      })
+      .from(applications)
+      .leftJoin(absences, and(eq(applications.id, absences.applicationId), eq(absences.isActive, true)))
+      .where(eq(applications.status, "accepted"))
+      .orderBy(asc(applications.fullName));
+
+    // Group absences by application
+    const membersMap = new Map();
+    members.forEach(({ application, absences: absence }) => {
+      if (!membersMap.has(application.id)) {
+        membersMap.set(application.id, { ...application, absences: [] });
+      }
+      if (absence) {
+        membersMap.get(application.id).absences.push(absence);
+      }
+    });
+
+    return Array.from(membersMap.values());
   }
 
-  async addAbsence(applicationId: string, date: string, reason?: string): Promise<void> {
-    // TODO: Implement absences in schema later
-    console.log(`Adding absence for ${applicationId} on ${date}: ${reason}`);
+  async addAbsence(applicationId: string, startDate: string, reason?: string): Promise<void> {
+    await db.insert(absences).values({
+      applicationId,
+      startDate: new Date(startDate),
+      reason: reason || null,
+    });
   }
 
-  async removeAbsence(applicationId: string, date: string): Promise<void> {
-    // TODO: Implement absences in schema later
-    console.log(`Removing absence for application ${applicationId} on ${date}`);
+  async removeAbsence(absenceId: string): Promise<void> {
+    await db.delete(absences).where(eq(absences.id, absenceId));
+  }
+
+  async getAbsences(): Promise<Absence[]> {
+    return await db.select().from(absences).orderBy(desc(absences.createdAt));
+  }
+
+  async createAbsence(insertAbsence: InsertAbsence): Promise<Absence> {
+    const [absence] = await db.insert(absences).values({
+      ...insertAbsence,
+      startDate: new Date(insertAbsence.startDate),
+    }).returning();
+    return absence;
+  }
+
+  async getAbsencesByApplication(applicationId: string): Promise<Absence[]> {
+    return await db.select().from(absences)
+      .where(and(eq(absences.applicationId, applicationId), eq(absences.isActive, true)))
+      .orderBy(desc(absences.startDate));
+  }
+
+  async clearAbsence(id: string): Promise<void> {
+    await db.delete(absences).where(eq(absences.id, id));
+  }
+
+  async clearAllAbsencesForUser(applicationId: string): Promise<void> {
+    await db.delete(absences).where(eq(absences.applicationId, applicationId));
   }
 
   async getAdditionalTeamSignups(): Promise<AdditionalTeamSignup[]> {

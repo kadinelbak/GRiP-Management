@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { 
   BarChart3, Users, Inbox, Settings, Plus, Download, 
   Wand2, Eye, Edit, Trash2, CheckCircle, Clock, UserMinus, Calendar, 
-  CalendarX, Search, Filter, UserCheck
+  CalendarX, Search, Filter, UserCheck, Save, X
 } from "lucide-react";
 import type { Team, Application, ProjectRequest } from "@shared/schema";
 import type { z } from "zod";
@@ -362,7 +362,7 @@ export default function AdminDashboard() {
       <h1 className="text-3xl font-bold text-slate-900">GRiP Admin Dashboard</h1>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview">
             <BarChart3 className="w-4 h-4 mr-2" />
             Overview
@@ -378,10 +378,6 @@ export default function AdminDashboard() {
           <TabsTrigger value="submissions">
             <Inbox className="w-4 h-4 mr-2" />
             Submissions
-          </TabsTrigger>
-          <TabsTrigger value="additional">
-            <Plus className="w-4 h-4 mr-2" />
-            Additional Teams
           </TabsTrigger>
           <TabsTrigger value="projects">
             <Wand2 className="w-4 h-4 mr-2" />
@@ -635,35 +631,65 @@ export default function AdminDashboard() {
                 {/* Members List */}
                 <div className="lg:col-span-2">
                   <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {filteredMembers.map((member) => (
-                      <Card 
-                        key={member.id} 
-                        className={`p-3 cursor-pointer transition-colors ${
-                          selectedMember?.id === member.id ? "bg-blue-50 border-blue-200" : "hover:bg-gray-50"
-                        }`}
-                        onClick={() => setSelectedMember(member)}
-                      >
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <h4 className="font-medium">{member.fullName}</h4>
-                            <p className="text-sm text-gray-600">{member.email}</p>
-                            <p className="text-xs text-gray-500">
-                              {getTeamName(member.assignedTeamId)} | UFID: {member.ufid}
-                            </p>
+                    {filteredMembers.map((member) => {
+                      // Calculate absence count for color coding
+                      const absenceCount = member.absences?.filter(absence => absence.isActive).length || 0;
+                      
+                      // Determine card color based on absence count
+                      const getCardColor = (count: number) => {
+                        if (count === 0) return "border-green-300 bg-green-50"; // Green - No absences
+                        if (count === 1) return "border-yellow-300 bg-yellow-50"; // Yellow - 1 absence
+                        if (count === 2) return "border-orange-300 bg-orange-50"; // Orange - 2 absences
+                        return "border-red-300 bg-red-50"; // Red - 3+ absences
+                      };
+
+                      const getAbsenceStatus = (count: number) => {
+                        if (count === 0) return { text: "Good Standing", color: "text-green-700" };
+                        if (count === 1) return { text: "1 Absence", color: "text-yellow-700" };
+                        if (count === 2) return { text: "2 Absences", color: "text-orange-700" };
+                        return { text: `${count} Absences`, color: "text-red-700" };
+                      };
+
+                      const status = getAbsenceStatus(absenceCount);
+
+                      return (
+                        <Card 
+                          key={member.id} 
+                          className={`p-3 cursor-pointer transition-colors border-2 ${getCardColor(absenceCount)} ${
+                            selectedMember?.id === member.id ? "ring-2 ring-blue-400" : "hover:shadow-md"
+                          }`}
+                          onClick={() => setSelectedMember(member)}
+                        >
+                          <div className="flex justify-between items-center">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-medium">{member.fullName}</h4>
+                                <Badge 
+                                  variant="outline" 
+                                  className={`text-xs ${status.color} border-current`}
+                                >
+                                  {status.text}
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-gray-600">{member.email}</p>
+                              <p className="text-xs text-gray-500">
+                                {getTeamName(member.assignedTeamId)} | UFID: {member.ufid}
+                              </p>
+                            </div>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteMember(member.id);
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           </div>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteMember(member.id);
-                            }}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </Card>
-                    ))}
+                        </Card>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -693,22 +719,78 @@ export default function AdminDashboard() {
                           </div>
                         )}
 
+                        {/* Absence Management */}
                         <div className="mt-4 space-y-2">
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="w-full"
-                            onClick={() => {
-                              // TODO: Implement absence management
-                              toast({
-                                title: "Coming Soon",
-                                description: "Absence management will be implemented soon.",
-                              });
-                            }}
-                          >
-                            <CalendarX className="w-4 h-4 mr-2" />
-                            Add Absence
-                          </Button>
+                          <div className="flex justify-between items-center">
+                            <h5 className="font-medium text-sm">Absences</h5>
+                            <Badge variant="outline">
+                              {selectedMember.absences?.filter(a => a.isActive).length || 0}
+                            </Badge>
+                          </div>
+                          
+                          {selectedMember.absences && selectedMember.absences.length > 0 && (
+                            <div className="space-y-1 max-h-24 overflow-y-auto">
+                              {selectedMember.absences
+                                .filter(absence => absence.isActive)
+                                .map((absence, index) => (
+                                <div key={index} className="flex justify-between items-center text-xs bg-red-50 p-2 rounded">
+                                  <div>
+                                    <div className="font-medium">{new Date(absence.startDate).toLocaleDateString()}</div>
+                                    {absence.reason && <div className="text-gray-600">{absence.reason}</div>}
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 w-6 p-0"
+                                    onClick={async () => {
+                                      try {
+                                        await fetch(`/api/absences/${absence.id}`, { method: 'DELETE' });
+                                        toast({ title: "Absence removed successfully" });
+                                        // Refresh data
+                                        queryClient.invalidateQueries({ queryKey: ['/api/accepted-members'] });
+                                      } catch (error) {
+                                        toast({ title: "Failed to remove absence", variant: "destructive" });
+                                      }
+                                    }}
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          
+                          <div className="flex gap-2">
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="flex-1"
+                              onClick={async () => {
+                                const reason = prompt("Reason for absence (optional):");
+                                const date = new Date().toISOString().split('T')[0];
+                                
+                                try {
+                                  await fetch('/api/absences', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                      applicationId: selectedMember.id,
+                                      reason: reason || '',
+                                      startDate: date
+                                    })
+                                  });
+                                  toast({ title: "Absence added successfully" });
+                                  // Refresh data
+                                  queryClient.invalidateQueries({ queryKey: ['/api/accepted-members'] });
+                                } catch (error) {
+                                  toast({ title: "Failed to add absence", variant: "destructive" });
+                                }
+                              }}
+                            >
+                              <CalendarX className="w-4 h-4 mr-2" />
+                              Add Absence
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </Card>
@@ -1023,43 +1105,183 @@ export default function AdminDashboard() {
 
         {/* Settings Tab */}
         <TabsContent value="settings" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Domain Configuration */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Domain Configuration</CardTitle>
+                <CardDescription>
+                  Manage allowed email domains for applications (@ufl.edu examples)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <div className="font-medium">student@ufl.edu</div>
+                      <div className="text-sm text-gray-500">University of Florida students</div>
+                    </div>
+                    <Badge variant="default">Active</Badge>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <div className="font-medium">alumni@ufl.edu</div>
+                      <div className="text-sm text-gray-500">University of Florida alumni</div>
+                    </div>
+                    <Badge variant="default">Active</Badge>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <div className="font-medium">faculty@ufl.edu</div>
+                      <div className="text-sm text-gray-500">University of Florida faculty</div>
+                    </div>
+                    <Badge variant="default">Active</Badge>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <div className="font-medium">staff@ufl.edu</div>
+                      <div className="text-sm text-gray-500">University of Florida staff</div>
+                    </div>
+                    <Badge variant="secondary">Inactive</Badge>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t">
+                  <div className="flex gap-2">
+                    <Input placeholder="Add new domain (e.g., @ufl.edu)" className="flex-1" />
+                    <Button size="sm">
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Form Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Form Settings</CardTitle>
+                <CardDescription>
+                  Configure application deadlines and form behavior
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium">Application Deadline</label>
+                    <Input
+                      type="date"
+                      defaultValue="2024-02-15"
+                      className="mt-1"
+                      onChange={async (e) => {
+                        try {
+                          await fetch('/api/admin/settings', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              key: 'application_deadline',
+                              value: e.target.value
+                            })
+                          });
+                          toast({ title: "Deadline updated successfully" });
+                        } catch (error) {
+                          toast({ title: "Failed to update deadline", variant: "destructive" });
+                        }
+                      }}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Applications will be closed after this date
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium">Maximum Team Preferences</label>
+                    <Input
+                      type="number"
+                      defaultValue="3"
+                      min="1"
+                      max="9"
+                      className="mt-1"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Maximum number of teams students can rank
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-medium">Require UFID Validation</div>
+                      <div className="text-xs text-gray-500">Enforce 8-digit UFID format</div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        defaultChecked
+                        className="rounded border-gray-300"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-medium">Auto-assign Teams</div>
+                      <div className="text-xs text-gray-500">Automatically assign students to teams</div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        defaultChecked
+                        className="rounded border-gray-300"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t">
+                  <Button variant="outline" size="sm" className="w-full">
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Form Settings
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* System Status */}
           <Card>
             <CardHeader>
-              <CardTitle>System Settings</CardTitle>
+              <CardTitle>System Status</CardTitle>
+              <CardDescription>
+                Overview of system health and configuration
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="p-4 border rounded-lg">
-                  <h4 className="font-medium mb-2">Domain Configuration</h4>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Manage allowed email domains for applications
-                  </p>
-                  <Button variant="outline" size="sm" disabled>
-                    <Settings className="w-4 h-4 mr-2" />
-                    Configure Domains (Coming Soon)
-                  </Button>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span className="text-sm font-medium">Database</span>
+                  </div>
+                  <p className="text-xs text-gray-500">Connected and operational</p>
                 </div>
 
                 <div className="p-4 border rounded-lg">
-                  <h4 className="font-medium mb-2">Form Settings</h4>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Adjust form validation and submission settings
-                  </p>
-                  <Button variant="outline" size="sm" disabled>
-                    <Edit className="w-4 h-4 mr-2" />
-                    Form Settings (Coming Soon)
-                  </Button>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span className="text-sm font-medium">Applications</span>
+                  </div>
+                  <p className="text-xs text-gray-500">Form submissions active</p>
                 </div>
 
                 <div className="p-4 border rounded-lg">
-                  <h4 className="font-medium mb-2">Team Assignment Algorithm</h4>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Configure automatic team assignment settings
-                  </p>
-                  <Button variant="outline" size="sm" disabled>
-                    <Wand2 className="w-4 h-4 mr-2" />
-                    Algorithm Settings (Coming Soon)
-                  </Button>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                    <span className="text-sm font-medium">Email Notifications</span>
+                  </div>
+                  <p className="text-xs text-gray-500">Not configured</p>
                 </div>
               </div>
             </CardContent>

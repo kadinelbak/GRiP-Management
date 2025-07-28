@@ -1,20 +1,19 @@
 import { useState } from "react";
 import Header from "@/components/header";
 import MemberForm from "@/components/member-form";
-import AdditionalTeamsForm from "@/components/additional-teams-form";
+
 import ProjectRequestForm from "@/components/project-request-form";
 import AdminDashboard from "@/components/admin-dashboard";
 import { Button } from "@/components/ui/button";
 import { UserPlus, Users, Lightbulb, Settings } from "lucide-react";
 
-type TabType = "member" | "additional" | "project" | "admin";
+type TabType = "member" | "project" | "admin";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>("member");
 
   const tabs = [
     { id: "member" as TabType, label: "Join Team", icon: UserPlus },
-    { id: "additional" as TabType, label: "Additional Teams", icon: Users },
     { id: "project" as TabType, label: "Project Request", icon: Lightbulb },
     { id: "admin" as TabType, label: "Admin", icon: Settings },
   ];
@@ -47,7 +46,6 @@ export default function Home() {
       {/* Tab Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {activeTab === "member" && <MemberForm />}
-        {activeTab === "additional" && <AdditionalTeamsForm />}
         {activeTab === "project" && <ProjectRequestForm />}
         {activeTab === "admin" && <AdminDashboard />}
       </main>
