@@ -55,10 +55,4 @@ EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
 
--- Insert some default special roles
-INSERT INTO "special_roles" ("name", "description", "responsibilities", "requirements") VALUES
-('Team Leader', 'Lead and coordinate team activities', 'Organize meetings, delegate tasks, communicate with admin team', 'Previous leadership experience, strong communication skills'),
-('Designer', 'Create visual content and design materials', 'Design promotional materials, social media graphics, presentations', 'Experience with design software, creative portfolio'),
-('Coordinator', 'Coordinate events and logistics', 'Plan events, manage schedules, coordinate between teams', 'Organizational skills, attention to detail'),
-('Social Media Manager', 'Manage social media presence', 'Create content, manage posts, engage with community', 'Social media experience, content creation skills'),
-('Project Manager', 'Oversee project development and timelines', 'Track project progress, manage deadlines, facilitate communication', 'Project management experience, organizational skills');
+-- No default special roles inserted - admins create roles through dashboard
