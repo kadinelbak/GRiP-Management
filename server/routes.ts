@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { 
   insertTeamSchema, insertApplicationSchema, insertAdditionalTeamSignupSchema, 
   insertProjectRequestSchema, insertAdminSettingSchema, insertAbsenceSchema,
-  insertEventSchema, insertEventAttendanceSchema
+  insertEventSchema, insertEventAttendanceSchema, insertPrintSubmissionSchema
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -719,6 +719,137 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete attendance" });
+    }
+  });
+
+  // Print Submissions API
+  app.get("/api/print-submissions", async (_req, res) => {
+    try {
+      const submissions = await storage.getPrintSubmissions();
+      res.json(submissions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch print submissions" });
+    }
+  });
+
+  app.post("/api/print-submissions", async (req, res) => {
+    try {
+      // Handle multipart form data
+      const multer = require('multer');
+      const path = require('path');
+      const fs = require('fs');
+
+      // Create uploads directory if it doesn't exist
+      const uploadsDir = path.join(process.cwd(), 'uploads', 'print-submissions');
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+
+      const storage = multer.diskStorage({
+        destination: uploadsDir,
+        filename: (req: any, file: any, cb: any) => {
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+          cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+        }
+      });
+
+      const upload = multer({ 
+        storage,
+        fileFilter: (req: any, file: any, cb: any) => {
+          const allowedTypes = ['.zip', '.stl'];
+          const fileExt = path.extname(file.originalname).toLowerCase();
+          if (allowedTypes.includes(fileExt)) {
+            cb(null, true);
+          } else {
+            cb(new Error('Only ZIP and STL files are allowed'));
+          }
+        }
+      });
+
+      upload.array('files')(req, res, async (err: any) => {
+        if (err) {
+          return res.status(400).json({ message: err.message });
+        }
+
+        try {
+          const files = req.files as Express.Multer.File[];
+          const filePaths = files.map(file => file.path);
+
+          const submissionData = insertPrintSubmissionSchema.parse({
+            ...req.body,
+            uploadFiles: JSON.stringify(filePaths)
+          });
+
+          const submission = await storage.createPrintSubmission(submissionData);
+          res.status(201).json(submission);
+        } catch (error) {
+          if (error instanceof z.ZodError) {
+            res.status(400).json({ message: "Invalid submission data", errors: error.errors });
+          } else {
+            res.status(500).json({ message: "Failed to create print submission" });
+          }
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to process print submission" });
+    }
+  });
+
+  app.put("/api/print-submissions/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      const submission = await storage.updatePrintSubmission(id, updates);
+      res.json(submission);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update print submission" });
+    }
+  });
+
+  app.get("/api/print-submissions/:id/download", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const submission = await storage.getPrintSubmissionById(id);
+      
+      if (!submission) {
+        return res.status(404).json({ message: "Submission not found" });
+      }
+
+      const filePaths = submission.uploadFiles ? JSON.parse(submission.uploadFiles) : [];
+      
+      if (filePaths.length === 0) {
+        return res.status(404).json({ message: "No files found for this submission" });
+      }
+
+      const archiver = require('archiver');
+      const archive = archiver('zip', { zlib: { level: 9 } });
+
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', `attachment; filename="print-submission-${id}-files.zip"`);
+
+      archive.pipe(res);
+
+      // Add each file to the archive
+      filePaths.forEach((filePath: string, index: number) => {
+        const path = require('path');
+        const fileName = path.basename(filePath);
+        archive.file(filePath, { name: fileName });
+      });
+
+      await archive.finalize();
+    } catch (error) {
+      console.error("Download error:", error);
+      res.status(500).json({ message: "Failed to download files" });
+    }
+  });
+
+  app.delete("/api/print-submissions/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deletePrintSubmission(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete print submission" });
     }
   });
 

@@ -1,7 +1,7 @@
 import { 
-  teams, applications, additionalTeamSignups, projectRequests, adminSettings, absences, events, eventAttendance,
-  type Team, type Application, type AdditionalTeamSignup, type ProjectRequest, type AdminSetting, type Absence, type Event, type EventAttendance,
-  type InsertTeam, type InsertApplication, type InsertAdditionalTeamSignup, type InsertProjectRequest, type InsertAdminSetting, type InsertAbsence, type InsertEvent, type InsertEventAttendance
+  teams, applications, additionalTeamSignups, projectRequests, adminSettings, absences, events, eventAttendance, printSubmissions,
+  type Team, type Application, type AdditionalTeamSignup, type ProjectRequest, type AdminSetting, type Absence, type Event, type EventAttendance, type PrintSubmission,
+  type InsertTeam, type InsertApplication, type InsertAdditionalTeamSignup, type InsertProjectRequest, type InsertAdminSetting, type InsertAbsence, type InsertEvent, type InsertEventAttendance, type InsertPrintSubmission
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, asc, and, isNull, sql, or } from "drizzle-orm";
@@ -69,6 +69,13 @@ export interface IStorage {
   approveEventAttendance(id: string): Promise<{ message: string; pointsAdded?: number }>;
   rejectEventAttendance(id: string): Promise<void>;
   deleteEventAttendance(id: string): Promise<void>;
+
+  // Print Submissions
+  getPrintSubmissions(): Promise<PrintSubmission[]>;
+  getPrintSubmissionById(id: string): Promise<PrintSubmission | undefined>;
+  createPrintSubmission(submission: InsertPrintSubmission): Promise<PrintSubmission>;
+  updatePrintSubmission(id: string, updates: Partial<PrintSubmission>): Promise<PrintSubmission>;
+  deletePrintSubmission(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -792,6 +799,45 @@ export class DatabaseStorage implements IStorage {
 
   async deleteEventAttendance(id: string): Promise<void> {
     await db.delete(eventAttendance).where(eq(eventAttendance.id, id));
+  }
+
+  // Print Submissions
+  async getPrintSubmissions(): Promise<PrintSubmission[]> {
+    return await db.select().from(printSubmissions).orderBy(desc(printSubmissions.submittedAt));
+  }
+
+  async getPrintSubmissionById(id: string): Promise<PrintSubmission | undefined> {
+    const [submission] = await db.select().from(printSubmissions).where(eq(printSubmissions.id, id));
+    return submission || undefined;
+  }
+
+  async createPrintSubmission(insertSubmission: InsertPrintSubmission): Promise<PrintSubmission> {
+    const [submission] = await db.insert(printSubmissions).values(insertSubmission).returning();
+    return submission;
+  }
+
+  async updatePrintSubmission(id: string, updates: Partial<PrintSubmission>): Promise<PrintSubmission> {
+    const [submission] = await db.update(printSubmissions)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(printSubmissions.id, id))
+      .returning();
+    return submission;
+  }
+
+  async deletePrintSubmission(id: string): Promise<void> {
+    // Get submission to delete associated files
+    const submission = await this.getPrintSubmissionById(id);
+    if (submission && submission.uploadFiles) {
+      const filePaths = JSON.parse(submission.uploadFiles);
+      const fs = require('fs');
+      filePaths.forEach((filePath: string) => {
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      });
+    }
+    
+    await db.delete(printSubmissions).where(eq(printSubmissions.id, id));
   }
 }
 

@@ -233,3 +233,42 @@ export type InsertAdminSetting = z.infer<typeof insertAdminSettingSchema>;
 export type InsertAbsence = z.infer<typeof insertAbsenceSchema>;
 export type InsertEvent = z.infer<typeof insertEventSchema>;
 export type InsertEventAttendance = z.infer<typeof insertEventAttendanceSchema>;
+
+// Print Submissions
+export const printSubmissions = pgTable("print_submissions", {
+  id: text("id").primaryKey().default(sql`gen_random_uuid()`),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+  submitterName: text("submitter_name").notNull(),
+  emailAddress: text("email_address").notNull(),
+  requestType: text("request_type").notNull(), // "Adaptive Gaming", "Test", etc.
+  teamName: text("team_name"),
+  uploadFiles: text("upload_files"), // JSON array of file paths
+  generalPrintDescription: text("general_print_description"),
+  fileSpecifications: text("file_specifications"),
+  comments: text("comments"),
+  status: text("status").notNull().default("submitted"), // submitted, in_progress, completed, cancelled
+  progress: integer("progress").notNull().default(0), // 0-100
+  submittedAt: timestamp("submitted_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow()
+});
+
+export type PrintSubmission = typeof printSubmissions.$inferSelect;
+export type InsertPrintSubmission = z.infer<typeof insertPrintSubmissionSchema>;
+
+export const insertPrintSubmissionSchema = createInsertSchema(printSubmissions).omit({
+  id: true,
+  timestamp: true,
+  status: true,
+  progress: true,
+  submittedAt: true,
+  updatedAt: true,
+}).extend({
+  submitterName: z.string().min(1, "Submitter name is required"),
+  emailAddress: z.string().email("Valid email address is required"),
+  requestType: z.string().min(1, "Request type is required"),
+  teamName: z.string().optional(),
+  uploadFiles: z.string().optional(),
+  generalPrintDescription: z.string().optional(),
+  fileSpecifications: z.string().optional(),
+  comments: z.string().optional()
+});

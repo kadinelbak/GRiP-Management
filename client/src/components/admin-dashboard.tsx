@@ -17,10 +17,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { 
   BarChart3, Users, Inbox, Settings, Plus, Download, 
   Wand2, Eye, Edit, Trash2, CheckCircle, Clock, UserMinus, Calendar, 
-  CalendarX, Search, Filter, UserCheck, Save, X
+  CalendarX, Search, Filter, UserCheck, Save, X, Printer
 } from "lucide-react";
 import type { Team, Application, ProjectRequest } from "@shared/schema";
 import type { z } from "zod";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 type TeamFormData = z.infer<typeof insertTeamSchema>;
 
@@ -448,1093 +449,1179 @@ export default function AdminDashboard() {
     return team?.name || "Unknown Team";
   };
 
+  // Print Management Section
+function PrintManagementSection() {
+  const { data: printSubmissions = [] } = useQuery({
+    queryKey: ["/api/print-submissions"],
+  });
+
+  const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
+
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ id, status, progress }: { id: string; status: string; progress?: number }) =>
+      apiRequest("PUT", `/api/print-submissions/${id}`, { status, progress }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/print-submissions"] });
+      toast({
+        title: "Status Updated",
+        description: "Print submission status has been updated.",
+      });
+    },
+  });
+
+  const downloadFilesMutation = useMutation({
+    mutationFn: async (submissionId: string) => {
+      const response = await fetch(`/api/print-submissions/${submissionId}/download`, {
+        method: "GET",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to download files");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `print-submission-${submissionId}-files.zip`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Download Started",
+        description: "Files are being downloaded.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Download Failed",
+        description: "Failed to download files.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteSubmissionMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/print-submissions/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/print-submissions"] });
+      toast({
+        title: "Submission Deleted",
+        description: "Print submission has been deleted.",
+      });
+    },
+  });
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "submitted": return "bg-blue-100 text-blue-800";
+      case "in_progress": return "bg-yellow-100 text-yellow-800";
+      case "completed": return "bg-emerald-100 text-emerald-800";
+      case "cancelled": return "bg-red-100 text-red-800";
+      default: return "bg-slate-100 text-slate-800";
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-slate-900">Print Management</h2>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Print Submissions Overview</CardTitle>
+          <CardDescription>Manage and track all 3D print requests</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {!printSubmissions || printSubmissions.length === 0 ? (
+            <p className="text-slate-500 text-center py-8">No print submissions found</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200">
+                    <th className="text-left p-3">Timestamp</th>
+                    <th className="text-left p-3">Submitter</th>
+                    <th className="text-left p-3">Request Type</th>
+                    <th className="text-left p-3">Team</th>
+                    <th className="text-left p-3">Status</th>
+                    <th className="text-left p-3">Progress</th>
+                    <th className="text-left p-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {printSubmissions.map((submission) => (
+                    <tr key={submission.id} className="border-b border-slate-100 hover:bg-slate-50">
+                      <td className="p-3">
+                        {new Date(submission.submittedAt).toLocaleDateString()}
+                      </td>
+                      <td className="p-3">
+                        <div>
+                          <p className="font-medium">{submission.submitterName}</p>
+                          <p className="text-xs text-slate-600">{submission.emailAddress}</p>
+                        </div>
+                      </td>
+                      <td className="p-3 capitalize">{submission.requestType.replace("-", " ")}</td>
+                      <td className="p-3">{submission.teamName || "N/A"}</td>
+                      <td className="p-3">
+                        <span className={`px-2 py-1 rounded text-xs capitalize ${getStatusColor(submission.status)}`}>
+                          {submission.status.replace("_", " ")}
+                        </span>
+                      </td>
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-16 bg-slate-200 rounded-full h-2">
+                            <div 
+                              className="bg-emerald-600 h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${submission.progress || 0}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-xs text-slate-600">{submission.progress || 0}%</span>
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setSelectedSubmission(submission)}
+                          >
+                            <Eye className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => downloadFilesMutation.mutate(submission.id)}
+                            disabled={downloadFilesMutation.isPending}
+                          >
+                            <Download className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => deleteSubmissionMutation.mutate(submission.id)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Submission Detail Modal */}
+      {selectedSubmission && (
+        <Dialog open={!!selectedSubmission} onOpenChange={() => setSelectedSubmission(null)}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Print Submission Details</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold text-slate-900 mb-2">Submitter Information</h3>
+                    <div className="space-y-1 text-sm">
+                      <p><span className="font-medium">Name:</span> {selectedSubmission.submitterName}</p>
+                      <p><span className="font-medium">Email:</span> {selectedSubmission.emailAddress}</p>
+                      <p><span className="font-medium">Team:</span> {selectedSubmission.teamName || "N/A"}</p>
+                      <p><span className="font-medium">Submitted:</span> {new Date(selectedSubmission.submittedAt).toLocaleString()}</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="font-semibold text-slate-900 mb-2">Request Details</h3>
+                    <div className="space-y-1 text-sm">
+                      <p><span className="font-medium">Type:</span> {selectedSubmission.requestType.replace("-", " ")}</p>
+                      <p><span className="font-medium">Status:</span> {selectedSubmission.status.replace("_", " ")}</p>
+                      <p><span className="font-medium">Progress:</span> {selectedSubmission.progress || 0}%</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold text-slate-900 mb-2">Update Status</h3>
+                    <div className="space-y-3">
+                      <Select 
+                        value={selectedSubmission.status} 
+                        onValueChange={(status) => 
+                          updateStatusMutation.mutate({ 
+                            id: selectedSubmission.id, 
+                            status,
+                            progress: selectedSubmission.progress 
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="submitted">Submitted</SelectItem>
+                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Progress: {selectedSubmission.progress || 0}%</label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={selectedSubmission.progress || 0}
+                          onChange={(e) => {
+                            const progress = parseInt(e.target.value);
+                            updateStatusMutation.mutate({
+                              id: selectedSubmission.id,
+                              status: selectedSubmission.status,
+                              progress
+                            });
+                          }}
+                          className="w-full"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {selectedSubmission.generalPrintDescription && (
+                <div>
+                  <h3 className="font-semibold text-slate-900 mb-2">Description</h3>
+                  <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded">
+                    {selectedSubmission.generalPrintDescription}
+                  </p>
+                </div>
+              )}
+
+              {selectedSubmission.fileSpecifications && (
+                <div>
+                  <h3 className="font-semibold text-slate-900 mb-2">File Specifications</h3>
+                  <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded">
+                    {selectedSubmission.fileSpecifications}
+                  </p>
+                </div>
+              )}
+
+              {selectedSubmission.comments && (
+                <div>
+                  <h3 className="font-semibold text-slate-900 mb-2">Comments</h3>
+                  <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded">
+                    {selectedSubmission.comments}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-4">
+                <Button
+                  onClick={() => downloadFilesMutation.mutate(selectedSubmission.id)}
+                  disabled={downloadFilesMutation.isPending}
+                  className="flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Download Files
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setSelectedSubmission(null)}
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
+}
+
+// Absence Management Section
+function AbsenceManagementSection() {
+  return (
+    <div>
+      Absence Management Section Content
+    </div>
+  );
+}
+
+  const [activeSection, setActiveSection] = useState<"overview" | "applications" | "teams" | "projects" | "settings" | "event-attendance" | "print-management">("overview");
+
+  const deleteAttendanceMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/event-attendance/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/event-attendance"] });
+      toast({
+        title: "Attendance Record Deleted",
+        description: "Attendance record has been deleted.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete attendance record.",
+        variant: "destructive",
+      });
+    },
+  });
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <h1 className="text-3xl font-bold text-slate-900">GRiP Admin Dashboard</h1>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-8">
-          <TabsTrigger value="overview">
-            <BarChart3 className="w-4 h-4 mr-2" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="teams">
-            <Users className="w-4 h-4 mr-2" />
-            Technical Teams
-          </TabsTrigger>
-          <TabsTrigger value="members">
-            <UserCheck className="w-4 h-4 mr-2" />
-            Members
-          </TabsTrigger>
-          <TabsTrigger value="submissions">
-            <Inbox className="w-4 h-4 mr-2" />
-            Submissions
-          </TabsTrigger>
-          <TabsTrigger value="projects">
-            <Wand2 className="w-4 h-4 mr-2" />
-            Projects
-          </TabsTrigger>
-          <TabsTrigger value="events">
-            <CalendarX className="w-4 h-4 mr-2" />
-            Events
-          </TabsTrigger>
-          <TabsTrigger value="settings">
-            <Settings className="w-4 h-4 mr-2" />
-            Settings
-          </TabsTrigger>
-        </TabsList>
+      <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-6">
+        {/* Sidebar */}
+        <aside className="hidden lg:block">
+          <nav className="space-y-2">
+            <Button
+              variant={activeSection === "overview" ? "default" : "ghost"}
+              onClick={() => setActiveSection("overview")}
+              className="justify-start"
+            >
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Overview
+            </Button>
+            <Button
+              variant={activeSection === "applications" ? "default" : "ghost"}
+              onClick={() => setActiveSection("applications")}
+              className="justify-start"
+            >
+              <Inbox className="w-4 h-4 mr-2" />
+              Applications
+            </Button>
+            <Button
+              variant={activeSection === "teams" ? "default" : "ghost"}
+              onClick={() => setActiveSection("teams")}
+              className="justify-start"
+            >
+              <Users className="w-4 h-4 mr-2" />
+              Teams
+            </Button>
+            <Button
+              variant={activeSection === "projects" ? "default" : "ghost"}
+              onClick={() => setActiveSection("projects")}
+              className="justify-start"
+            >
+              <Wand2 className="w-4 h-4 mr-2" />
+              Projects
+            </Button>
+            <Button
+              variant={activeSection === "settings" ? "default" : "ghost"}
+              onClick={() => setActiveSection("settings")}
+              className="justify-start"
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Settings
+            </Button>
+            <Button
+              variant={activeSection === "event-attendance" ? "default" : "ghost"}
+              onClick={() => setActiveSection("event-attendance")}
+              className="justify-start"
+            >
+              <Camera className="w-4 h-4 mr-2" />
+              Event Attendance
+            </Button>
 
-        {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Applications</CardTitle>
-                <Inbox className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats?.totalApplications || 0}</div>
-                <p className="text-xs text-muted-foreground">
-                  {stats?.assignedApplications || 0} assigned, {stats?.waitlistedApplications || 0} waitlisted
-                </p>
-              </CardContent>
-            </Card>
+            <Button
+              variant={activeSection === "print-management" ? "default" : "ghost"}
+              onClick={() => setActiveSection("print-management")}
+              className="justify-start"
+            >
+              <Printer className="w-4 h-4 mr-2" />
+              Print Management
+            </Button>
+          </nav>
+        </aside>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Teams</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats?.totalTeams || 0}</div>
-                <p className="text-xs text-muted-foreground">
-                  {stats?.filledTeams || 0} at capacity
-                </p>
-              </CardContent>
-            </Card>
+        {/* Main Content */}
+        <main className="space-y-6">
+          {activeSection === "overview" && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Applications</CardTitle>
+                    <Inbox className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stats?.totalApplications || 0}</div>
+                    <p className="text-xs text-muted-foreground">
+                      {stats?.assignedApplications || 0} assigned, {stats?.waitlistedApplications || 0} waitlisted
+                    </p>
+                  </CardContent>
+                </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Project Requests</CardTitle>
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats?.totalProjectRequests || 0}</div>
-                <p className="text-xs text-muted-foreground">
-                  External project submissions
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Teams</CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stats?.totalTeams || 0}</div>
+                    <p className="text-xs text-muted-foreground">
+                      {stats?.filledTeams || 0} at capacity
+                    </p>
+                  </CardContent>
+                </Card>
 
-        {/* Teams Tab */}
-        <TabsContent value="teams" className="space-y-6">
-          <Card>
-            <CardHeader className="flex flex-row justify-between items-center">
-              <CardTitle>Team Management</CardTitle>
-              <p className="text-sm text-slate-600">
-                Use the "Create Team" tab to add new teams
-              </p>
-            </CardHeader>
-            <CardContent>
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Existing Teams</h3>
-                <div className="space-y-4 max-h-96 overflow-y-auto">
-                  {teams.filter(team => team.type === "constant").map((team) => (
-                    <Card key={team.id} className="p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-medium">{team.name}</h4>
-                          <p className="text-sm text-gray-600">{team.description}</p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Capacity: {team.currentSize}/{team.maxCapacity} | {team.meetingTime}
-                          </p>
-                        </div>
-                        <Badge variant="secondary">
-                          {team.type}
-                        </Badge>
-                      </div>
-                    </Card>
-                  ))}</div>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Project Requests</CardTitle>
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stats?.totalProjectRequests || 0}</div>
+                    <p className="text-xs text-muted-foreground">
+                      External project submissions
+                    </p>
+                  </Card</CardContent>
+                </Card>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          )}
 
-          {/* Team Assignments - Accepted and Assigned Members */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Team Assignments (Active Members)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4">
-                {teams.map((team) => {
-                  const teamMembers = acceptedMembers.filter(member => member.assignedTeamId === team.id);
-                  return (
-                    <Card key={team.id} className="p-4">
-                      <div className="flex justify-between items-center mb-3">
-                        <h4 className="font-medium">{team.name}</h4>
-                        <Badge variant="outline">
-                          {teamMembers.length}/{team.maxCapacity} members
-                        </Badge>
-                      </div>
-
-                      {teamMembers.length > 0 ? (
-                        <div className="space-y-2">
-                          {teamMembers.map((member) => {
-                            const memberAbsences = absences.filter(absence => 
-                              absence.applicationId === member.id && absence.isActive
-                            );
-                            const absenceCount = memberAbsences.length;
-
-                            const getAbsenceColor = (count: number) => {
-                              if (count === 0) return "text-green-600";
-                              if (count === 1) return "text-yellow-600";
-                              if (count === 2) return "text-orange-600";
-                              return "text-red-600";
-                            };
-
-                            return (
-                              <div key={member.id} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded hover:bg-gray-100">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-medium">{member.fullName}</span>
-                                    {absenceCount > 0 && (
-                                      <Badge variant="outline" className={`text-xs ${getAbsenceColor(absenceCount)} border-current`}>
-                                        {absenceCount} absence{absenceCount !== 1 ? 's' : ''}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  <div className="text-sm text-gray-500">
-                                    {member.email} | UFID: {member.ufid}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={async () => {
-                                      const reason = prompt("Reason for absence (optional):");
-                                      const date = new Date().toISOString().split('T')[0];
-
-                                      try {
-                                        await fetch('/api/absences', {
-                                          method: 'POST',
-                                          headers: { 'Content-Type': 'application/json' },
-                                          body: JSON.stringify({
-                                            applicationId: member.id,
-                                            reason: reason || '',
-                                            startDate: date
-                                          })
-                                        });
-                                        toast({ title: "Absence added successfully" });
-                                        queryClient.invalidateQueries({ queryKey: ['/api/absences'] });
-                                        queryClient.invalidateQueries({ queryKey: ['/api/accepted-members'] });
-                                      } catch (error) {
-                                        toast({ title: "Failed to add absence", variant: "destructive" });
-                                      }
-                                    }}
-                                  >
-                                    <CalendarX className="w-3 h-3" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() => {
-                                      if (confirm(`Are you sure you want to remove ${member.fullName} from the system?`)) {
-                                        handleDeleteMember(member.id);
-                                      }
-                                    }}
-                                    disabled={deleteMemberMutation.isPending}
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-gray-500 italic">No active members assigned</p>
-                      )}
-                    </Card>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Members Tab */}
-        <TabsContent value="members" className="space-y-6">
-          <Card>
-            <CardHeader className="flex flex-row justify-between items-center">
-              <CardTitle>Current Members (Accepted & Assigned)</CardTitle>
-              <div className="flex gap-2">
-                <Button onClick={handleExportMembers} variant="outline" size="sm">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export CSV
-                </Button>
-                <Button 
-                  onClick={() => {
-                    if (confirm("Are you sure you want to remove ALL members from all teams? This action cannot be undone.")) {
-                      removeAllMembersMutation.mutate();
-                    }
-                  }}
-                  variant="destructive" 
-                  size="sm"
-                  disabled={removeAllMembersMutation.isPending}
-                >
-                  <UserMinus className="w-4 h-4 mr-2" />
-                  {removeAllMembersMutation.isPending ? "Removing..." : "Remove All Members"}
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-4 mb-4">
-                <div className="flex-1">
-                  <Input
-                    placeholder="Search members by name, email, or UFID..."
-                    value={memberSearchTerm}
-                    onChange={(e) => setMemberSearchTerm(e.target.value)}
-                    className="w-full"
-                  />
+          {activeSection === "applications" && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-slate-900">Application Submissions</h2>
+                <div className="flex gap-2">
+                  <Button onClick={() => autoAssignMutation.mutate()} variant="default" size="sm" disabled={autoAssignMutation.isPending}>
+                    <Wand2 className="w-4 h-4 mr-2" />
+                    {autoAssignMutation.isPending ? "Assigning..." : "Auto Assign Teams"}
+                  </Button>
+                  <Button onClick={handleExportApplications} variant="outline" size="sm">
+                    <Download className="w-4 h-4 mr-2" />
+                    Export CSV
+                  </Button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Members List */}
-                <div className="lg:col-span-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Application Submissions</CardTitle>
+                  <CardDescription>Manage submitted applications</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex gap-4 mb-4">
+                    <div className="flex-1">
+                      <Input
+                        placeholder="Search applications by name, email, or UFID..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full"
+                      />
+                    </div>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger className="w-48">
+                        <SelectValue placeholder="Filter by status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Statuses</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="waitlisted">Waitlisted</SelectItem>
+                        <SelectItem value="rejected">Rejected</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {filteredMembers.map((member) => {
-                      // Calculate absence count from absences data
-                      const absenceCount = absences.filter(absence => 
-                        absence.applicationId === member.id && absence.isActive
-                      ).length;
+                    {filteredApplications.map((application) => (
+                      <Card key={application.id} className="p-4">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h4 className="font-medium">{application.fullName}</h4>
+                              <Badge variant={
+                                application.status === "accepted" ? "default" :
+                                application.status === "waitlisted" ? "secondary" :
+                                application.status === "rejected" ? "destructive" : "outline"
+                              }>
+                                {application.status}
+                              </Badge>
+                            </div>
 
-                      // Determine card color based on absence count
-                      const getCardColor = (count: number) => {
-                        if (count === 0) return "border-green-300 bg-green-50"; // Green - No absences
-                        if (count === 1) return "border-yellow-300 bg-yellow-50"; // Yellow - 1 absence
-                        if (count === 2) return "border-orange-300 bg-orange-50"; // Orange - 2 absences
-                        return "border-red-300 bg-red-50"; // Red - 3+ absences
-                      };
+                            <div className="text-sm text-gray-600 space-y-1">
+                              <div>{application.email} | UFID: {application.ufid}</div>
+                              <div>Assigned Team: {getTeamName(application.assignedTeamId)}</div>
+                              <div>Submitted: {new Date(application.submittedAt).toLocaleDateString()}</div>
 
-                      const getAbsenceStatus = (count: number) => {
-                        if (count === 0) return { text: "Good Standing", color: "text-green-700" };
-                        if (count === 1) return { text: "1 Absence", color: "text-yellow-700" };
-                        if (count === 2) return { text: "2 Absences", color: "text-orange-700" };
-                        return { text: `${count} Absences`, color: "text-red-700" };
-                      };
+                              {application.teamPreferences && application.teamPreferences.length > 0 && (
+                                <div className="mt-2">
+                                  <span className="text-xs font-medium text-gray-700">Team Preferences:</span>
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {application.teamPreferences.map((teamId, index) => (
+                                      <Badge key={teamId} variant="outline" className="text-xs bg-blue-50 border-blue-200 text-blue-800">
+                                        #{index + 1} {getTeamName(teamId)}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
 
-                      const status = getAbsenceStatus(absenceCount);
+                          <div className="flex gap-2">
+                            <Select
+                              value={application.status}
+                              onValueChange={(status) => handleUpdateApplicationStatus(application.id, status)}
+                            >
+                              <SelectTrigger className="w-32">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="assigned">Assign</SelectItem>
+                                <SelectItem value="waitlisted">Waitlist</SelectItem>
+                              </SelectContent>
+                            </Select>
 
-                      return (
-                        <Card 
-                          key={member.id} 
-                          className={`p-3 cursor-pointer transition-colors border-2 ${getCardColor(absenceCount)} ${
-                            selectedMember?.id === member.id ? "ring-2 ring-blue-400" : "hover:shadow-md"
-                          }`}
-                          onClick={() => setSelectedMember(member)}
-                        >
-                          <div className="flex justify-between items-center">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <h4 className="font-medium">{member.fullName}</h4>
-                                <Badge 
-                                  variant="outline" 
-                                  className={`text-xs ${status.color} border-current`}
-                                >
-                                  {status.text}
-                                </Badge>
-                              </div>
-                              <p className="text-sm text-gray-600">{member.email}</p>
-                              <p className="text-xs text-gray-500">
-                                {getTeamName(member.assignedTeamId)} | UFID: {member.ufid}
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleDeleteApplication(application.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {activeSection === "teams" && (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader className="flex flex-row justify-between items-center">
+                  <CardTitle>Team Management</CardTitle>
+                  <p className="text-sm text-slate-600">
+                    Use the "Create Team" tab to add new teams
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4">Existing Teams</h3>
+                    <div className="space-y-4 max-h-96 overflow-y-auto">
+                      {teams.filter(team => team.type === "constant").map((team) => (
+                        <Card key={team.id} className="p-4">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h4 className="font-medium">{team.name}</h4>
+                              <p className="text-sm text-gray-600">{team.description}</p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                Capacity: {team.currentSize}/{team.maxCapacity} | {team.meetingTime}
                               </p>
                             </div>
-                            <Button
-                                type="button"
-                                variant="destructive"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (confirm(`Are you sure you want to remove ${member.fullName} from the system?`)) {
-                                    handleDeleteMember(member.id);
-                                  }
-                                }}
-                                disabled={deleteMemberMutation.isPending}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                            <Badge variant="secondary">
+                              {team.type}
+                            </Badge>
                           </div>
+                        </Card>
+                      ))}</div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Team Assignments - Accepted and Assigned Members */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Team Assignments (Active Members)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4">
+                    {teams.map((team) => {
+                      const teamMembers = acceptedMembers.filter(member => member.assignedTeamId === team.id);
+                      return (
+                        <Card key={team.id} className="p-4">
+                          <div className="flex justify-between items-center mb-3">
+                            <h4 className="font-medium">{team.name}</h4>
+                            <Badge variant="outline">
+                              {teamMembers.length}/{team.maxCapacity} members
+                            </Badge>
+                          </div>
+
+                          {teamMembers.length > 0 ? (
+                            <div className="space-y-2">
+                              {teamMembers.map((member) => {
+                                const memberAbsences = absences.filter(absence =>
+                                  absence.applicationId === member.id && absence.isActive
+                                );
+                                const absenceCount = memberAbsences.length;
+
+                                const getAbsenceColor = (count: number) => {
+                                  if (count === 0) return "text-green-600";
+                                  if (count === 1) return "text-yellow-600";
+                                  if (count === 2) return "text-orange-600";
+                                  return "text-red-600";
+                                };
+
+                                return (
+                                  <div key={member.id} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded hover:bg-gray-100">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">{member.fullName}</span>
+                                        {absenceCount > 0 && (
+                                          <Badge variant="outline" className={`text-xs ${getAbsenceColor(absenceCount)} border-current`}>
+                                            {absenceCount} absence{absenceCount !== 1 ? 's' : ''}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      <div className="text-sm text-gray-500">
+                                        {member.email} | UFID: {member.ufid}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={async () => {
+                                          const reason = prompt("Reason for absence (optional):");
+                                          const date = new Date().toISOString().split('T')[0];
+
+                                          try {
+                                            await fetch('/api/absences', {
+                                              method: 'POST',
+                                              headers: { 'Content-Type': 'application/json' },
+                                              body: JSON.stringify({
+                                                applicationId: member.id,
+                                                reason: reason || '',
+                                                startDate: date
+                                              })
+                                            });
+                                            toast({ title: "Absence added successfully" });
+                                            queryClient.invalidateQueries({ queryKey: ['/api/absences'] });
+                                            queryClient.invalidateQueries({ queryKey: ['/api/accepted-members'] });
+                                          } catch (error) {
+                                            toast({ title: "Failed to add absence", variant: "destructive" });
+                                          }
+                                        }}
+                                      >
+                                        <CalendarX className="w-3 h-3" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="destructive"
+                                        onClick={() => {
+                                          if (confirm(`Are you sure you want to remove ${member.fullName} from the system?`)) {
+                                            handleDeleteMember(member.id);
+                                          }
+                                        }}
+                                        disabled={deleteMemberMutation.isPending}
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-500 italic">No active members assigned</p>
+                          )}
                         </Card>
                       );
                     })}
                   </div>
-                </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
-                {/* Member Details Panel */}
-                <div>
-                  {selectedMember ? (
-                    <Card className="p-4">
-                      <h4 className="font-semibold mb-3">Member Details</h4>
-                      <div className="space-y-2 text-sm">
-                        <div><strong>Name:</strong> {selectedMember.fullName}</div>
-                        <div><strong>Email:</strong> {selectedMember.email}</div>
-                        <div><strong>UFID:</strong> {selectedMember.ufid}</div>
-                        <div><strong>Team:</strong> {getTeamName(selectedMember.assignedTeamId)}</div>
-                        <div><strong>Status:</strong> {selectedMember.status}</div>
-                        <div><strong>Points:</strong> {selectedMember.points || 0}</div>
-                        <div><strong>Events Attended:</strong> {Array.isArray(selectedMember.events) ? selectedMember.events.length : 0}</div>
-                        <div><strong>Submitted:</strong> {new Date(selectedMember.submittedAt).toLocaleDateString()}</div>
-
-                        {selectedMember.skills && (
-                          <div>
-                            <strong>Skills:</strong>
-                            <div className="mt-1 flex flex-wrap gap-1">
-                              {(selectedMember.skills as string[]).map((skill, index) => (
-                                <Badge key={index} variant="outline" className="text-xs">
-                                  {skill}
-                                </Badge>
-                              ))}
+          {activeSection === "projects" && (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader className="flex flex-row justify-between items-center">
+                  <div>
+                    <CardTitle>Project Requests</CardTitle>
+                    <CardDescription>
+                      Manage submitted project requests
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={() => {
+                      if (confirm("Are you sure you want to delete ALL project requests? This action cannot be undone.")) {
+                        const deletePromises = projectRequests.map(project =>
+                          apiRequest("DELETE", `/api/project-requests/${project.id}`)
+                        );
+                        Promise.all(deletePromises).then(() => {
+                          toast({
+                            title: "All Project Requests Deleted",
+                            description: `${projectRequests.length} project requests have been deleted.`,
+                          });
+                          queryClient.invalidateQueries({ queryKey: ["/api/project-requests"] });
+                        }).catch(() => {
+                          toast({
+                            title: "Error",
+                            description: "Failed to delete all project requests.",
+                            variant: "destructive",
+                          });
+                        });
+                      }
+                    }}
+                    variant="destructive"
+                    size="sm"
+                    disabled={!projectRequests || projectRequests.length === 0}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Remove All Projects
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {projectRequests?.map((request) => (
+                      <Card key={request.id} className="p-4">
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-start">
+                            <h4 className="font-medium">{request.projectTitle}</h4>
+                            <div className="flex items-center gap-2">
+                              <Badge variant={
+                                request.status === "approved" ? "default" :
+                                request.status === "rejected" ? "destructive" :
+                                request.status === "reaching_out" ? "secondary" : "outline"
+                              }>
+                                {request.status === "reaching_out" ? "Reaching Out" : request.status}
+                              </Badge>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => deleteProjectRequestMutation.mutate(request.id)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
                             </div>
                           </div>
-                        )}
 
-                        {/* Absence Management */}
-                        <div className="mt-4 space-y-2">
-                          <div className="flex justify-between items-center">
-                            <h5 className="font-medium text-sm">Absences</h5>
-                            <Badge variant="outline">
-                              {absences.filter(absence => 
-                                absence.applicationId === selectedMember.id && absence.isActive
-                              ).length}
-                            </Badge>
-                          </div>
+                          <p className="text-sm text-gray-600">{request.description}</p>
 
-                          <div className="max-h-32 overflow-y-auto space-y-1">
-                            {absences
-                              .filter(absence => absence.applicationId === selectedMember.id && absence.isActive)
-                              .map(absence => (
-                                <div key={absence.id} className="text-xs p-2 bg-gray-50 rounded flex justify-between items-center">
-                                  <div>
-                                    <div className="font-medium">
-                                      {new Date(absence.startDate).toLocaleDateString()}
-                                    </div>
-                                    {absence.reason && (
-                                      <div className="text-gray-500">{absence.reason}</div>
-                                    )}
-                                  </div>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={async () => {
-                                      try {
-                                        await fetch(`/api/absences/${absence.id}`, {
-                                          method: 'DELETE'
-                                        });
-                                        toast({ title: "Absence removed successfully" });
-                                        queryClient.invalidateQueries({ queryKey: ['/api/absences'] });
-                                        queryClient.invalidateQueries({ queryKey: ['/api/accepted-members'] });
-                                      } catch (error) {
-                                        toast({ title: "Failed to remove absence", variant: "destructive" });
-                                      }
-                                    }}
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </Button>
-                                </div>
-                              ))}
-                            {absences.filter(absence => 
-                              absence.applicationId === selectedMember.id && absence.isActive
-                            ).length === 0 && (
-                              <div className="text-sm text-gray-500">No absences recorded</div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-500">
+                            <div>Submitted by: {request.fullName} ({request.email})</div>
+                            <div>Phone: {request.phone || 'Not provided'}</div>
+                            {request.address && (
+                              <div className="md:col-span-2">Address: {request.address}</div>
                             )}
+                            <div>Submitted: {new Date(request.submittedAt).toLocaleDateString()}</div>
                           </div>
 
-                          <div className="flex gap-2">
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className="flex-1"
-                              onClick={async () => {
-                                const reason = prompt("Reason for absence (optional):");
-                                const date = new Date().toISOString().split('T')[0];
-
-                                try {
-                                  await fetch('/api/absences', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                      applicationId: selectedMember.id,
-                                      reason: reason || '',
-                                      startDate: date
-                                    })
-                                  });
-                                  toast({ title: "Absence added successfully" });
-                                  queryClient.invalidateQueries({ queryKey: ['/api/absences'] });
-                                  queryClient.invalidateQueries({ queryKey: ['/api/accepted-members'] });
-                                } catch (error) {
-                                  toast({ title: "Failed to add absence", variant: "destructive" });
+                          <div className="flex flex-wrap gap-2 pt-2">
+                            <Select
+                              value={request.status}
+                              onValueChange={(status) => {
+                                if (status === "reaching_out") {
+                                  // Prompt for responsible person name
+                                  const responsiblePerson = prompt("Enter the name of the person responsible for reaching out:");
+                                  if (responsiblePerson) {
+                                    handleUpdateProjectRequest(request.id, { status });
+                                  }
+                                } else {
+                                  handleUpdateProjectRequest(request.id, { status });
                                 }
                               }}
                             >
-                              <CalendarX className="w-4 h-4 mr-2" />
-                              Add Absence
-                            </Button>
+                              <SelectTrigger className="w-40">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="reaching_out">Reaching Out</SelectItem>
+                                <SelectItem value="approved">Approved</SelectItem>
+                                <SelectItem value="rejected">Rejected</SelectItem>
+                              </SelectContent>
+                            </Select>
+
+                            {request.status === "reaching_out" && (
+                              <Input
+                                placeholder="Update responsible person"
+                                className="w-48"
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    const target = e.target as HTMLInputElement;
+                                    if (target.value.trim()) {
+                                      handleUpdateProjectRequest(request.id, {
+                                        status: "reaching_out"
+                                      });
+                                      target.value = "";
+                                    }
+                                  }
+                                }}
+                              />
+                            )}
+
+                            {request.status === "approved" && (
+                              <Button
+                                size="sm"
+                                onClick={() => handleConvertToTeam(request)}
+                                disabled={convertToTeamMutation.isPending}
+                              >
+                                {convertToTeamMutation.isPending ? "Converting..." : "Convert to Team"}
+                              </Button>
+                            )}
                           </div>
                         </div>
+                      </Card>
+                    ))}
+
+                    {(!projectRequests || projectRequests.length === 0) && (
+                      <div className="text-center py-8 text-gray-500">
+                        No project requests submitted yet.
                       </div>
-                    </Card>
-                  ) : (
-                    <Card className="p-4">
-                      <p className="text-gray-500 text-center">
-                        Select a member to view details
-                      </p>
-                    </Card>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
-        {/* Submissions Tab */}
-        <TabsContent value="submissions" className="space-y-6">
-          <Card>
-            <CardHeader className="flex flex-row justify-between items-center">
-              <CardTitle>Application Submissions</CardTitle>
-              <div className="flex gap-2">
-                <Button 
-                  onClick={() => autoAssignMutation.mutate()} 
-                  variant="default" 
-                  size="sm"
-                  disabled={autoAssignMutation.isPending}
-                >
-                  <Wand2 className="w-4 h-4 mr-2" />
-                  {autoAssignMutation.isPending ? "Assigning..." : "Auto Assign Teams"}
-                </Button>
-                <Button onClick={handleExportApplications} variant="outline" size="sm">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export CSV
-                </Button>
-                <Button 
-                  onClick={() => {
-                    if (confirm("Are you sure you want to delete ALL submissions? This action cannot be undone.")) {
-                      // Delete all applications that are not assigned
-                      const deletePromises = filteredApplications.map(app => 
-                        apiRequest("DELETE", `/api/applications/${app.id}`)
-                      );
-                      Promise.all(deletePromises).then(() => {
-                        toast({
-                          title: "All Submissions Deleted",
-                          description: `${filteredApplications.length} submissions have been deleted.`,
-                        });
-                        queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
-                        queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
-                      }).catch(() => {
-                        toast({
-                          title: "Error",
-                          description: "Failed to delete all submissions.",
-                          variant: "destructive",
-                        });
-                      });
-                    }
-                  }}
-                  variant="destructive" 
-                  size="sm"
-                  disabled={filteredApplications.length === 0}
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Remove All Submissions
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-4 mb-4">
-                <div className="flex-1">
-                  <Input
-                    placeholder="Search applications by name, email, or UFID..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full"
-                  />
-                </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Filter by status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="waitlisted">Waitlisted</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {filteredApplications.map((application) => (
-                  <Card key={application.id} className="p-4">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h4 className="font-medium">{application.fullName}</h4>
-                          <Badge variant={
-                            application.status === "accepted" ? "default" :
-                            application.status === "waitlisted" ? "secondary" :
-                            application.status === "rejected" ? "destructive" : "outline"
-                          }>
-                            {application.status}
-                          </Badge>
+          {activeSection === "settings" && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Domain Configuration */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Domain Configuration</CardTitle>
+                    <CardDescription>
+                      Manage allowed email domains for applications (@ufl.edu examples)
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-3 border rounded-lg">
+                        <div>
+                          <div className="font-medium">student@ufl.edu</div>
+                          <div className="text-sm text-gray-500">University of Florida students</div>
                         </div>
-
-                        <div className="text-sm text-gray-600 space-y-1">
-                          <div>{application.email} | UFID: {application.ufid}</div>
-                          <div>Assigned Team: {getTeamName(application.assignedTeamId)}</div>
-                          <div>Submitted: {new Date(application.submittedAt).toLocaleDateString()}</div>
-
-                          {application.teamPreferences && application.teamPreferences.length > 0 && (
-                            <div className="mt-2">
-                              <span className="text-xs font-medium text-gray-700">Team Preferences:</span>
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {application.teamPreferences.map((teamId, index) => (
-                                  <Badge key={teamId} variant="outline" className="text-xs bg-blue-50 border-blue-200 text-blue-800">
-                                    #{index + 1} {getTeamName(teamId)}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
+                        <Badge variant="default">Active</Badge>
                       </div>
 
+                      <div className="flex items-center justify-between p-3 border rounded-lg">
+                        <div>
+                          <div className="font-medium">alumni@ufl.edu</div>
+                          <div className="text-sm text-gray-500">University of Florida alumni</div>
+                        </div>
+                        <Badge variant="default">Active</Badge>
+                      </div>
+
+                      <div className="flex items-center justify-between p-3 border rounded-lg">
+                        <div>
+                          <div className="font-medium">faculty@ufl.edu</div>
+                          <div className="text-sm text-gray-500">University of Florida faculty</div>
+                        </div>
+                        <Badge variant="default">Active</Badge>
+                      </div>
+
+                      <div className="flex items-center justify-between p-3 border rounded-lg">
+                        <div>
+                          <div className="font-medium">staff@ufl.edu</div>
+                          <div className="text-sm text-gray-500">University of Florida staff</div>
+                        </div>
+                        <Badge variant="secondary">Inactive</Badge>
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t">
                       <div className="flex gap-2">
-                        <Select 
-                          value={application.status} 
-                          onValueChange={(status) => handleUpdateApplicationStatus(application.id, status)}
-                        >
-                          <SelectTrigger className="w-32">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="assigned">Assign</SelectItem>
-                            <SelectItem value="waitlisted">Waitlist</SelectItem>
-                          </SelectContent>
-                        </Select>
-
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleDeleteApplication(application.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
+                        <Input placeholder="Add new domain (e.g., @ufl.edu)" className="flex-1" />
+                        <Button size="sm">
+                          <Plus className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                  </CardContent>
+                </Card>
 
-        {/* Projects Tab */}
-        <TabsContent value="projects">
-          <Card>
-            <CardHeader className="flex flex-row justify-between items-center">
-              <div>
-                <CardTitle>Project Requests</CardTitle>
-                <CardDescription>
-                  Manage submitted project requests
-                </CardDescription>
-              </div>
-              <Button 
-                onClick={() => {
-                  if (confirm("Are you sure you want to delete ALL project requests? This action cannot be undone.")) {
-                    const deletePromises = projectRequests.map(project => 
-                      apiRequest("DELETE", `/api/project-requests/${project.id}`)
-                    );
-                    Promise.all(deletePromises).then(() => {
-                      toast({
-                        title: "All Project Requests Deleted",
-                        description: `${projectRequests.length} project requests have been deleted.`,
-                      });
-                      queryClient.invalidateQueries({ queryKey: ["/api/project-requests"] });
-                    }).catch(() => {
-                      toast({
-                        title: "Error",
-                        description: "Failed to delete all project requests.",
-                        variant: "destructive",
-                      });
-                    });
-                  }
-                }}
-                variant="destructive" 
-                size="sm"
-                disabled={!projectRequests || projectRequests.length === 0}
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Remove All Projects
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {projectRequests?.map((request) => (
-                  <Card key={request.id} className="p-4">
+                {/* Form Settings */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Form Settings</CardTitle>
+                    <CardDescription>
+                      Configure application deadlines and form behavior
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
                     <div className="space-y-3">
-                      <div className="flex justify-between items-start">
-                        <h4 className="font-medium">{request.projectTitle}</h4>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={
-                            request.status === "approved" ? "default" :
-                            request.status === "rejected" ? "destructive" :
-                            request.status === "reaching_out" ? "secondary" : "outline"
-                          }>
-                            {request.status === "reaching_out" ? "Reaching Out" : request.status}
-                          </Badge>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => deleteProjectRequestMutation.mutate(request.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-
-                      <p className="text-sm text-gray-600">{request.description}</p>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-500">
-                        <div>Submitted by: {request.fullName} ({request.email})</div>
-                        <div>Phone: {request.phone || 'Not provided'}</div>
-                        {request.address && (
-                          <div className="md:col-span-2">Address: {request.address}</div>
-                        )}
-                        <div>Submitted: {new Date(request.submittedAt).toLocaleDateString()}</div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2 pt-2">
-                        <Select 
-                          value={request.status} 
-                          onValueChange={(status) => {
-                            if (status === "reaching_out") {
-                              // Prompt for responsible person name
-                              const responsiblePerson = prompt("Enter the name of the person responsible for reaching out:");
-                              if (responsiblePerson) {
-                                handleUpdateProjectRequest(request.id, { status });
-                              }
-                            } else {
-                              handleUpdateProjectRequest(request.id, { status });
+                      <div>
+                        <label className="text-sm font-medium">Application Deadline</label>
+                        <Input
+                          type="date"
+                          defaultValue="2024-02-15"
+                          className="mt-1"
+                          onChange={async (e) => {
+                            try {
+                              await fetch('/api/admin/settings', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  key: 'application_deadline',
+                                  value: e.target.value
+                                })
+                              });
+                              toast({ title: "Deadline updated successfully" });
+                            } catch (error) {
+                              toast({ title: "Failed to update deadline", variant: "destructive" });
                             }
                           }}
-                        >
-                          <SelectTrigger className="w-40">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="reaching_out">Reaching Out</SelectItem>
-                            <SelectItem value="approved">Approved</SelectItem>
-                            <SelectItem value="rejected">Rejected</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Applications will be closed after this date
+                        </p>
+                      </div>
 
-                        {request.status === "reaching_out" && (
-                          <Input
-                            placeholder="Update responsible person"
-                            className="w-48"
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                const target = e.target as HTMLInputElement;
-                                if (target.value.trim()) {
-                                  handleUpdateProjectRequest(request.id, { 
-                                    status: "reaching_out" 
-                                  });
-                                  target.value = "";
-                                }
-                              }
-                            }}
+                      <div>
+                        <label className="text-sm font-medium">Maximum Team Preferences</label>
+                        <Input
+                          type="number"
+                          defaultValue="3"
+                          min="1"
+                          max="9"
+                          className="mt-1"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Maximum number of teams students can rank
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-medium">Require UFID Validation</div>
+                          <div className="text-xs text-gray-500">Enforce 8-digit UFID format</div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            defaultChecked
+                            className="rounded border-gray-300"
                           />
-                        )}
+                        </div>
+                      </div>
 
-                        {request.status === "approved" && (
-                          <Button
-                            size="sm"
-                            onClick={() => handleConvertToTeam(request)}
-                            disabled={convertToTeamMutation.isPending}
-                          >
-                            {convertToTeamMutation.isPending ? "Converting..." : "Convert to Team"}
-                          </Button>
-                        )}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-medium">Auto-assign Teams</div>
+                          <div className="text-xs text-gray-500">Automatically assign students to teams</div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            defaultChecked
+                            className="rounded border-gray-300"
+                          />
+                        </div>
                       </div>
                     </div>
-                  </Card>
-                ))}
 
-                {(!projectRequests || projectRequests.length === 0) && (
-                  <div className="text-center py-8 text-gray-500">
-                    No project requests submitted yet.
-                  </div>
-                )}
+                    <div className="pt-4 border-t">
+                      <Button variant="outline" size="sm" className="w-full">
+                        <Save className="w-4 h-4 mr-2" />
+                        Save Form Settings
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
-        {/* Events Tab */}
-        <TabsContent value="events" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Active Events */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Active Events</CardTitle>
-                <CardDescription>Manage current events</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {events.filter(event => event.isActive).map((event) => (
-                    <Card key={event.id} className="p-3">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <h4 className="font-medium">{event.title}</h4>
-                          <p className="text-sm text-gray-600 mt-1">
-                            {new Date(event.eventDate).toLocaleString()}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {event.location} • {event.points} points
-                          </p>
-                          {event.description && (
-                            <p className="text-xs text-gray-500 mt-1">{event.description}</p>
-                          )}
-                        </div>
-                        <Badge variant="default">{event.points} pts</Badge>
+              {/* System Status */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>System Status</CardTitle>
+                  <CardDescription>
+                    Overview of system health and configuration
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="p-4 border rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span className="text-sm font-medium">Database</span>
                       </div>
-                    </Card>
-                  ))}
-                  {events.filter(event => event.isActive).length === 0 && (
-                    <p className="text-center text-gray-500 py-4">No active events</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                      <p className="text-xs text-gray-500">Connected and operational</p>
+                    </div>
 
-            {/* Event Attendance Submissions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Attendance Submissions</CardTitle>
-                <CardDescription>Review and approve event attendance</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {eventAttendance.filter(attendance => attendance.status === 'pending').map((attendance) => (
-                    <Card key={attendance.id} className="p-3">
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h4 className="font-medium">{attendance.fullName}</h4>
-                            <p className="text-sm text-gray-600">UFID: {attendance.ufid}</p>
-                            <p className="text-sm text-gray-500">
-                              Event: {attendance.event?.title || 'Unknown Event'}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              Submitted: {new Date(attendance.submittedAt).toLocaleString()}
-                            </p>
+                    <div className="p-4 border rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span className="text-sm font-medium">Applications</span>
+                      </div>
+                      <p className="text-xs text-gray-500">Form submissions active</p>
+                    </div>
+
+                    <div className="p-4 border rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                        <span className="text-sm font-medium">Email Notifications</span>
+                      </div>
+                      <p className="text-xs text-gray-500">Not configured</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {activeSection === "event-attendance" && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-slate-900">Event Attendance Management</h2>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Pending Submissions</CardTitle>
+                  <CardDescription>Review and approve event attendance submissions</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {!eventAttendance || eventAttendance.length === 0 ? (
+                    <p className="text-slate-500 text-center py-8">No pending submissions</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {eventAttendance
+                        .filter(submission => submission.status === "pending")
+                        .map((submission) => (
+                          <div key={submission.id} className="border rounded-lg p-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h3 className="font-semibold">{submission.fullName}</h3>
+                                <p className="text-sm text-slate-600">UFID: {submission.ufid}</p>
+                                <p className="text-sm text-slate-600">
+                                  Event: {submission.event?.title || "Unknown Event"}
+                                </p>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    if (submission.photo) {
+                                      window.open(submission.photo, '_blank');
+                                    }
+                                  }}
+                                  variant="outline"
+                                >
+                                  <Eye className="w-4 h-4 mr-1" />
+                                  View Photo
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => approveAttendanceMutation.mutate(submission.id)}
+                                  disabled={approveAttendanceMutation.isPending}
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                >
+                                  <CheckCircle className="w-4 h-4 mr-1" />
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => rejectAttendanceMutation.mutate(submission.id)}
+                                  disabled={rejectAttendanceMutation.isPending}
+                                >
+                                  Reject
+                                </Button>
+                              </div>
+                            </div>
+                            <div className="text-sm text-slate-600">
+                              <p>Social Media Permission: {submission.socialMediaPermission ? "Yes" : "No"}</p>
+                              <p>Submitted: {new Date(submission.submittedAt).toLocaleString()}</p>
+                            </div>
                           </div>
-                          <Badge variant="outline">{attendance.event?.points || 0} pts</Badge>
-                        </div>
-
-                        {attendance.photo && (
-                          <div>
-                            <img
-                              src={attendance.photo}
-                              alt="Event photo"
-                              className="w-20 h-20 object-cover rounded border"
-                            />
-                          </div>
-                        )}
-
-                        <div className="flex items-center gap-2 text-xs">
-                          <span className={attendance.socialMediaPermission ? "text-green-600" : "text-gray-500"}>
-                            Social Media: {attendance.socialMediaPermission ? "Allowed" : "Not Allowed"}
-                          </span>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => approveAttendanceMutation.mutate(attendance.id)}
-                            disabled={approveAttendanceMutation.isPending}
-                          >
-                            <CheckCircle className="w-4 h-4 mr-1" />
-                            Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => rejectAttendanceMutation.mutate(attendance.id)}
-                          >
-                            <X className="w-4 h-4 mr-1" />
-                            Reject
-                          </Button>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
-                  {eventAttendance.filter(attendance => attendance.status === 'pending').length === 0 && (
-                    <p className="text-center text-gray-500 py-4">No pending submissions</p>
+                        ))}
+                    </div>
                   )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                </CardContent>
+              </Card>
 
-          {/* All Attendance Records */}
-          <Card>
-            <CardHeader>
-              <CardTitle>All Attendance Records</CardTitle>
-              <CardDescription>Complete history of event attendance</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>UFID</TableHead>
-                      <TableHead>Event</TableHead>
-                      <TableHead>Points</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Social Media</TableHead>
-                      <TableHead>Submitted</TableHead>
-                      <TableHead>Photo</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {eventAttendance.map((attendance) => (
-                      <TableRow key={attendance.id}>
-                        <TableCell className="font-medium">{attendance.fullName}</TableCell>
-                        <TableCell>{attendance.ufid}</TableCell>
-                        <TableCell>{attendance.event?.title || 'Unknown'}</TableCell>
-                        <TableCell>{attendance.event?.points || 0}</TableCell>
-                        <TableCell>
-                          <Badge variant={
-                            attendance.status === 'approved' ? 'default' :
-                            attendance.status === 'rejected' ? 'destructive' : 'secondary'
-                          }>
-                            {attendance.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {attendance.socialMediaPermission ? "✅" : "❌"}
-                        </TableCell>
-                        <TableCell>{new Date(attendance.submittedAt).toLocaleDateString()}</TableCell>
-                        <TableCell>
-                          {attendance.photo && (
-                            <img
-                              src={attendance.photo}
-                              alt="Event"
-                              className="w-8 h-8 object-cover rounded cursor-pointer"
-                              onClick={() => window.open(attendance.photo, '_blank')}
-                            />
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Settings Tab */}
-        <TabsContent value="settings" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Domain Configuration */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Domain Configuration</CardTitle>
-                <CardDescription>
-                  Manage allowed email domains for applications (@ufl.edu examples)
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <div className="font-medium">student@ufl.edu</div>
-                      <div className="text-sm text-gray-500">University of Florida students</div>
+              <Card>
+                <CardHeader>
+                  <CardTitle>All Submissions</CardTitle>
+                  <CardDescription>Complete history of event attendance submissions</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {!eventAttendance || eventAttendance.length === 0 ? (
+                    <p className="text-slate-500 text-center py-8">No submissions found</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-slate-200">
+                            <th className="text-left p-2">Name</th>
+                            <th className="text-left p-2">UFID</th>
+                            <th className="text-left p-2">Event</th>
+                            <th className="text-left p-2">Status</th>
+                            <th className="text-left p-2">Social Media</th>
+                            <th className="text-left p-2">Submitted</th>
+                            <th className="text-left p-2">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {eventAttendance.map((submission) => (
+                            <tr key={submission.id} className="border-b border-slate-100">
+                              <td className="p-2">{submission.fullName}</td>
+                              <td className="p-2">{submission.ufid}</td>
+                              <td className="p-2">{submission.event?.title || "Unknown"}</td>
+                              <td className="p-2">
+                                <span className={`px-2 py-1 rounded text-xs ${
+                                  submission.status === "approved" ? "bg-emerald-100 text-emerald-800" :
+                                  submission.status === "rejected" ? "bg-red-100 text-red-800" :
+                                  "bg-yellow-100 text-yellow-800"
+                                }`}>
+                                  {submission.status}
+                                </span>
+                              </td>
+                              <td className="p-2">{submission.socialMediaPermission ? "Yes" : "No"}</td>
+                              <td className="p-2">{new Date(submission.submittedAt).toLocaleDateString()}</td>
+                              <td className="p-2">
+                                <div className="flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => {
+                                      if (submission.photo) {
+                                        window.open(submission.photo, '_blank');
+                                      }
+                                    }}
+                                  >
+                                    <Eye className="w-3 h-3" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => deleteAttendanceMutation.mutate(submission.id)}
+                                    className="text-red-600 hover:text-red-800"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                    <Badge variant="default">Active</Badge>
-                  </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <div className="font-medium">alumni@ufl.edu</div>
-                      <div className="text-sm text-gray-500">University of Florida alumni</div>
-                    </div>
-                    <Badge variant="default">Active</Badge>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <div className="font-medium">faculty@ufl.edu</div>
-                      <div className="text-sm text-gray-500">University of Florida faculty</div>
-                    </div>
-                    <Badge variant="default">Active</Badge>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <div className="font-medium">staff@ufl.edu</div>
-                      <div className="text-sm text-gray-500">University of Florida staff</div>
-                    </div>
-                    <Badge variant="secondary">Inactive</Badge>
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t">
-                  <div className="flex gap-2">
-                    <Input placeholder="Add new domain (e.g., @ufl.edu)" className="flex-1" />
-                    <Button size="sm">
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Form Settings */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Form Settings</CardTitle>
-                <CardDescription>
-                  Configure application deadlines and form behavior
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-sm font-medium">Application Deadline</label>
-                    <Input
-                      type="date"
-                      defaultValue="2024-02-15"
-                      className="mt-1"
-                      onChange={async (e) => {
-                        try {
-                          await fetch('/api/admin/settings', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              key: 'application_deadline',
-                              value: e.target.value
-                            })
-                          });
-                          toast({ title: "Deadline updated successfully" });
-                        } catch (error) {
-                          toast({ title: "Failed to update deadline", variant: "destructive" });
-                        }
-                      }}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Applications will be closed after this date
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium">Maximum Team Preferences</label>
-                    <Input
-                      type="number"
-                      defaultValue="3"
-                      min="1"
-                      max="9"
-                      className="mt-1"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Maximum number of teams students can rank
-                    </p>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-medium">Require UFID Validation</div>
-                      <div className="text-xs text-gray-500">Enforce 8-digit UFID format</div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        defaultChecked
-                        className="rounded border-gray-300"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-medium">Auto-assign Teams</div>
-                      <div className="text-xs text-gray-500">Automatically assign students to teams</div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        defaultChecked
-                        className="rounded border-gray-300"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t">
-                  <Button variant="outline" size="sm" className="w-full">
-                    <Save className="w-4 h-4 mr-2" />
-                    Save Form Settings
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* System Status */}
-          <Card>
-            <CardHeader>
-              <CardTitle>System Status</CardTitle>
-              <CardDescription>
-                Overview of system health and configuration
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 border rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span className="text-sm font-medium">Database</span>
-                  </div>
-                  <p className="text-xs text-gray-500">Connected and operational</p>
-                </div>
-
-                <div className="p-4 border rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span className="text-sm font-medium">Applications</span>
-                  </div>
-                  <p className="text-xs text-gray-500">Form submissions active</p>
-                </div>
-
-                <div className="p-4 border rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                    <span className="text-sm font-medium">Email Notifications</span>
-                  </div>
-                  <p className="text-xs text-gray-500">Not configured</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+          {activeSection === "print-management" && (
+            <PrintManagementSection />
+          )}
+        </main>
+      </div>
     </div>
   );
 }
