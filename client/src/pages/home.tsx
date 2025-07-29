@@ -9,6 +9,7 @@ import EventCreationForm from "@/components/event-creation-form";
 import EventAttendanceForm from "@/components/event-attendance-form";
 import PrintSubmissionForm from "@/components/print-submission-form";
 import SpecialRoleForm from "@/components/special-role-form";
+import MarketingRequestForm from "@/components/marketing-request-form";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -29,10 +30,11 @@ import {
   ChevronDown,
   Home,
   UserCheck,
-  Wrench
+  Wrench,
+  Send
 } from "lucide-react";
 
-type TabType = "home" | "member" | "project" | "admin" | "team" | "create-event" | "event-attendance" | "print-submission" | "special-role";
+type TabType = "home" | "member" | "project" | "admin" | "team" | "create-event" | "event-attendance" | "print-submission" | "special-role" | "marketing-request";
 
 function LandingPage() {
   return (
@@ -188,7 +190,7 @@ export default function HomePage() {
                 <Button
                   variant="ghost"
                   className={`tab-button px-4 py-3 text-sm font-medium rounded-t-lg ${
-                    ["create-event", "team", "print-submission"].includes(activeTab) ? "active" : ""
+                    ["create-event", "team", "print-submission", "marketing-request"].includes(activeTab) ? "active" : ""
                   }`}
                 >
                   <Wrench className="w-4 h-4 mr-2" />
@@ -208,6 +210,10 @@ export default function HomePage() {
                 <DropdownMenuItem onClick={() => setActiveTab("print-submission")}>
                   <Printer className="w-4 h-4 mr-2" />
                   Print Request
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setActiveTab("marketing-request")}>
+                  <Send className="w-4 h-4 mr-2" />
+                  Marketing Request
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -238,6 +244,7 @@ export default function HomePage() {
         {activeTab === "event-attendance" && <EventAttendanceForm />}
         {activeTab === "admin" && <AdminDashboard />}
         {activeTab === "team" && <TeamCreationForm />}
+        {activeTab === "marketing-request" && <MarketingRequestForm />}
       </main>
     </div>
   );

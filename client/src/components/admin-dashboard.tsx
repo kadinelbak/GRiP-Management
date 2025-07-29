@@ -1752,7 +1752,7 @@ function SpecialRolesSection() {
                                   try {
                                     await fetch('/api/absences', {
                                       method: 'POST',
-                                      headers: { 'Content-Type': 'application/json' },
+                                      headersAdding the missing marketing requests query to the admin dashboard component.: { 'Content-Type': 'application/json' },
                                       body: JSON.stringify({
                                         applicationId: member.id,
                                         reason: reason || '',
