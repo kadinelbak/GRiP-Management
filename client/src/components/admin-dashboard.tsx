@@ -1752,8 +1752,7 @@ function SpecialRolesSection() {
                                   try {
                                     await fetch('/api/absences', {
                                       method: 'POST',
-                                      ```text
-headers: { 'Content-Type': 'application/json' },
+                                      headers: { 'Content-Type': 'application/json' },
                                       body: JSON.stringify({
                                         applicationId: member.id,
                                         reason: reason || '',
