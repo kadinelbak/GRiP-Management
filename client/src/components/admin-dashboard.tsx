@@ -1485,6 +1485,7 @@ function SpecialRolesSection() {
                                 <SelectItem value="pending">Pending</SelectItem>
                                 <SelectItem value="assigned">Assign</SelectItem>
                                 <SelectItem value="waitlisted">Waitlist</SelectItem>
+                                <SelectItem value="rejected">Reject</SelectItem>
                               </SelectContent>
                             </Select>
 
@@ -1751,7 +1752,8 @@ function SpecialRolesSection() {
                                   try {
                                     await fetch('/api/absences', {
                                       method: 'POST',
-                                      headers: { 'Content-Type': 'application/json' },
+                                      ```text
+headers: { 'Content-Type': 'application/json' },
                                       body: JSON.stringify({
                                         applicationId: member.id,
                                         reason: reason || '',
@@ -2532,7 +2534,7 @@ function SpecialRolesSection() {
                                   {request.status}
                                 </Badge>
                               </div>
-                              
+
                               <div className="text-sm text-slate-600 space-y-1">
                                 <div><span className="font-medium">Email:</span> {request.email}</div>
                                 <div><span className="font-medium">UFID:</span> {request.ufid}</div>

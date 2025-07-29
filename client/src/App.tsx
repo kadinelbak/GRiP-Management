@@ -15,7 +15,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/team-creation" component={TeamCreationForm} />
       <Route path="/special-roles" element={<SpecialRoleForm />} />
-      <Route path="/marketing-request" element={<MarketingRequestForm />} />
+      <Route path="/marketing-request" component={MarketingRequestForm} />
       <Route path="*" element={<NotFound />} />
     </Switch>
   );

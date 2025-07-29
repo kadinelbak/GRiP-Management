@@ -27,7 +27,7 @@ export default function Header() {
               <p className="text-xs text-slate-600">Generational Relief in Prosthetics</p>
             </div>
           </div>
-          
+
           <div className="hidden md:flex items-center space-x-4">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
