@@ -148,7 +148,7 @@ export default {
   },
   root: path.resolve(__dirname, "..", "client"), 
   build: {
-    outDir: path.resolve(__dirname, "..", "dist/public"),
+    outDir: path.resolve(__dirname, "..", "dist", "public"),
     emptyOutDir: true,
   },
   server: {
@@ -169,8 +169,9 @@ export default {
         { from: 'path.resolve(import.meta.dirname, "public")', to: 'path.resolve(import.meta.dirname, "..", "public")' }
       ]},
       { path: path.join('dist', 'server', 'index.js'), fixes: [
-        { from: 'path.join(import.meta.dirname, "../dist/public")', to: 'path.join(import.meta.dirname, "..", "public")' },
-        { from: 'path.join(import.meta.dirname, "../dist/public/index.html")', to: 'path.join(import.meta.dirname, "..", "public", "index.html")' }
+        { from: /path\.join\(import\.meta\.dirname,?\s*["'][^"']*dist[/\\]public["']\)/g, to: 'path.join(import.meta.dirname, "..", "public")' },
+        { from: /path\.join\(import\.meta\.dirname,?\s*["'][^"']*dist[/\\]public[/\\]index\.html["']\)/g, to: 'path.join(import.meta.dirname, "..", "public", "index.html")' },
+        { from: /path\.resolve\(import\.meta\.dirname,?\s*["']public["']\)/g, to: 'path.resolve(import.meta.dirname, "..", "public")' }
       ]}
     ];
     
@@ -179,7 +180,11 @@ export default {
         let content = await fs.readFile(filePath, 'utf-8');
         
         for (const { from, to } of fixes) {
-          content = content.replace(from, to);
+          if (from instanceof RegExp) {
+            content = content.replace(from, to);
+          } else {
+            content = content.replace(new RegExp(from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), to);
+          }
         }
         
         await fs.writeFile(filePath, content);
