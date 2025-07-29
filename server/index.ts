@@ -11,8 +11,8 @@ const __dirname = path.dirname(__filename);
 // For production builds, adjust path to account for dist directory structure
 const isProduction = process.env.NODE_ENV === "production";
 const publicPath = isProduction 
-  ? path.join(__dirname, "../public")
-  : path.join(__dirname, "../dist/public");
+  ? path.join(__dirname, "../client")
+  : path.join(__dirname, "../dist/client");
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -68,7 +68,7 @@ app.use((req, res, next) => {
   } else {
     // Serve static files from the client dist directory
     // Serve static assets
-    app.use(express.static(path.join(import.meta.dirname, "../dist/public"), {
+    app.use(express.static(path.join(import.meta.dirname, "../dist/client"), {
       index: false // Don't automatically serve index.html for directory requests
     }));
 
@@ -77,7 +77,7 @@ app.use((req, res, next) => {
       if (req.path.startsWith("/api")) {
         return res.status(404).json({ message: "API endpoint not found" });
       }
-      res.sendFile(path.join(import.meta.dirname, "../dist/public/index.html"));
+      res.sendFile(path.join(import.meta.dirname, "../dist/client/index.html"));
     });
   }
 
