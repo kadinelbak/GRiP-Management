@@ -22,14 +22,6 @@ export default function Header() {
           </div>
 
           <div className="hidden md:flex items-center space-x-4">
-            <Button 
-              variant="ghost" 
-              className="flex items-center gap-2"
-              onClick={() => window.location.href = '/marketing-request'}
-            >
-              <Send className="w-4 h-4" />
-              Marketing Request
-            </Button>
           </div>
 
           <Button
