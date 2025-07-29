@@ -764,8 +764,7 @@ export class DatabaseStorage implements IStorage {
 
   async approveEventAttendance(id: string): Promise<{ message: string; pointsAdded?: number }> {
     // Get the attendance record with event details
-    const [attendance] =```text
- await db
+    const [attendance] = await db
       .select({
         attendance: eventAttendance,
         event: events
