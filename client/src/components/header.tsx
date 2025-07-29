@@ -1,6 +1,13 @@
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Home, Users, FileText, Settings, Wrench, Camera, Printer, Star, Send } from "lucide-react";
+import { useState } from "react";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 
 export default function Header() {
   return (
@@ -20,6 +27,24 @@ export default function Header() {
               <p className="text-xs text-slate-600">Generational Relief in Prosthetics</p>
             </div>
           </div>
+          
+          <div className="hidden md:flex items-center space-x-4">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center gap-2">
+                  <Wrench className="w-4 h-4" />
+                  Tools
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => window.location.href = '/marketing-request'}>
+                  <Send className="w-4 h-4 mr-2" />
+                  Marketing Request
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
           <Button
             variant="ghost"
             size="sm"
