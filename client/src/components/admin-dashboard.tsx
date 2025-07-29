@@ -781,6 +781,9 @@ function AbsenceManagementSection() {
 
 // Special Roles Management Section
 function SpecialRolesSection() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
   const { data: specialRoles = [] } = useQuery<SpecialRole[]>({
     queryKey: ["/api/special-roles"],
   });
