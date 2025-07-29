@@ -92,10 +92,6 @@ export default function AdminDashboard() {
     queryKey: ["/api/event-attendance"],
   });
 
-  const { data: marketingRequests = [] } = useQuery<MarketingRequest[]>({
-    queryKey: ["/api/marketing-requests"],
-  });
-
   // Mutation for creating teams
   const createTeamMutation = useMutation({
     mutationFn: (data: TeamFormData) =>
