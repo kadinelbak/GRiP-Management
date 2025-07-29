@@ -92,6 +92,10 @@ export default function AdminDashboard() {
     queryKey: ["/api/event-attendance"],
   });
 
+  const { data: marketingRequests = [] } = useQuery<MarketingRequest[]>({
+    queryKey: ["/api/marketing-requests"],
+  });
+
   // Mutation for creating teams
   const createTeamMutation = useMutation({
     mutationFn: (data: TeamFormData) =>
@@ -780,10 +784,13 @@ function AbsenceManagementSection() {
 }
 
 // Special Roles Management Section
-function SpecialRolesSection() {
+interface SpecialRolesSectionProps {
+  marketingRequestsProp: MarketingRequest[];
+}
+function SpecialRolesSection({ marketingRequestsProp }: SpecialRolesSectionProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   const { data: specialRoles = [] } = useQuery<SpecialRole[]>({
     queryKey: ["/api/special-roles"],
   });
@@ -796,9 +803,7 @@ function SpecialRolesSection() {
     queryKey: ["/api/member-roles"],
   });
 
-  const { data: marketingRequests = [] } = useQuery<MarketingRequest[]>({
-    queryKey: ["/api/marketing-requests"],
-  });
+  const marketingRequests = marketingRequestsProp;
 
   const [newRoleData, setNewRoleData] = useState({
     name: "",
@@ -886,7 +891,7 @@ function SpecialRolesSection() {
         title: "Error",
         description: "Failed to update marketing request.",
         variant: "destructive",
-      });
+            });
     },
   });
 
@@ -1745,7 +1750,7 @@ function SpecialRolesSection() {
                               >
                                 <Eye className="w-4 h-4" />
                               </Button>
-                              <Button
+                                <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={async () => {
@@ -2504,7 +2509,7 @@ function SpecialRolesSection() {
           )}
 
           {activeSection === "special-roles" && (
-            <SpecialRolesSection />
+            <SpecialRolesSection marketingRequestsProp={marketingRequests} />
           )}
 
           {activeSection === "marketing-requests" && (
