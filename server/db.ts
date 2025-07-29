@@ -14,5 +14,17 @@ if (!process.env.DATABASE_URL) {
 export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 export const db = drizzle({ client: pool, schema });
 
-// Export marketingRequests for use in routes
-export const { marketingRequests } = schema;
+// Export all schema tables for use in routes
+export const { 
+  applications, 
+  teams, 
+  projectRequests, 
+  events, 
+  eventAttendance, 
+  printSubmissions, 
+  absences, 
+  specialRoles, 
+  roleApplications, 
+  memberRoles, 
+  marketingRequests 
+} = schema;

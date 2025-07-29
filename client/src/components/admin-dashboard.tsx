@@ -280,6 +280,45 @@ export default function AdminDashboard() {
     },
   });
 
+  // Mutation for updating marketing request status
+  const updateMarketingRequestMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: any }) =>
+      apiRequest("PUT", `/api/marketing-requests/${id}`, updates),
+    onSuccess: () => {
+      toast({
+        title: "Marketing Request Updated",
+        description: "Marketing request status has been updated.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing-requests"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update marketing request.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation for deleting marketing requests
+  const deleteMarketingRequestMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/marketing-requests/${id}`),
+    onSuccess: () => {
+      toast({
+        title: "Marketing Request Deleted",
+        description: "Marketing request has been deleted.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing-requests"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete marketing request.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: TeamFormData) => {
     createTeamMutation.mutate(data);
   };

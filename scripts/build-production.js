@@ -23,8 +23,19 @@ async function main() {
     
     // Step 2: Build server
     console.log('🔧 Building server...');
-    await execAsync('npm run build:server');
-    console.log('✅ Server build completed');
+    try {
+      await execAsync('npm run build:server');
+      console.log('✅ Server build completed');
+    } catch (error) {
+      console.warn('⚠️  npm run build:server failed, trying fallback build script...');
+      try {
+        await execAsync('node scripts/build-server.cjs');
+        console.log('✅ Server build completed using fallback script');
+      } catch (fallbackError) {
+        console.error('❌ Both build:server and fallback script failed');
+        throw new Error(`Server build failed: ${fallbackError.message}`);
+      }
+    }
     
     // Step 3: Set up vite config for production runtime
     console.log('📋 Setting up vite config for production...');
