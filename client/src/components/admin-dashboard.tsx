@@ -796,6 +796,10 @@ function SpecialRolesSection() {
     queryKey: ["/api/member-roles"],
   });
 
+  const { data: marketingRequests = [] } = useQuery<MarketingRequest[]>({
+    queryKey: ["/api/marketing-requests"],
+  });
+
   const [newRoleData, setNewRoleData] = useState({
     name: "",
     description: "",

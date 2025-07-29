@@ -4,16 +4,14 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "start": "NODE_ENV=production node dist/server/index.js",
-    "dev": "NODE_ENV=development tsx server/index.ts",
     "build": "npm run build:client && npm run build:server",
     "build:client": "vite build",
     "build:server": "tsc --project tsconfig.server.json",
-    "preview": "vite preview",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx server/migrate.ts",
-    "db:seed": "tsx server/seed-dummy-data.ts",
-    "build:production": "node scripts/build-production.js"
+    "build:production": "node scripts/build-production.js",
+    "dev": "NODE_ENV=development tsx server/index.ts",
+    "start": "node dist/server/index.js",
+    "migrate": "tsx server/migrate.ts",
+    "seed": "tsx server/seed-dummy-data.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
