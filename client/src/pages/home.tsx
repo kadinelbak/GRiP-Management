@@ -41,9 +41,9 @@ function LandingPage() {
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="text-center mb-12">
         <h1 className="text-4xl font-bold text-slate-900 mb-4">
-          Welcome to GRiP
+          Welcome to <span className="text-blue-600">GRiP</span>
         </h1>
-        <p className="text-xl text-slate-600 mb-2">
+        <p className="text-xl text-blue-600 font-semibold mb-2">
           Generational Relief in Prosthetics
         </p>
         <p className="text-lg text-slate-500 max-w-3xl mx-auto">
@@ -55,13 +55,13 @@ function LandingPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <img 
-            src="/attached_assets/image_1753634520859.png" 
-            alt="GRiP team member working on prosthetic design" 
-            className="w-full h-64 object-cover"
-          />
+          <div className="w-full h-64 bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center">
+            <svg className="w-16 h-16 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
           <div className="p-6">
-            <h3 className="text-xl font-semibold mb-2">Design & Innovation</h3>
+            <h3 className="text-xl font-semibold mb-2 text-slate-900">Design & Innovation</h3>
             <p className="text-slate-600">
               Our team works on cutting-edge prosthetic designs using the latest technology 
               and materials to create functional, comfortable solutions.
@@ -70,13 +70,13 @@ function LandingPage() {
         </div>
 
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <img 
-            src="/attached_assets/image_1753728143544.png" 
-            alt="GRiP community collaboration" 
-            className="w-full h-64 object-cover"
-          />
+          <div className="w-full h-64 bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center">
+            <svg className="w-16 h-16 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z" />
+            </svg>
+          </div>
           <div className="p-6">
-            <h3 className="text-xl font-semibold mb-2">Community Collaboration</h3>
+            <h3 className="text-xl font-semibold mb-2 text-slate-900">Community Collaboration</h3>
             <p className="text-slate-600">
               We work together as a community, sharing knowledge and resources to 
               make prosthetics more accessible to those in need.
@@ -85,13 +85,13 @@ function LandingPage() {
         </div>
 
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <img 
-            src="/attached_assets/image_1753728186401.png" 
-            alt="GRiP technical development" 
-            className="w-full h-64 object-cover"
-          />
+          <div className="w-full h-64 bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center">
+            <svg className="w-16 h-16 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+            </svg>
+          </div>
           <div className="p-6">
-            <h3 className="text-xl font-semibold mb-2">Technical Excellence</h3>
+            <h3 className="text-xl font-semibold mb-2 text-slate-900">Technical Excellence</h3>
             <p className="text-slate-600">
               Using advanced 3D printing and engineering techniques, we develop 
               high-quality prosthetic devices tailored to individual needs.
@@ -100,7 +100,7 @@ function LandingPage() {
         </div>
       </div>
 
-      <div className="bg-slate-100 rounded-lg p-8 text-center">
+      <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-8 text-center border border-blue-200">
         <h2 className="text-2xl font-bold text-slate-900 mb-4">
           Get Involved
         </h2>
@@ -109,16 +109,16 @@ function LandingPage() {
           or supporting our mission, there are many ways to get involved with GRiP.
         </p>
         <div className="flex flex-wrap justify-center gap-4">
-          <div className="bg-white px-4 py-2 rounded-lg shadow-sm">
+          <div className="bg-white px-6 py-3 rounded-lg shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
             <span className="text-sm font-medium text-slate-700">Join Our Team</span>
           </div>
-          <div className="bg-white px-4 py-2 rounded-lg shadow-sm">
+          <div className="bg-white px-6 py-3 rounded-lg shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
             <span className="text-sm font-medium text-slate-700">Request a Project</span>
           </div>
-          <div className="bg-white px-4 py-2 rounded-lg shadow-sm">
+          <div className="bg-white px-6 py-3 rounded-lg shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
             <span className="text-sm font-medium text-slate-700">Attend Events</span>
           </div>
-          <div className="bg-white px-4 py-2 rounded-lg shadow-sm">
+          <div className="bg-white px-6 py-3 rounded-lg shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
             <span className="text-sm font-medium text-slate-700">Apply for Special Roles</span>
           </div>
         </div>

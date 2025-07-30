@@ -16,7 +16,7 @@ export default function Header() {
               />
             </div>
             <div className="ml-4">
-              <h1 className="text-xl font-bold text-slate-900">GRiP</h1>
+              <h1 className="text-xl font-bold text-blue-600">GRiP</h1>
               <p className="text-xs text-slate-600">Generational Relief in Prosthetics</p>
             </div>
           </div>

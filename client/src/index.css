@@ -13,7 +13,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 222.2 47.4% 11.2%;
+    --primary: 200 100% 40%; /* Updated to GRiP blue */
     --primary-foreground: 210 40% 98%;
 
     --secondary: 210 40% 96%;
@@ -83,18 +83,22 @@
 /* GRiP Color Classes */
 .grip-primary {
   background-color: var(--grip-blue);
+  color: white;
 }
 
 .grip-orange {
   background-color: var(--grip-orange);
+  color: white;
 }
 
 .grip-blue {
   background-color: var(--grip-blue);
+  color: white;
 }
 
 .grip-green {
   background-color: var(--grip-green);
+  color: white;
 }
 
 .text-grip-orange {
@@ -134,9 +138,9 @@
 }
 
 .tab-button.active {
-  background-color: hsl(210, 40%, 98%);
-  color: var(--grip-primary);
-  border-bottom: 2px solid var(--grip-primary);
+  background-color: hsl(200, 100%, 96%);
+  color: hsl(200, 100%, 40%);
+  border-bottom: 2px solid hsl(200, 100%, 40%);
 }
 
 /* Override for dropdown menu triggers to ensure visibility */
@@ -153,8 +157,8 @@
 }
 
 .tab-button:hover {
-  color: var(--grip-primary);
-  background-color: hsl(60, 4.8%, 95.9%);
+  color: hsl(200, 100%, 40%);
+  background-color: hsl(200, 100%, 98%);
 }
 
 /* Ensure dropdown triggers maintain active state */
