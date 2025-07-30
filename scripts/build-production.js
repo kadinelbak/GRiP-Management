@@ -167,7 +167,7 @@ export default {
     }
 
     // Check that server files exist
-    const serverFiles = ['index.js', 'routes.js', 'storage.js', 'db.js'];
+    const serverFiles = ['index.js', 'routes.js', 'storage.js', 'db.js', 'vite.js'];
     for (const file of serverFiles) {
       const filePath = path.join('dist', 'server', file);
       if (!(await fs.access(filePath).then(() => true).catch(() => false))) {
