@@ -132,7 +132,11 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Health check endpoint for deployments
+  // Health check endpoints for deployments
+  app.get("/health", (_req, res) => {
+    res.status(200).json({ status: "ok", message: "Server is running", timestamp: new Date().toISOString() });
+  });
+
   app.get("/api/health", (_req, res) => {
     res.status(200).json({ status: "ok", message: "Server is running" });
   });
@@ -837,7 +841,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Download files endpoint
   app.get("/api/print-submissions/:id/download", async (req, res) => {
-    try {
+    ```python
+try {
       const { id } = req.params;
 
       const submission = await storage.getPrintSubmissionById(id);

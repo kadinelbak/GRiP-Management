@@ -43,6 +43,16 @@ async function main() {
     // Ensure dist directory exists
     await fs.mkdir('dist', { recursive: true });
 
+    // Copy client build to public directory for correct serving
+    const clientDistPath = path.join('dist', 'client');
+    const publicPath = path.join('dist', 'public');
+
+    if (await fs.access(clientDistPath).then(() => true).catch(() => false)) {
+      console.log('📁 Moving client files to public directory...');
+      await fs.rename(clientDistPath, publicPath);
+      console.log('✅ Client files moved to public directory');
+    }
+
     // Create a production-compatible vite config
     const prodConfig = `
 // Production vite config for deployment
@@ -105,13 +115,13 @@ export default {
 
       // Fix the static file paths in server/index.js to point to public directory
       serverIndexContent = serverIndexContent.replace(
-        /path\.join\(import\.meta\.dirname,?\s*["'][^"']*dist[/\\]public["']\)/g,
+        /path\.join\(import\.meta\.dirname,?\s*["'][^"']*dist[/\\]client["']\)/g,
         'path.join(import.meta.dirname, "..", "public")'
       );
 
       // Fix the fallback HTML path
       serverIndexContent = serverIndexContent.replace(
-        /path\.join\(import\.meta\.dirname,?\s*["'][^"']*dist[/\\]public[/\\]index\.html["']\)/g,
+        /path\.join\(import\.meta\.dirname,?\s*["'][^"']*dist[/\\]client[/\\]index\.html["']\)/g,
         'path.join(import.meta.dirname, "..", "public", "index.html")'
       );
 

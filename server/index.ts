@@ -8,16 +8,9 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// For production builds, adjust path to account for dist directory structure
-const isProduction = process.env.NODE_ENV === "production";
-const publicPath = isProduction 
-  ? path.join(__dirname, "../client")
-  : path.join(__dirname, "../dist/client");
-
 const app = express();
 app.use(express.json({ limit: '10mb' }));
-  app.use(express.urlencoded({ limit: '10mb', extended: true }));
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -52,12 +45,18 @@ app.use((req, res, next) => {
 (async () => {
   const server = await registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
-    res.status(status).json({ message });
-    throw err;
+    console.error(`Error ${status} on ${req.method} ${req.path}:`, err);
+    
+    // Don't expose internal error details in production
+    if (app.get("env") === "production" && status === 500) {
+      res.status(status).json({ message: "Internal Server Error" });
+    } else {
+      res.status(status).json({ message });
+    }
   });
 
   // importantly only setup vite in development and after
@@ -66,18 +65,41 @@ app.use((req, res, next) => {
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
-    // Serve static files from the client dist directory
+    // Production: serve static files
+    const staticPath = path.resolve(__dirname, "../public");
+    const indexPath = path.resolve(__dirname, "../public/index.html");
+    
+    console.log("Serving static files from:", staticPath);
+    console.log("Index file location:", indexPath);
+    
     // Serve static assets
-    app.use(express.static(path.join(import.meta.dirname, "../dist/client"), {
-      index: false // Don't automatically serve index.html for directory requests
+    app.use(express.static(staticPath, {
+      index: false,
+      maxAge: '1d'
     }));
 
+    // Health check for deployment
+    app.get("/health", (req, res) => {
+      res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+    });
+
     // Handle client-side routing - serve index.html for all non-API routes
-    app.get("*", (req, res) => {
+    app.get("*", (req, res, next) => {
       if (req.path.startsWith("/api")) {
         return res.status(404).json({ message: "API endpoint not found" });
       }
-      res.sendFile(path.join(import.meta.dirname, "../dist/client/index.html"));
+      
+      try {
+        res.sendFile(indexPath, (err) => {
+          if (err) {
+            console.error("Error serving index.html:", err);
+            res.status(500).json({ message: "Failed to serve application" });
+          }
+        });
+      } catch (error) {
+        console.error("Catch-all route error:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
     });
   }
 
