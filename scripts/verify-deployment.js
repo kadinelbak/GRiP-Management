@@ -44,7 +44,7 @@ async function verifyBuildFiles() {
     'dist/server/routes.js',
     'dist/server/storage.js',
     'dist/server/db.js',
-    'dist/public/index.html',
+    'dist/client/index.html',
     'dist/vite.config.js',
     'dist/package.json'
   ];

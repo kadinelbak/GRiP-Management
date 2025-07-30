@@ -66,8 +66,8 @@ app.use((req, res, next) => {
     await setupVite(app, server);
   } else {
     // Production: serve static files
-    const staticPath = path.resolve(__dirname, "../public");
-    const indexPath = path.resolve(__dirname, "../public/index.html");
+    const staticPath = path.resolve(__dirname, "../client");
+    const indexPath = path.resolve(__dirname, "../client/index.html");
     
     console.log("Serving static files from:", staticPath);
     console.log("Index file location:", indexPath);

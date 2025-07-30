@@ -50,7 +50,7 @@ async function main() {
     if (await fs.access(clientDistPath).then(() => true).catch(() => false)) {
       console.log('📦 Moving client files to public directory...');
       try {
-        await fs.cp(clientDistPath, publicPath, { recursive: true });
+        await fs.cp(clientDistPath, path.join('dist', 'client'), { recursive: true });
         await fs.rm(clientDistPath, { recursive: true });
         console.log('✅ Client files moved to public directory');
       } catch (error) {
