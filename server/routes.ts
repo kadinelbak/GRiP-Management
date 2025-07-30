@@ -841,8 +841,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Download files endpoint
   app.get("/api/print-submissions/:id/download", async (req, res) => {
-    ```python
-try {
+    try {
       const { id } = req.params;
 
       const submission = await storage.getPrintSubmissionById(id);
