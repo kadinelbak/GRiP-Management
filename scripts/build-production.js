@@ -50,18 +50,18 @@ async function main() {
     if (await fs.access(clientDistPath).then(() => true).catch(() => false)) {
       console.log('📦 Moving client files to public directory...');
       try {
-        await fs.cp(clientDistPath, path.join('dist', 'client'), { recursive: true });
+        // Ensure public directory exists
+        await fs.mkdir(publicPath, { recursive: true });
+        
+        // Copy client files to public directory
+        await fs.cp(clientDistPath, publicPath, { recursive: true });
+        
+        // Remove the client directory after successful copy
         await fs.rm(clientDistPath, { recursive: true });
         console.log('✅ Client files moved to public directory');
       } catch (error) {
-        if (error.code === 'EXDEV') {
-          console.log('⚠️ Cross-device rename failed, using copy + remove...');
-          await fs.cp(clientDistPath, publicPath, { recursive: true });
-          await fs.rm(clientDistPath, { recursive: true });
-          console.log('✅ Client files moved to public directory');
-        } else {
-          throw error;
-        }
+        console.error('❌ Failed to move client files:', error.message);
+        throw error;
       }
     }
 
@@ -84,7 +84,7 @@ export default {
   },
   root: path.resolve(__dirname, "..", "client"), 
   build: {
-    outDir: path.resolve(__dirname, "..", "dist", "client"),
+    outDir: path.resolve(__dirname, "..", "dist/public"),
     emptyOutDir: true,
   },
   server: {
