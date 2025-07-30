@@ -43,14 +43,26 @@ async function main() {
     // Ensure dist directory exists
     await fs.mkdir('dist', { recursive: true });
 
-    // Copy client build to public directory for correct serving
+    // Move client files to public directory
     const clientDistPath = path.join('dist', 'client');
     const publicPath = path.join('dist', 'public');
 
     if (await fs.access(clientDistPath).then(() => true).catch(() => false)) {
-      console.log('📁 Moving client files to public directory...');
-      await fs.rename(clientDistPath, publicPath);
-      console.log('✅ Client files moved to public directory');
+      console.log('📦 Moving client files to public directory...');
+      try {
+        await fs.cp(clientDistPath, publicPath, { recursive: true });
+        await fs.rm(clientDistPath, { recursive: true });
+        console.log('✅ Client files moved to public directory');
+      } catch (error) {
+        if (error.code === 'EXDEV') {
+          console.log('⚠️ Cross-device rename failed, using copy + remove...');
+          await fs.cp(clientDistPath, publicPath, { recursive: true });
+          await fs.rm(clientDistPath, { recursive: true });
+          console.log('✅ Client files moved to public directory');
+        } else {
+          throw error;
+        }
+      }
     }
 
     // Create a production-compatible vite config
