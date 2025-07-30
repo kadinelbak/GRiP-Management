@@ -14,9 +14,9 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/team-creation" component={TeamCreationForm} />
-      <Route path="/special-roles" element={<SpecialRoleForm />} />
+      <Route path="/special-roles" component={SpecialRoleForm} />
       <Route path="/marketing-request" component={MarketingRequestForm} />
-      <Route path="*" element={<NotFound />} />
+      <Route component={NotFound} />
     </Switch>
   );
 }
