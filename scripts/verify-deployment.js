@@ -44,7 +44,7 @@ async function verifyBuildFiles() {
     'dist/server/routes.js',
     'dist/server/storage.js',
     'dist/server/db.js',
-    'dist/public/index.html',
+    'dist/client/index.html',
     'dist/vite.config.js',
     'dist/package.json'
   ];
@@ -72,7 +72,7 @@ async function verifyIndexHtml() {
   log('🔍 Verifying index.html...');
 
   try {
-    const indexPath = 'dist/public/index.html';
+    const indexPath = 'dist/client/index.html';
     const indexContent = await fs.readFile(indexPath, 'utf-8');
 
     if (indexContent.includes('<div id="root">') && indexContent.includes('</html>')) {
