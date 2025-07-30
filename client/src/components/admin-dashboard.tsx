@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { 
   BarChart3, Users, Inbox, Settings, Plus, Download, 
   Wand2, Eye, Edit, Trash2, CheckCircle, Clock, UserMinus, Calendar, 
-  CalendarX, Search, Filter, UserCheck, Save, X, Printer, Camera, Star, Send
+  CalendarX, Search, Filter, UserCheck, Save, X, Printer, Camera, Star, Send, Menu
 } from "lucide-react";
 import type { Team, Application, ProjectRequest, SpecialRole, RoleApplication, MemberRole, MarketingRequest } from "@shared/schema";
 import type { z } from "zod";
@@ -43,6 +43,7 @@ export default function AdminDashboard() {
   const [memberSearchTerm, setMemberSearchTerm] = useState("");
   const [selectedMember, setSelectedMember] = useState<Application | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const form = useForm<TeamFormData>({
     resolver: zodResolver(insertTeamSchema),
@@ -1302,16 +1303,159 @@ function SpecialRolesSection({ marketingRequestsProp }: SpecialRolesSectionProps
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <h1 className="text-3xl font-bold text-slate-900">GRiP Admin Dashboard</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold text-slate-900">GRiP Admin Dashboard</h1>
+        
+        {/* Mobile Menu Button */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="lg:hidden"
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        >
+          <Menu className="w-5 h-5" />
+        </Button>
+      </div>
+
+      {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="fixed inset-0 bg-black/20" onClick={() => setIsMobileMenuOpen(false)} />
+          <div className="fixed top-0 left-0 h-full w-64 bg-white shadow-lg p-4">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold">Navigation</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            <nav className="space-y-2">
+              <Button
+                variant={activeSection === "overview" ? "default" : "ghost"}
+                onClick={() => {
+                  setActiveSection("overview");
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full justify-start"
+              >
+                <BarChart3 className="w-4 h-4 mr-2" />
+                Overview
+              </Button>
+              <Button
+                variant={activeSection === "applications" ? "default" : "ghost"}
+                onClick={() => {
+                  setActiveSection("applications");
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full justify-start"
+              >
+                <Inbox className="w-4 h-4 mr-2" />
+                Applications
+              </Button>
+              <Button
+                variant={activeSection === "teams" ? "default" : "ghost"}
+                onClick={() => {
+                  setActiveSection("teams");
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full justify-start"
+              >
+                <Users className="w-4 h-4 mr-2" />
+                Teams
+              </Button>
+              <Button
+                variant={activeSection === "members" ? "default" : "ghost"}
+                onClick={() => {
+                  setActiveSection("members");
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full justify-start"
+              >
+                <UserCheck className="w-4 h-4 mr-2" />
+                Members
+              </Button>
+              <Button
+                variant={activeSection === "projects" ? "default" : "ghost"}
+                onClick={() => {
+                  setActiveSection("projects");
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full justify-start"
+              >
+                <Wand2 className="w-4 h-4 mr-2" />
+                Projects
+              </Button>
+              <Button
+                variant={activeSection === "settings" ? "default" : "ghost"}
+                onClick={() => {
+                  setActiveSection("settings");
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full justify-start"
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                Settings
+              </Button>
+              <Button
+                variant={activeSection === "event-attendance" ? "default" : "ghost"}
+                onClick={() => {
+                  setActiveSection("event-attendance");
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full justify-start"
+              >
+                <Camera className="w-4 h-4 mr-2" />
+                Event Attendance
+              </Button>
+              <Button
+                variant={activeSection === "print-management" ? "default" : "ghost"}
+                onClick={() => {
+                  setActiveSection("print-management");
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full justify-start"
+              >
+                <Printer className="w-4 h-4 mr-2" />
+                Print Management
+              </Button>
+              <Button
+                variant={activeSection === "special-roles" ? "default" : "ghost"}
+                onClick={() => {
+                  setActiveSection("special-roles");
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full justify-start"
+              >
+                <Star className="w-4 h-4 mr-2" />
+                Special Roles
+              </Button>
+              <Button
+                variant={activeSection === "marketing-requests" ? "default" : "ghost"}
+                onClick={() => {
+                  setActiveSection("marketing-requests");
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full justify-start"
+              >
+                <Send className="w-4 h-4 mr-2" />
+                Marketing Requests
+              </Button>
+            </nav>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-6">
-        {/* Sidebar */}
+        {/* Desktop Sidebar */}
         <aside className="hidden lg:block">
           <nav className="space-y-2">
             <Button
               variant={activeSection === "overview" ? "default" : "ghost"}
               onClick={() => setActiveSection("overview")}
-              className="justify-start"
+              className="w-full justify-start"
             >
               <BarChart3 className="w-4 h-4 mr-2" />
               Overview
@@ -1319,7 +1463,7 @@ function SpecialRolesSection({ marketingRequestsProp }: SpecialRolesSectionProps
             <Button
               variant={activeSection === "applications" ? "default" : "ghost"}
               onClick={() => setActiveSection("applications")}
-              className="justify-start"
+              className="w-full justify-start"
             >
               <Inbox className="w-4 h-4 mr-2" />
               Applications
@@ -1327,7 +1471,7 @@ function SpecialRolesSection({ marketingRequestsProp }: SpecialRolesSectionProps
             <Button
               variant={activeSection === "teams" ? "default" : "ghost"}
               onClick={() => setActiveSection("teams")}
-              className="justify-start"
+              className="w-full justify-start"
             >
               <Users className="w-4 h-4 mr-2" />
               Teams
@@ -1335,7 +1479,7 @@ function SpecialRolesSection({ marketingRequestsProp }: SpecialRolesSectionProps
             <Button
               variant={activeSection === "members" ? "default" : "ghost"}
               onClick={() => setActiveSection("members")}
-              className="justify-start"
+              className="w-full justify-start"
             >
               <UserCheck className="w-4 h-4 mr-2" />
               Members
@@ -1343,7 +1487,7 @@ function SpecialRolesSection({ marketingRequestsProp }: SpecialRolesSectionProps
             <Button
               variant={activeSection === "projects" ? "default" : "ghost"}
               onClick={() => setActiveSection("projects")}
-              className="justify-start"
+              className="w-full justify-start"
             >
               <Wand2 className="w-4 h-4 mr-2" />
               Projects
@@ -1351,7 +1495,7 @@ function SpecialRolesSection({ marketingRequestsProp }: SpecialRolesSectionProps
             <Button
               variant={activeSection === "settings" ? "default" : "ghost"}
               onClick={() => setActiveSection("settings")}
-              className="justify-start"
+              className="w-full justify-start"
             >
               <Settings className="w-4 h-4 mr-2" />
               Settings
@@ -1359,7 +1503,7 @@ function SpecialRolesSection({ marketingRequestsProp }: SpecialRolesSectionProps
             <Button
               variant={activeSection === "event-attendance" ? "default" : "ghost"}
               onClick={() => setActiveSection("event-attendance")}
-              className="justify-start"
+              className="w-full justify-start"
             >
               <Camera className="w-4 h-4 mr-2" />
               Event Attendance
@@ -1368,7 +1512,7 @@ function SpecialRolesSection({ marketingRequestsProp }: SpecialRolesSectionProps
             <Button
               variant={activeSection === "print-management" ? "default" : "ghost"}
               onClick={() => setActiveSection("print-management")}
-              className="justify-start"
+              className="w-full justify-start"
             >
               <Printer className="w-4 h-4 mr-2" />
               Print Management
@@ -1377,7 +1521,7 @@ function SpecialRolesSection({ marketingRequestsProp }: SpecialRolesSectionProps
             <Button
               variant={activeSection === "special-roles" ? "default" : "ghost"}
               onClick={() => setActiveSection("special-roles")}
-              className="justify-start"
+              className="w-full justify-start"
             >
               <Star className="w-4 h-4 mr-2" />
               Special Roles
@@ -1386,7 +1530,7 @@ function SpecialRolesSection({ marketingRequestsProp }: SpecialRolesSectionProps
             <Button
               variant={activeSection === "marketing-requests" ? "default" : "ghost"}
               onClick={() => setActiveSection("marketing-requests")}
-              className="justify-start"
+              className="w-full justify-start"
             >
               <Send className="w-4 h-4 mr-2" />
               Marketing Requests
