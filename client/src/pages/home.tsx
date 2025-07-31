@@ -10,6 +10,7 @@ import EventAttendanceForm from "../components/event-attendance-form";
 import PrintSubmissionForm from "../components/print-submission-form";
 import SpecialRoleForm from "../components/special-role-form";
 import MarketingRequestForm from "../components/marketing-request-form";
+import { useAuth } from "../hooks/use-auth";
 import { Button } from "../components/ui/button";
 import {
   DropdownMenu,
@@ -31,7 +32,10 @@ import {
   Home,
   UserCheck,
   Wrench,
-  Send
+  Send,
+  LogIn,
+  LogOut,
+  User
 } from "lucide-react";
 
 type TabType = "home" | "member" | "project" | "admin" | "team" | "create-event" | "event-attendance" | "print-submission" | "special-role" | "marketing-request";
@@ -129,6 +133,29 @@ function LandingPage() {
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<TabType>("home");
+  const { isAuthenticated, user, logout, isAdmin } = useAuth();
+
+  const handleAuthAction = () => {
+    if (isAuthenticated) {
+      logout();
+    } else {
+      window.location.href = "/login";
+    }
+  };
+
+  // Redirect non-admin users away from restricted tabs
+  const handleTabChange = (tab: TabType) => {
+    // Check if the tab requires admin access
+    const adminOnlyTabs: TabType[] = ["admin", "create-event", "team", "print-submission", "marketing-request"];
+    
+    if (adminOnlyTabs.includes(tab) && (!isAuthenticated || !isAdmin)) {
+      // Redirect to home if trying to access admin-only tabs without proper access
+      setActiveTab("home");
+      return;
+    }
+    
+    setActiveTab(tab);
+  };
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -137,98 +164,145 @@ export default function HomePage() {
       {/* Navigation */}
       <nav className="bg-white shadow-sm border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center space-x-1">
-            {/* Home Tab */}
-            <Button
-              variant="ghost"
-              onClick={() => setActiveTab("home")}
-              className={`tab-button px-4 py-3 text-sm font-medium rounded-t-lg ${
-                activeTab === "home" ? "active" : ""
-              }`}
-            >
-              <Home className="w-4 h-4 mr-2" />
-              Home
-            </Button>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-1">
+              {/* Home Tab */}
+              <Button
+                variant="ghost"
+                onClick={() => handleTabChange("home")}
+                className={`tab-button px-4 py-3 text-sm font-medium rounded-t-lg ${
+                  activeTab === "home" ? "active" : ""
+                }`}
+              >
+                <Home className="w-4 h-4 mr-2" />
+                Home
+              </Button>
 
-            {/* Member Services Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+              {/* Member Services Dropdown - Always visible */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className={`tab-button px-4 py-3 text-sm font-medium rounded-t-lg ${
+                      ["project", "member", "event-attendance", "special-role"].includes(activeTab) ? "active" : ""
+                    }`}
+                  >
+                    <UserCheck className="w-4 h-4 mr-2" />
+                    Member Services
+                    <ChevronDown className="w-4 h-4 ml-1" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem onClick={() => handleTabChange("project")}>
+                    <Lightbulb className="w-4 h-4 mr-2" />
+                    Project Request
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleTabChange("member")}>
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Join Team
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleTabChange("event-attendance")}>
+                    <Camera className="w-4 h-4 mr-2" />
+                    Event Attendance
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleTabChange("special-role")}>
+                    <Star className="w-4 h-4 mr-2" />
+                    Apply for Role
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Administrative Tools Dropdown - Only for authenticated admin users */}
+              {isAuthenticated && isAdmin && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className={`tab-button px-4 py-3 text-sm font-medium rounded-t-lg ${
+                        ["create-event", "team", "print-submission", "marketing-request"].includes(activeTab) ? "active" : ""
+                      }`}
+                    >
+                      <Wrench className="w-4 h-4 mr-2" />
+                      Tools
+                      <ChevronDown className="w-4 h-4 ml-1" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuItem onClick={() => handleTabChange("create-event")}>
+                      <CalendarDays className="w-4 h-4 mr-2" />
+                      Create Event
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleTabChange("team")}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Team
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleTabChange("print-submission")}>
+                      <Printer className="w-4 h-4 mr-2" />
+                      Print Request
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleTabChange("marketing-request")}>
+                      <Send className="w-4 h-4 mr-2" />
+                      Marketing Request
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+
+              {/* Admin Tab - Only for authenticated admin users */}
+              {isAuthenticated && isAdmin && (
                 <Button
                   variant="ghost"
+                  onClick={() => handleTabChange("admin")}
                   className={`tab-button px-4 py-3 text-sm font-medium rounded-t-lg ${
-                    ["project", "member", "event-attendance", "special-role"].includes(activeTab) ? "active" : ""
+                    activeTab === "admin" ? "active" : ""
                   }`}
                 >
-                  <UserCheck className="w-4 h-4 mr-2" />
-                  Member Services
-                  <ChevronDown className="w-4 h-4 ml-1" />
+                  <Settings className="w-4 h-4 mr-2" />
+                  Admin
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem onClick={() => setActiveTab("project")}>
-                  <Lightbulb className="w-4 h-4 mr-2" />
-                  Project Request
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setActiveTab("member")}>
+              )}
+            </div>
+
+            {/* Authentication Section */}
+            <div className="flex items-center space-x-2">
+              {isAuthenticated && user && (
+                <span className="text-sm text-slate-600">
+                  <User className="w-4 h-4 inline mr-1" />
+                  {user.firstName || user.email}
+                </span>
+              )}
+              
+              {!isAuthenticated && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.location.href = "/signup"}
+                  className="flex items-center"
+                >
                   <UserPlus className="w-4 h-4 mr-2" />
-                  Join Team
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setActiveTab("event-attendance")}>
-                  <Camera className="w-4 h-4 mr-2" />
-                  Event Attendance
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setActiveTab("special-role")}>
-                  <Star className="w-4 h-4 mr-2" />
-                  Apply for Role
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Administrative Tools Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className={`tab-button px-4 py-3 text-sm font-medium rounded-t-lg ${
-                    ["create-event", "team", "print-submission", "marketing-request"].includes(activeTab) ? "active" : ""
-                  }`}
-                >
-                  <Wrench className="w-4 h-4 mr-2" />
-                  Tools
-                  <ChevronDown className="w-4 h-4 ml-1" />
+                  Sign Up
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem onClick={() => setActiveTab("create-event")}>
-                  <CalendarDays className="w-4 h-4 mr-2" />
-                  Create Event
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setActiveTab("team")}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Team
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setActiveTab("print-submission")}>
-                  <Printer className="w-4 h-4 mr-2" />
-                  Print Request
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setActiveTab("marketing-request")}>
-                  <Send className="w-4 h-4 mr-2" />
-                  Marketing Request
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Admin Tab */}
-            <Button
-              variant="ghost"
-              onClick={() => setActiveTab("admin")}
-              className={`tab-button px-4 py-3 text-sm font-medium rounded-t-lg ${
-                activeTab === "admin" ? "active" : ""
-              }`}
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              Admin
-            </Button>
+              )}
+              
+              <Button
+                variant={isAuthenticated ? "outline" : "default"}
+                size="sm"
+                onClick={handleAuthAction}
+                className="flex items-center"
+              >
+                {isAuthenticated ? (
+                  <>
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Logout
+                  </>
+                ) : (
+                  <>
+                    <LogIn className="w-4 h-4 mr-2" />
+                    Login
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </nav>
@@ -239,12 +313,27 @@ export default function HomePage() {
         {activeTab === "member" && <MemberForm />}
         {activeTab === "project" && <ProjectRequestForm />}
         {activeTab === "special-role" && <SpecialRoleForm />}
-        {activeTab === "print-submission" && <PrintSubmissionForm />}
-        {activeTab === "create-event" && <EventCreationForm />}
         {activeTab === "event-attendance" && <EventAttendanceForm />}
-        {activeTab === "admin" && <AdminDashboard />}
-        {activeTab === "team" && <TeamCreationForm />}
-        {activeTab === "marketing-request" && <MarketingRequestForm />}
+        
+        {/* Admin-only content */}
+        {isAuthenticated && isAdmin && activeTab === "print-submission" && <PrintSubmissionForm />}
+        {isAuthenticated && isAdmin && activeTab === "create-event" && <EventCreationForm />}
+        {isAuthenticated && isAdmin && activeTab === "admin" && <AdminDashboard />}
+        {isAuthenticated && isAdmin && activeTab === "team" && <TeamCreationForm />}
+        {isAuthenticated && isAdmin && activeTab === "marketing-request" && <MarketingRequestForm />}
+        
+        {/* Show access denied message for admin tabs when not authenticated as admin */}
+        {(!isAuthenticated || !isAdmin) && ["print-submission", "create-event", "admin", "team", "marketing-request"].includes(activeTab) && (
+          <div className="flex items-center justify-center min-h-96">
+            <div className="text-center">
+              <h1 className="text-2xl font-bold text-red-600 mb-2">Access Denied</h1>
+              <p className="text-gray-600 mb-4">You need admin privileges to access this page.</p>
+              <Button onClick={() => handleTabChange("home")} variant="outline">
+                Return to Home
+              </Button>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

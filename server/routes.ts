@@ -15,6 +15,12 @@ import { applications, teams, projectRequests, events, eventAttendance, printSub
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
 import { db } from "./db";
+import { authenticateToken, requireAdmin, requireAuth } from "./auth.js";
+import { 
+  register, login, logout, getCurrentUser, changePassword, 
+  requestPasswordReset, resetPassword, getAllUsers, updateUser,
+  signup, generateAdminCode, getCurrentAdminCode
+} from "./auth-routes.js";
 
 interface AssignmentResult {
   applicationId: string;
@@ -140,6 +146,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/health", (_req, res) => {
     res.status(200).json({ status: "ok", message: "Server is running" });
   });
+
+  // Authentication Routes
+  app.post("/api/auth/register", authenticateToken, requireAdmin, register);
+  app.post("/api/auth/signup", signup); // Public signup with admin code
+  app.post("/api/auth/login", login);
+  app.post("/api/auth/logout", logout);
+  app.get("/api/auth/me", authenticateToken, getCurrentUser);
+  app.post("/api/auth/change-password", authenticateToken, changePassword);
+  app.post("/api/auth/request-password-reset", requestPasswordReset);
+  app.post("/api/auth/reset-password", resetPassword);
+  app.get("/api/auth/users", authenticateToken, requireAdmin, getAllUsers);
+  app.put("/api/auth/users/:id", authenticateToken, requireAdmin, updateUser);
+  
+  // Admin signup code management
+  app.post("/api/auth/admin-code/generate", authenticateToken, requireAdmin, generateAdminCode);
+  app.get("/api/auth/admin-code/current", authenticateToken, requireAdmin, getCurrentAdminCode);
+
+  // Apply authentication middleware to all admin routes
+  app.use("/api/admin/*", authenticateToken, requireAdmin);
 
   // Teams API
   app.get("/api/teams", async (_req, res) => {

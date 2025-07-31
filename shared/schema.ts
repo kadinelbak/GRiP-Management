@@ -206,6 +206,15 @@ export const passwordResets = pgTable("password_resets", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const adminSignupCodes = pgTable("admin_signup_codes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: text("code").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+});
+
 // Relations
 export const teamsRelations = relations(teams, ({ many }) => ({
   applications: many(applications),
@@ -271,6 +280,13 @@ export const usersRelations = relations(users, ({ many }) => ({
 export const sessionsRelations = relations(sessions, ({ one }) => ({
   user: one(users, {
     fields: [sessions.userId],
+    references: [users.id],
+  }),
+}));
+
+export const adminSignupCodesRelations = relations(adminSignupCodes, ({ one }) => ({
+  createdByUser: one(users, {
+    fields: [adminSignupCodes.createdBy],
     references: [users.id],
   }),
 }));
@@ -488,6 +504,18 @@ export const resetPasswordSchema = z.object({
   path: ["confirmPassword"],
 });
 
+export const signupSchema = z.object({
+  email: z.string().email("Valid email address is required"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  confirmPassword: z.string().min(1, "Please confirm your password"),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  adminCode: z.string().min(1, "Admin signup code is required"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
 export type InsertPrintSubmission = z.infer<typeof insertPrintSubmissionSchema>;
 export type SpecialRole = typeof specialRoles.$inferSelect;
 export type RoleApplication = typeof roleApplications.$inferSelect;
@@ -497,3 +525,11 @@ export type InsertSpecialRole = z.infer<typeof insertSpecialRoleSchema>;
 export type InsertRoleApplication = z.infer<typeof insertRoleApplicationSchema>;
 export type InsertMemberRole = z.infer<typeof insertMemberRoleSchema>;
 export type InsertMarketingRequest = z.infer<typeof insertMarketingRequestSchema>;
+
+// Auth Types
+export type User = typeof users.$inferSelect;
+export type Session = typeof sessions.$inferSelect;
+export type AdminSignupCode = typeof adminSignupCodes.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type LoginData = z.infer<typeof loginSchema>;
+export type SignupData = z.infer<typeof signupSchema>;
