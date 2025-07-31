@@ -4,6 +4,11 @@ import { setupVite, serveStatic, log } from "./vite.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
+// Load environment variables for local development
+if (process.env.NODE_ENV === "development") {
+  import("dotenv").then(dotenv => dotenv.config());
+}
+
 // Handle both development and production environments
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
