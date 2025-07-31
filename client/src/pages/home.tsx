@@ -1,22 +1,22 @@
 
 import { useState } from "react";
-import Header from "@/components/header";
-import MemberForm from "@/components/member-form";
-import ProjectRequestForm from "@/components/project-request-form";
-import AdminDashboard from "@/components/admin-dashboard";
-import TeamCreationForm from "@/components/team-creation-form";
-import EventCreationForm from "@/components/event-creation-form";
-import EventAttendanceForm from "@/components/event-attendance-form";
-import PrintSubmissionForm from "@/components/print-submission-form";
-import SpecialRoleForm from "@/components/special-role-form";
-import MarketingRequestForm from "@/components/marketing-request-form";
-import { Button } from "@/components/ui/button";
+import Header from "../components/header";
+import MemberForm from "../components/member-form";
+import ProjectRequestForm from "../components/project-request-form";
+import AdminDashboard from "../components/admin-dashboard";
+import TeamCreationForm from "../components/team-creation-form";
+import EventCreationForm from "../components/event-creation-form";
+import EventAttendanceForm from "../components/event-attendance-form";
+import PrintSubmissionForm from "../components/print-submission-form";
+import SpecialRoleForm from "../components/special-role-form";
+import MarketingRequestForm from "../components/marketing-request-form";
+import { Button } from "../components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "../components/ui/dropdown-menu";
 import { 
   UserPlus, 
   Users, 

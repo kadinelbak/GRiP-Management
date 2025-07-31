@@ -1,5 +1,5 @@
 import { Menu } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "./ui/button";
 import { Send } from "lucide-react";
 
 export default function Header() {

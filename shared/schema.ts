@@ -167,13 +167,43 @@ export const memberRoles = pgTable("member_roles", {
 // Marketing Requests
 export const marketingRequests = pgTable("marketing_requests", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  fullName: text("full_name").notNull(),
+  name: text("name").notNull(),
   email: text("email").notNull(),
-  ufid: text("ufid").notNull(),
-  associatedEventName: text("associated_event_name").notNull(),
-  detailedDescription: text("detailed_description").notNull(),
-  status: text("status").notNull().default("pending"), // 'pending', 'approved', 'rejected'
+  organization: text("organization"),
+  requestType: text("request_type").notNull(),
+  message: text("message").notNull(),
   submittedAt: timestamp("submitted_at").notNull().defaultNow(),
+});
+
+// Authentication Tables
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  role: text("role").notNull().default("member"), // 'admin', 'member'
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  isActive: boolean("is_active").notNull().default(true),
+  lastLogin: timestamp("last_login"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const sessions = pgTable("sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const passwordResets = pgTable("password_resets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: text("email").notNull(),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 // Relations
@@ -232,6 +262,18 @@ export const memberRolesRelations = relations(memberRoles, ({ one }) => ({
 }));
 
 export const marketingRequestsRelations = relations(marketingRequests, ({ }) => ({}));
+
+// Auth Relations
+export const usersRelations = relations(users, ({ many }) => ({
+  sessions: many(sessions),
+}));
+
+export const sessionsRelations = relations(sessions, ({ one }) => ({
+  user: one(users, {
+    fields: [sessions.userId],
+    references: [users.id],
+  }),
+}));
 
 // Insert schemas
 export const insertTeamSchema = createInsertSchema(teams).omit({
@@ -396,14 +438,54 @@ export const insertMemberRoleSchema = createInsertSchema(memberRoles).omit({
 
 export const insertMarketingRequestSchema = createInsertSchema(marketingRequests).omit({
   id: true,
-  status: true,
   submittedAt: true,
 }).extend({
-  fullName: z.string().min(1, "Full name is required"),
+  name: z.string().min(1, "Name is required"),
   email: z.string().email("Valid email address is required"),
-  ufid: z.string().regex(/^\d{8}$/, "UFID must be exactly 8 digits"),
-  associatedEventName: z.string().min(1, "Associated event name is required"),
-  detailedDescription: z.string().min(1, "Detailed description is required"),
+  organization: z.string().optional(),
+  requestType: z.string().min(1, "Request type is required"),
+  message: z.string().min(1, "Message is required"),
+});
+
+// Auth Schemas
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastLogin: true,
+}).extend({
+  email: z.string().email("Valid email address is required"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  role: z.enum(["admin", "member"]).default("member"),
+});
+
+export const loginSchema = z.object({
+  email: z.string().email("Valid email address is required"),
+  password: z.string().min(1, "Password is required"),
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
+  newPassword: z.string().min(8, "New password must be at least 8 characters"),
+  confirmPassword: z.string().min(1, "Please confirm your new password"),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
+export const resetPasswordRequestSchema = z.object({
+  email: z.string().email("Valid email address is required"),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, "Reset token is required"),
+  newPassword: z.string().min(8, "Password must be at least 8 characters"),
+  confirmPassword: z.string().min(1, "Please confirm your password"),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
 });
 
 export type InsertPrintSubmission = z.infer<typeof insertPrintSubmissionSchema>;
