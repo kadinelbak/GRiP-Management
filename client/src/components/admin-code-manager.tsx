@@ -18,24 +18,27 @@ export default function AdminCodeManager() {
   const queryClient = useQueryClient();
 
   // Get current admin code
-  const { data: adminCodeData, isLoading } = useQuery<AdminCode | { code: null; message: string }>({
+  const { data: adminCodeData, isLoading, error } = useQuery<AdminCode | { code: null; message: string }>({
     queryKey: ["/api/auth/admin-code/current"],
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
+  console.log("Admin code data:", adminCodeData);
+  console.log("Admin code error:", error);
+
   // Generate new admin code
   const generateCodeMutation = useMutation({
-    mutationFn: () => apiRequest("/api/auth/admin-code/generate", {
-      method: "POST",
-    }),
-    onSuccess: () => {
+    mutationFn: () => apiRequest("POST", "/api/auth/admin-code/generate"),
+    onSuccess: (response) => {
+      console.log("Generate code success:", response);
       queryClient.invalidateQueries({ queryKey: ["/api/auth/admin-code/current"] });
       toast({
         title: "New Admin Code Generated",
         description: "A new 24-hour signup code has been created.",
       });
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Generate code error:", error);
       toast({
         title: "Error",
         description: "Failed to generate new admin code.",
@@ -89,6 +92,30 @@ export default function AdminCodeManager() {
         </CardHeader>
         <CardContent>
           <div className="animate-pulse">Loading...</div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Key className="w-5 h-5" />
+            Admin Signup Codes
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-red-600">
+            Error loading admin codes: {error.message}
+          </div>
+          <Button 
+            onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/auth/admin-code/current"] })}
+            className="mt-4"
+          >
+            Retry
+          </Button>
         </CardContent>
       </Card>
     );
@@ -168,7 +195,7 @@ export default function AdminCodeManager() {
         )}
 
         {/* Generate New Code Button */}
-        <div className="flex justify-center">
+        <div className="flex flex-col items-center gap-2">
           <Button
             onClick={() => generateCodeMutation.mutate()}
             disabled={generateCodeMutation.isPending}
@@ -177,6 +204,12 @@ export default function AdminCodeManager() {
             <RefreshCw className={`w-4 h-4 ${generateCodeMutation.isPending ? 'animate-spin' : ''}`} />
             {hasActiveCode ? "Generate New Code" : "Generate Signup Code"}
           </Button>
+          
+          {generateCodeMutation.error && (
+            <div className="text-red-600 text-sm text-center">
+              Error: {generateCodeMutation.error.message}
+            </div>
+          )}
         </div>
 
         <div className="text-xs text-gray-500 text-center">

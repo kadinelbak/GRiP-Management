@@ -67,11 +67,47 @@ app.use((req, res, next) => {
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
   if (app.get("env") === "development") {
-    await setupVite(app, server);
+    // For now, serve built files instead of using Vite middleware
+    // await setupVite(app, server);
+    const staticPath = path.resolve(__dirname, "../dist/client");
+    const indexPath = path.resolve(__dirname, "../dist/client/index.html");
+    
+    console.log("Serving static files from:", staticPath);
+    console.log("Index file location:", indexPath);
+    
+    // Serve static assets
+    app.use(express.static(staticPath, {
+      index: false,
+      maxAge: '1d'
+    }));
+
+    // Health check for deployment
+    app.get("/health", (req, res) => {
+      res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+    });
+
+    // Handle client-side routing - serve index.html for all non-API routes
+    app.get("*", (req, res, next) => {
+      if (req.path.startsWith("/api")) {
+        return res.status(404).json({ message: "API endpoint not found" });
+      }
+      
+      try {
+        res.sendFile(indexPath, (err) => {
+          if (err) {
+            console.error('Error serving index.html:', err);
+            res.status(500).send('Internal Server Error');
+          }
+        });
+      } catch (error) {
+        console.error('Error in catch-all route:', error);
+        next(error);
+      }
+    });
   } else {
     // Production: serve static files
-    const staticPath = path.resolve(__dirname, "../client");
-    const indexPath = path.resolve(__dirname, "../client/index.html");
+    const staticPath = path.resolve(__dirname, "../dist/client");
+    const indexPath = path.resolve(__dirname, "../dist/client/index.html");
     
     console.log("Serving static files from:", staticPath);
     console.log("Index file location:", indexPath);

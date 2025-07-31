@@ -25,11 +25,11 @@ export default function MarketingRequestForm() {
   const form = useForm<MarketingRequestFormData>({
     resolver: zodResolver(insertMarketingRequestSchema),
     defaultValues: {
-      fullName: "",
+      name: "",
       email: "",
-      ufid: "",
-      associatedEventName: "",
-      detailedDescription: "",
+      organization: "",
+      requestType: "",
+      message: "",
     },
   });
 
@@ -96,7 +96,7 @@ export default function MarketingRequestForm() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
-                  name="fullName"
+                  name="name"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Full Name *</FormLabel>
@@ -126,12 +126,12 @@ export default function MarketingRequestForm() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
-                  name="ufid"
+                  name="organization"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>UFID *</FormLabel>
+                      <FormLabel>Organization</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="12345678" maxLength={8} />
+                        <Input {...field} placeholder="Enter your organization (optional)" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -140,12 +140,12 @@ export default function MarketingRequestForm() {
 
                 <FormField
                   control={form.control}
-                  name="associatedEventName"
+                  name="requestType"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Associated Event Name *</FormLabel>
+                      <FormLabel>Request Type *</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="Enter event name" />
+                        <Input {...field} placeholder="e.g., Event Marketing, Social Media, Flyers" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -155,7 +155,7 @@ export default function MarketingRequestForm() {
 
               <FormField
                 control={form.control}
-                name="detailedDescription"
+                name="message"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Detailed Description of the Request *</FormLabel>

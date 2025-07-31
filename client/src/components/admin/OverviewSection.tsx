@@ -12,9 +12,22 @@ interface AdminStats {
   totalAdditionalSignups: number;
 }
 
+interface RecentActivity {
+  type: string;
+  message: string;
+  description: string;
+  timestamp: string;
+  color: string;
+}
+
 export default function OverviewSection() {
   const { data: stats } = useQuery<AdminStats>({
     queryKey: ["/api/admin/stats"],
+  });
+
+  const { data: recentActivities = [] } = useQuery<RecentActivity[]>({
+    queryKey: ["/api/admin/recent-activity"],
+    refetchInterval: 30000, // Refresh every 30 seconds
   });
 
   const statsCards = [
@@ -149,30 +162,51 @@ export default function OverviewSection() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="flex items-center gap-4 p-3 bg-slate-50 rounded-lg">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <div className="flex-1">
-                <p className="text-sm font-medium">New application received</p>
-                <p className="text-xs text-slate-600">John Doe applied for Technical Team</p>
+            {recentActivities.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-slate-500">No recent activity to display</p>
+                <p className="text-sm text-slate-400 mt-2">Activity will appear here as users interact with the system</p>
               </div>
-              <span className="text-xs text-slate-500">2 min ago</span>
-            </div>
-            <div className="flex items-center gap-4 p-3 bg-slate-50 rounded-lg">
-              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <div className="flex-1">
-                <p className="text-sm font-medium">Team capacity updated</p>
-                <p className="text-xs text-slate-600">Software Development team increased to 12 members</p>
-              </div>
-              <span className="text-xs text-slate-500">1 hour ago</span>
-            </div>
-            <div className="flex items-center gap-4 p-3 bg-slate-50 rounded-lg">
-              <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-              <div className="flex-1">
-                <p className="text-sm font-medium">Project request submitted</p>
-                <p className="text-xs text-slate-600">New prosthetic design project from external client</p>
-              </div>
-              <span className="text-xs text-slate-500">3 hours ago</span>
-            </div>
+            ) : (
+              recentActivities.map((activity, index) => {
+                const getColorClasses = (color: string) => {
+                  switch (color) {
+                    case 'green': return 'bg-green-500';
+                    case 'blue': return 'bg-blue-500';
+                    case 'purple': return 'bg-purple-500';
+                    case 'orange': return 'bg-orange-500';
+                    case 'yellow': return 'bg-yellow-500';
+                    default: return 'bg-slate-500';
+                  }
+                };
+
+                const formatTimeAgo = (timestamp: string) => {
+                  const now = new Date();
+                  const activityTime = new Date(timestamp);
+                  const diffInMinutes = Math.floor((now.getTime() - activityTime.getTime()) / (1000 * 60));
+                  
+                  if (diffInMinutes < 1) return 'Just now';
+                  if (diffInMinutes < 60) return `${diffInMinutes} min ago`;
+                  
+                  const diffInHours = Math.floor(diffInMinutes / 60);
+                  if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
+                  
+                  const diffInDays = Math.floor(diffInHours / 24);
+                  return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+                };
+
+                return (
+                  <div key={index} className="flex items-center gap-4 p-3 bg-slate-50 rounded-lg">
+                    <div className={`w-2 h-2 rounded-full ${getColorClasses(activity.color)}`}></div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{activity.message}</p>
+                      <p className="text-xs text-slate-600">{activity.description}</p>
+                    </div>
+                    <span className="text-xs text-slate-500">{formatTimeAgo(activity.timestamp)}</span>
+                  </div>
+                );
+              })
+            )}
           </div>
         </CardContent>
       </Card>

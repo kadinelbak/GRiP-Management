@@ -29,5 +29,6 @@ export const {
   specialRoles, 
   roleApplications, 
   memberRoles, 
-  marketingRequests 
+  marketingRequests,
+  additionalTeamSignups
 } = schema;

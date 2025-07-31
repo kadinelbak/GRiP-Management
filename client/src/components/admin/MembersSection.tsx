@@ -7,8 +7,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Badge } from "../ui/badge";
 import { useToast } from "../../hooks/use-toast";
 import { apiRequest } from "../../lib/queryClient";
-import { Search, Filter, UserX, Download, Mail, Phone, Calendar, MapPin } from "lucide-react";
+import { Search, Filter, UserX, Download, Mail, Phone, Calendar, MapPin, Shuffle } from "lucide-react";
 import type { Team } from "../../../../shared/schema";
+
+// Extended interface for accepted members with team assignment
+interface AcceptedMember {
+  id: string;
+  fullName: string;
+  email: string;
+  ufid: string;
+  phoneNumber?: string;
+  graduationYear?: number;
+  skills: string[];
+  teamId: string | null; // This maps to assignedTeamId in the database
+  submittedAt: string;
+}
 
 export default function MembersSection() {
   const { toast } = useToast();
@@ -16,7 +29,7 @@ export default function MembersSection() {
   const [searchTerm, setSearchTerm] = useState("");
   const [teamFilter, setTeamFilter] = useState<string>("all");
 
-  const { data: acceptedMembers = [] } = useQuery({
+  const { data: acceptedMembers = [] } = useQuery<AcceptedMember[]>({
     queryKey: ["/api/accepted-members"],
   });
 
@@ -64,6 +77,26 @@ export default function MembersSection() {
     },
   });
 
+  // Auto-sort members mutation
+  const autoSortMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/auto-sort-members"),
+    onSuccess: () => {
+      toast({
+        title: "Auto-Sort Complete",
+        description: "Members have been automatically distributed across teams.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/accepted-members"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to auto-sort members.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleRemoveMember = (memberId: string, memberName: string) => {
     if (confirm(`Are you sure you want to remove ${memberName} from their team?`)) {
       removeMemberMutation.mutate(memberId);
@@ -74,12 +107,27 @@ export default function MembersSection() {
     changeTeamMutation.mutate({ memberId, teamId });
   };
 
+  const handleAutoSort = () => {
+    const unassignedCount = acceptedMembers.filter((member) => !member.teamId).length;
+    if (unassignedCount === 0) {
+      toast({
+        title: "No Action Needed",
+        description: "All members are already assigned to teams.",
+      });
+      return;
+    }
+
+    if (confirm(`Auto-sort ${unassignedCount} unassigned members across available teams?`)) {
+      autoSortMutation.mutate();
+    }
+  };
+
   const handleExportMembers = () => {
     window.open("/api/export/members", "_blank");
   };
 
   // Filter members based on search and team
-  const filteredMembers = acceptedMembers.filter((member: any) => {
+  const filteredMembers = acceptedMembers.filter((member) => {
     const matchesSearch = member.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          member.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          member.ufid.includes(searchTerm);
@@ -112,8 +160,8 @@ export default function MembersSection() {
   const getAvailableTeams = (currentTeamId: string | null) => {
     return teams.filter(team => {
       if (team.id === currentTeamId) return true; // Include current team
-      const memberCount = acceptedMembers.filter((member: any) => member.teamId === team.id).length;
-      return memberCount < team.maxMembers; // Only include teams with space
+      const memberCount = acceptedMembers.filter((member) => member.teamId === team.id).length;
+      return memberCount < team.maxCapacity; // Only include teams with space
     });
   };
 
@@ -121,10 +169,21 @@ export default function MembersSection() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-slate-900">Member Management</h2>
-        <Button onClick={handleExportMembers} variant="outline" size="sm">
-          <Download className="w-4 h-4 mr-2" />
-          Export Members
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={handleAutoSort} 
+            variant="default" 
+            size="sm"
+            disabled={autoSortMutation.isPending}
+          >
+            <Shuffle className="w-4 h-4 mr-2" />
+            {autoSortMutation.isPending ? "Auto-Sorting..." : "Auto-Sort Members"}
+          </Button>
+          <Button onClick={handleExportMembers} variant="outline" size="sm">
+            <Download className="w-4 h-4 mr-2" />
+            Export Members
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -178,7 +237,7 @@ export default function MembersSection() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredMembers.map((member: any) => (
+          {filteredMembers.map((member) => (
             <Card key={member.id} className="relative">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
@@ -255,9 +314,9 @@ export default function MembersSection() {
                     </SelectTrigger>
                     <SelectContent>
                       {getAvailableTeams(member.teamId).map((team) => {
-                        const memberCount = acceptedMembers.filter((m: any) => m.teamId === team.id).length;
+                        const memberCount = acceptedMembers.filter((m) => m.teamId === team.id).length;
                         const isCurrentTeam = team.id === member.teamId;
-                        const isFull = memberCount >= team.maxMembers && !isCurrentTeam;
+                        const isFull = memberCount >= team.maxCapacity && !isCurrentTeam;
                         
                         return (
                           <SelectItem 
@@ -265,7 +324,7 @@ export default function MembersSection() {
                             value={team.id}
                             disabled={isFull}
                           >
-                            {team.name} ({memberCount}/{team.maxMembers})
+                            {team.name} ({memberCount}/{team.maxCapacity})
                             {isFull && " - Full"}
                           </SelectItem>
                         );
@@ -294,7 +353,7 @@ export default function MembersSection() {
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {teams.map((team) => {
-                const memberCount = acceptedMembers.filter((member: any) => member.teamId === team.id).length;
+                const memberCount = acceptedMembers.filter((member) => member.teamId === team.id).length;
                 const percentage = Math.round((memberCount / acceptedMembers.length) * 100);
                 
                 return (
@@ -302,13 +361,13 @@ export default function MembersSection() {
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-medium">{team.name}</span>
                       <Badge className={getTeamColor(team.id)}>
-                        {memberCount}/{team.maxMembers}
+                        {memberCount}/{team.maxCapacity}
                       </Badge>
                     </div>
                     <div className="w-full bg-slate-200 rounded-full h-2 mb-2">
                       <div 
                         className="bg-blue-600 h-2 rounded-full transition-all"
-                        style={{ width: `${(memberCount / team.maxMembers) * 100}%` }}
+                        style={{ width: `${(memberCount / team.maxCapacity) * 100}%` }}
                       ></div>
                     </div>
                     <div className="text-sm text-slate-600">

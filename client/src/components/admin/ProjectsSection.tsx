@@ -9,6 +9,18 @@ import { apiRequest } from "../../lib/queryClient";
 import { Wand2, Eye, Trash2, CheckCircle, Clock, AlertTriangle, Users } from "lucide-react";
 import type { ProjectRequest } from "../../../../shared/schema";
 
+// Extended interface for project requests with additional display properties
+interface ExtendedProjectRequest extends ProjectRequest {
+  // Add computed properties for backward compatibility
+  submitterName: string; // maps to fullName
+  submitterEmail: string; // maps to email
+  ufid?: string; // not in schema, will be undefined
+  techStack?: string; // not in schema, will be undefined
+  teamSize?: number; // not in schema, will be undefined
+  createdAt: string; // maps to submittedAt
+  updatedAt?: string; // not in schema, will be undefined
+}
+
 export default function ProjectsSection() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -189,14 +201,16 @@ export default function ProjectsSection() {
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-600 mb-3">
                         <div>
-                          <span className="font-medium">Submitted by:</span> {request.submitterName}
+                          <span className="font-medium">Submitted by:</span> {request.fullName}
                         </div>
                         <div>
-                          <span className="font-medium">Email:</span> {request.submitterEmail}
+                          <span className="font-medium">Email:</span> {request.email}
                         </div>
-                        <div>
-                          <span className="font-medium">UFID:</span> {request.ufid}
-                        </div>
+                        {request.phone && (
+                          <div>
+                            <span className="font-medium">Phone:</span> {request.phone}
+                          </div>
+                        )}
                         <div>
                           <span className="font-medium">Submitted:</span> {new Date(request.submittedAt).toLocaleDateString()}
                         </div>
@@ -211,20 +225,11 @@ export default function ProjectsSection() {
                         </div>
                       )}
 
-                      {request.techStack && (
+                      {request.budgetConsiderations && (
                         <div className="mb-4">
-                          <div className="text-sm font-medium text-slate-700 mb-1">Technology Stack:</div>
+                          <div className="text-sm font-medium text-slate-700 mb-1">Budget Considerations:</div>
                           <div className="text-sm text-slate-600">
-                            {request.techStack}
-                          </div>
-                        </div>
-                      )}
-
-                      {request.teamSize && (
-                        <div className="mb-4">
-                          <div className="text-sm font-medium text-slate-700 mb-1">Requested Team Size:</div>
-                          <div className="text-sm text-slate-600">
-                            {request.teamSize} members
+                            {request.budgetConsiderations}
                           </div>
                         </div>
                       )}
@@ -271,10 +276,9 @@ export default function ProjectsSection() {
                   {/* Project Timeline/Status History */}
                   <div className="border-t pt-3 mt-3">
                     <div className="flex items-center gap-4 text-xs text-slate-500">
-                      <span>Created: {new Date(request.createdAt).toLocaleDateString()}</span>
-                      {request.updatedAt && request.updatedAt !== request.createdAt && (
-                        <span>Updated: {new Date(request.updatedAt).toLocaleDateString()}</span>
-                      )}
+                      <span>Submitted: {new Date(request.submittedAt).toLocaleDateString()}</span>
+                      <span>Priority: {request.priority}</span>
+                      <span>Type: {request.projectType}</span>
                     </div>
                   </div>
                 </Card>

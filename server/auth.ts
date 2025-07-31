@@ -60,8 +60,11 @@ export async function authenticateToken(req: Request, res: Response, next: NextF
 
     const decoded = verifyToken(token);
     if (!decoded) {
+      console.log('JWT verification failed');
       return res.status(403).json({ message: 'Invalid or expired token' });
     }
+
+    console.log('JWT verified for user:', decoded.userId);
 
     // Check if session exists and is valid
     const validSession = await db
@@ -76,7 +79,19 @@ export async function authenticateToken(req: Request, res: Response, next: NextF
       )
       .limit(1);
 
+    console.log('Valid sessions found:', validSession.length);
     if (validSession.length === 0) {
+      // Check if any sessions exist for this user
+      const allUserSessions = await db
+        .select()
+        .from(sessions)
+        .where(eq(sessions.userId, decoded.userId));
+      console.log('Total sessions for user:', allUserSessions.length);
+      console.log('Current time:', new Date().toISOString());
+      if (allUserSessions.length > 0) {
+        console.log('Latest session expires at:', allUserSessions[0].expiresAt);
+        console.log('Session token matches:', allUserSessions[0].token === token);
+      }
       return res.status(403).json({ message: 'Session expired or invalid' });
     }
 

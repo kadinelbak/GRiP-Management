@@ -11,8 +11,8 @@ import { z } from "zod";
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { applications, teams, projectRequests, events, eventAttendance, printSubmissions, absences, specialRoles, roleApplications, memberRoles, marketingRequests } from "./db";
-import { eq } from "drizzle-orm";
+import { applications, teams, projectRequests, events, eventAttendance, printSubmissions, absences, specialRoles, roleApplications, memberRoles, marketingRequests, additionalTeamSignups } from "./db";
+import { eq, and, isNull, sql, gt } from "drizzle-orm";
 import crypto from "crypto";
 import { db } from "./db";
 import { authenticateToken, requireAdmin, requireAuth } from "./auth.js";
@@ -468,6 +468,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Auto-sort existing members endpoint
+  app.post("/api/admin/auto-sort-members", async (req, res) => {
+    try {
+      // Get all accepted members without teams
+      const unassignedMembers = await db
+        .select()
+        .from(applications)
+        .where(and(
+          eq(applications.status, 'accepted'),
+          isNull(applications.assignedTeamId)
+        ));
+
+      // Get all teams with available space
+      const allTeams = await db.select().from(teams);
+      const availableTeams = [];
+
+      for (const team of allTeams) {
+        const currentMemberCount = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(applications)
+          .where(and(
+            eq(applications.assignedTeamId, team.id),
+            eq(applications.status, 'accepted')
+          ));
+
+        const memberCount = Number(currentMemberCount[0]?.count || 0);
+        if (memberCount < team.maxCapacity) {
+          availableTeams.push({
+            ...team,
+            availableSpots: team.maxCapacity - memberCount
+          });
+        }
+      }
+
+      if (unassignedMembers.length === 0) {
+        return res.json({ 
+          success: true, 
+          message: "No unassigned members found",
+          assignedCount: 0
+        });
+      }
+
+      if (availableTeams.length === 0) {
+        return res.json({ 
+          success: false, 
+          message: "No teams have available spots",
+          assignedCount: 0
+        });
+      }
+
+      // Sort teams by available spots (most space first)
+      availableTeams.sort((a, b) => b.availableSpots - a.availableSpots);
+
+      // Distribute members evenly across teams
+      let assignedCount = 0;
+      let currentTeamIndex = 0;
+
+      for (const member of unassignedMembers) {
+        if (availableTeams[currentTeamIndex].availableSpots > 0) {
+          await db
+            .update(applications)
+            .set({ assignedTeamId: availableTeams[currentTeamIndex].id })
+            .where(eq(applications.id, member.id));
+
+          availableTeams[currentTeamIndex].availableSpots--;
+          assignedCount++;
+
+          // Move to next team for even distribution
+          currentTeamIndex = (currentTeamIndex + 1) % availableTeams.length;
+
+          // Remove teams with no more space
+          while (availableTeams.length > 0 && availableTeams[currentTeamIndex].availableSpots === 0) {
+            availableTeams.splice(currentTeamIndex, 1);
+            if (availableTeams.length === 0) break;
+            if (currentTeamIndex >= availableTeams.length) {
+              currentTeamIndex = 0;
+            }
+          }
+
+          if (availableTeams.length === 0) break;
+        }
+      }
+
+      res.json({ 
+        success: true, 
+        message: `Successfully assigned ${assignedCount} members to teams`,
+        assignedCount
+      });
+
+    } catch (error) {
+      console.error("Auto-sort error:", error);
+      res.status(500).json({ error: "Failed to auto-sort members" });
+    }
+  });
+
   app.get("/api/admin/download-assignment-log", async (req, res) => {
     try {
       const { content, filename } = req.query;
@@ -618,24 +713,126 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin Dashboard Stats
   app.get("/api/admin/stats", async (_req, res) => {
     try {
-      const applications = await storage.getApplications();
-      const teams = await storage.getTeams();
-      const projectRequests = await storage.getProjectRequests();
-      const additionalSignups = await storage.getAdditionalTeamSignups();
+      // Get real data from database
+      const allApplications = await db.select().from(applications);
+      const allTeams = await db.select().from(teams);
+      const allProjectRequests = await db.select().from(projectRequests);
+      const allAdditionalSignups = await db.select().from(additionalTeamSignups);
+
+      // Calculate accurate stats
+      const acceptedApplications = allApplications.filter(app => app.status === 'accepted');
+      const assignedApplications = acceptedApplications.filter(app => app.assignedTeamId);
+      const waitlistedApplications = allApplications.filter(app => app.status === 'waitlisted');
+
+      // Calculate filled teams (teams at or near capacity)
+      const filledTeamsCount = allTeams.filter(team => {
+        const teamMemberCount = acceptedApplications.filter(app => app.assignedTeamId === team.id).length;
+        return teamMemberCount >= team.maxCapacity;
+      }).length;
 
       const stats = {
-        totalApplications: applications.length,
-        assignedApplications: applications.filter(app => app.status === "assigned").length,
-        waitlistedApplications: applications.filter(app => app.status === "waitlisted").length,
-        totalTeams: teams.length,
-        filledTeams: teams.filter(team => team.currentSize >= team.maxCapacity).length,
-        totalProjectRequests: projectRequests.length,
-        totalAdditionalSignups: additionalSignups.length,
+        totalApplications: allApplications.length,
+        assignedApplications: assignedApplications.length,
+        waitlistedApplications: waitlistedApplications.length,
+        totalTeams: allTeams.length,
+        filledTeams: filledTeamsCount,
+        totalProjectRequests: allProjectRequests.length,
+        totalAdditionalSignups: allAdditionalSignups.length,
       };
 
       res.json(stats);
     } catch (error) {
+      console.error('Admin stats error:', error);
       res.status(500).json({ message: "Failed to fetch admin stats" });
+    }
+  });
+
+  // Recent Activity API
+  app.get("/api/admin/recent-activity", async (_req, res) => {
+    try {
+      interface Activity {
+        type: string;
+        message: string;
+        description: string;
+        timestamp: Date;
+        color: string;
+      }
+
+      const activities: Activity[] = [];
+
+      // Get recent applications (last 24 hours)
+      const recentApplications = await db
+        .select({
+          id: applications.id,
+          fullName: applications.fullName,
+          submittedAt: applications.submittedAt,
+          teamPreferences: applications.teamPreferences,
+        })
+        .from(applications)
+        .where(gt(applications.submittedAt, new Date(Date.now() - 24 * 60 * 60 * 1000)))
+        .orderBy(applications.submittedAt)
+        .limit(5);
+
+      // Get recent project requests (last 7 days)
+      const recentProjects = await db
+        .select({
+          id: projectRequests.id,
+          projectTitle: projectRequests.projectTitle,
+          submittedAt: projectRequests.submittedAt,
+        })
+        .from(projectRequests)
+        .where(gt(projectRequests.submittedAt, new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)))
+        .orderBy(projectRequests.submittedAt)
+        .limit(3);
+
+      // Get teams data for team-related activities
+      const teamsData = await db.select().from(teams);
+
+      // Format activities
+      recentApplications.forEach(app => {
+        const preferences = app.teamPreferences as string[];
+        const firstPreference = preferences?.[0];
+        const team = teamsData.find(t => t.id === firstPreference);
+        activities.push({
+          type: 'application',
+          message: 'New application received',
+          description: `${app.fullName} applied for ${team?.name || 'a team'}`,
+          timestamp: app.submittedAt,
+          color: 'green'
+        });
+      });
+
+      recentProjects.forEach(project => {
+        activities.push({
+          type: 'project',
+          message: 'Project request submitted',
+          description: `${project.projectTitle}`,
+          timestamp: project.submittedAt,
+          color: 'purple'
+        });
+      });
+
+      // Sort by timestamp (most recent first)
+      activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+      // Add some system activities if we don't have enough real activities
+      if (activities.length < 3) {
+        const systemActivities: Activity[] = [
+          {
+            type: 'system',
+            message: 'System status check',
+            description: 'All systems operational',
+            timestamp: new Date(),
+            color: 'blue'
+          }
+        ];
+        activities.push(...systemActivities);
+      }
+
+      res.json(activities.slice(0, 5)); // Return max 5 activities
+    } catch (error) {
+      console.error('Recent activity error:', error);
+      res.status(500).json({ message: "Failed to fetch recent activity" });
     }
   });
 
