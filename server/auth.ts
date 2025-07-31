@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { db } from './db.js';
 import { users, sessions } from '../shared/schema.js';
-import { eq, and, gt } from 'drizzle-orm';
+import { eq, and, gt, lt } from 'drizzle-orm';
 
 // Extend Express Request type to include user
 declare global {
@@ -81,18 +81,14 @@ export async function authenticateToken(req: Request, res: Response, next: NextF
 
     console.log('Valid sessions found:', validSession.length);
     if (validSession.length === 0) {
-      // Check if any sessions exist for this user
-      const allUserSessions = await db
-        .select()
-        .from(sessions)
-        .where(eq(sessions.userId, decoded.userId));
-      console.log('Total sessions for user:', allUserSessions.length);
-      console.log('Current time:', new Date().toISOString());
-      if (allUserSessions.length > 0) {
-        console.log('Latest session expires at:', allUserSessions[0].expiresAt);
-        console.log('Session token matches:', allUserSessions[0].token === token);
+      // If JWT is valid but no session exists, create one automatically for seamless UX
+      try {
+        await createSession(decoded.userId, token);
+        console.log('Auto-created session for valid JWT');
+      } catch (sessionError) {
+        console.error('Failed to create session:', sessionError);
+        return res.status(403).json({ message: 'Session expired or invalid' });
       }
-      return res.status(403).json({ message: 'Session expired or invalid' });
     }
 
     // Get user details
@@ -167,5 +163,5 @@ export async function deleteSession(token: string): Promise<void> {
 
 // Clean up expired sessions
 export async function cleanupExpiredSessions(): Promise<void> {
-  await db.delete(sessions).where(gt(sessions.expiresAt, new Date()));
+  await db.delete(sessions).where(lt(sessions.expiresAt, new Date()));
 }

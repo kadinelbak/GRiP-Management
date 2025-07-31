@@ -17,6 +17,7 @@ import {
   deleteSession,
   cleanupExpiredSessions
 } from './auth.js';
+import { verifySimpleAdminCode } from './ultra-simple-admin.js';
 import { eq, and, gt } from 'drizzle-orm';
 import crypto from 'crypto';
 
@@ -72,18 +73,8 @@ export async function signup(req: Request, res: Response) {
   try {
     const signupData = signupSchema.parse(req.body);
     
-    // Verify admin signup code
-    const validCode = await db
-      .select()
-      .from(adminSignupCodes)
-      .where(and(
-        eq(adminSignupCodes.code, signupData.adminCode),
-        eq(adminSignupCodes.isActive, true),
-        gt(adminSignupCodes.expiresAt, new Date())
-      ))
-      .limit(1);
-
-    if (validCode.length === 0) {
+    // Verify admin signup code using ultra-simple method
+    if (!verifySimpleAdminCode(signupData.adminCode)) {
       return res.status(400).json({ message: 'Invalid or expired admin signup code' });
     }
 
@@ -415,71 +406,4 @@ export async function updateUser(req: Request, res: Response) {
   }
 }
 
-// Generate new admin signup code (admin only)
-export async function generateAdminCode(req: Request, res: Response) {
-  try {
-    const userId = (req as any).user?.id;
-    
-    // Deactivate all existing codes
-    await db
-      .update(adminSignupCodes)
-      .set({ isActive: false })
-      .where(eq(adminSignupCodes.isActive, true));
-
-    // Generate new 8-character code
-    const code = crypto.randomBytes(4).toString('hex').toUpperCase();
-    
-    // Set expiration to 24 hours from now
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 24);
-
-    const [newCode] = await db
-      .insert(adminSignupCodes)
-      .values({
-        code,
-        expiresAt,
-        createdBy: userId,
-      })
-      .returning();
-
-    res.json({ 
-      code: newCode.code,
-      expiresAt: newCode.expiresAt,
-      message: 'New admin signup code generated'
-    });
-  } catch (error) {
-    console.error('Generate admin code error:', error);
-    res.status(500).json({ message: 'Failed to generate admin code' });
-  }
-}
-
-// Get current admin signup code (admin only)
-export async function getCurrentAdminCode(req: Request, res: Response) {
-  try {
-    const currentCode = await db
-      .select()
-      .from(adminSignupCodes)
-      .where(and(
-        eq(adminSignupCodes.isActive, true),
-        gt(adminSignupCodes.expiresAt, new Date())
-      ))
-      .orderBy(adminSignupCodes.createdAt)
-      .limit(1);
-
-    if (currentCode.length === 0) {
-      return res.json({ 
-        code: null, 
-        message: 'No active admin signup code. Generate a new one.' 
-      });
-    }
-
-    res.json({
-      code: currentCode[0].code,
-      expiresAt: currentCode[0].expiresAt,
-      createdAt: currentCode[0].createdAt
-    });
-  } catch (error) {
-    console.error('Get admin code error:', error);
-    res.status(500).json({ message: 'Failed to get admin code' });
-  }
-}
+// Note: Admin signup code functions moved to ultra-simple-admin.ts for simplicity

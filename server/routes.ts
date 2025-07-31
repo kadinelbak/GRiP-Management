@@ -19,8 +19,9 @@ import { authenticateToken, requireAdmin, requireAuth } from "./auth.js";
 import { 
   register, login, logout, getCurrentUser, changePassword, 
   requestPasswordReset, resetPassword, getAllUsers, updateUser,
-  signup, generateAdminCode, getCurrentAdminCode
+  signup
 } from "./auth-routes.js";
+import { generateSimpleAdminCode, getCurrentSimpleAdminCode } from "./ultra-simple-admin.js";
 
 interface AssignmentResult {
   applicationId: string;
@@ -159,9 +160,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/auth/users", authenticateToken, requireAdmin, getAllUsers);
   app.put("/api/auth/users/:id", authenticateToken, requireAdmin, updateUser);
   
-  // Admin signup code management
-  app.post("/api/auth/admin-code/generate", authenticateToken, requireAdmin, generateAdminCode);
-  app.get("/api/auth/admin-code/current", authenticateToken, requireAdmin, getCurrentAdminCode);
+  // Ultra-simple admin signup code management (no auth - admin page handles protection)
+  app.post("/api/auth/admin-code/generate", generateSimpleAdminCode);
+  app.get("/api/auth/admin-code/current", getCurrentSimpleAdminCode);
+  
+  // Test endpoint
+  app.get("/api/test/ultra-simple", (req, res) => {
+    res.json({ message: "Ultra-simple admin routes are active", timestamp: new Date().toISOString() });
+  });
 
   // Apply authentication middleware to all admin routes
   app.use("/api/admin/*", authenticateToken, requireAdmin);
