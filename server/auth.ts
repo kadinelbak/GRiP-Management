@@ -5,6 +5,49 @@ import { db } from './db.js';
 import { users, sessions } from '../shared/schema.js';
 import { eq, and, gt, lt } from 'drizzle-orm';
 
+// Define user roles and their hierarchy
+export const USER_ROLES = {
+  ADMIN: 'admin',
+  PROJECT_MANAGER: 'project_manager',
+  PRINTER_MANAGER: 'printer_manager',
+  PRESIDENT: 'president',
+  RECIPIENT_COORDINATOR: 'recipient_coordinator',
+  OUTREACH_COORDINATOR: 'outreach_coordinator',
+  MARKETING_COORDINATOR: 'marketing_coordinator',
+  ART_COORDINATOR: 'art_coordinator',
+  MEMBER: 'member'
+} as const;
+
+// Define role permissions - admin has all permissions
+export const ROLE_PERMISSIONS = {
+  [USER_ROLES.ADMIN]: ['*'], // All permissions
+  [USER_ROLES.PRESIDENT]: [
+    'manage_users', 'view_analytics', 'manage_teams', 'manage_projects',
+    'manage_events', 'manage_applications', 'view_member_roles', 'manage_special_roles'
+  ],
+  [USER_ROLES.PROJECT_MANAGER]: [
+    'manage_projects', 'view_teams', 'manage_project_requests', 'view_applications'
+  ],
+  [USER_ROLES.PRINTER_MANAGER]: [
+    'manage_print_submissions', 'view_print_queue', 'update_print_status'
+  ],
+  [USER_ROLES.RECIPIENT_COORDINATOR]: [
+    'manage_recipients', 'view_applications', 'coordinate_deliveries'
+  ],
+  [USER_ROLES.OUTREACH_COORDINATOR]: [
+    'manage_events', 'view_event_attendance', 'manage_outreach_activities'
+  ],
+  [USER_ROLES.MARKETING_COORDINATOR]: [
+    'manage_marketing_requests', 'view_marketing_analytics', 'manage_social_media'
+  ],
+  [USER_ROLES.ART_COORDINATOR]: [
+    'manage_art_teams', 'view_art_projects', 'coordinate_design_work'
+  ],
+  [USER_ROLES.MEMBER]: [
+    'view_own_profile', 'submit_applications', 'view_events'
+  ]
+};
+
 // Extend Express Request type to include user
 declare global {
   namespace Express {
@@ -128,8 +171,105 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
     return res.status(401).json({ message: 'Authentication required' });
   }
 
-  if (req.user.role !== 'admin') {
+  if (req.user.role !== USER_ROLES.ADMIN) {
     return res.status(403).json({ message: 'Admin access required' });
+  }
+
+  next();
+}
+
+// Check if user has specific permission
+export function hasPermission(userRole: string, permission: string): boolean {
+  const permissions = ROLE_PERMISSIONS[userRole as keyof typeof ROLE_PERMISSIONS];
+  if (!permissions) return false;
+  
+  // Admin has all permissions
+  if (permissions.includes('*')) return true;
+  
+  return permissions.includes(permission);
+}
+
+// Middleware to require specific permission
+export function requirePermission(permission: string) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    if (!hasPermission(req.user.role, permission)) {
+      return res.status(403).json({ 
+        message: `Permission denied. Required permission: ${permission}` 
+      });
+    }
+
+    next();
+  };
+}
+
+// Middleware to require any of multiple permissions
+export function requireAnyPermission(permissions: string[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    const hasAnyPermission = permissions.some(permission => 
+      hasPermission(req.user!.role, permission)
+    );
+
+    if (!hasAnyPermission) {
+      return res.status(403).json({ 
+        message: `Permission denied. Required one of: ${permissions.join(', ')}` 
+      });
+    }
+
+    next();
+  };
+}
+
+// Middleware to require specific role
+export function requireRole(role: string) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    if (req.user.role !== role) {
+      return res.status(403).json({ 
+        message: `Access denied. Required role: ${role}` 
+      });
+    }
+
+    next();
+  };
+}
+
+// Middleware to require any of multiple roles
+export function requireAnyRole(roles: string[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ 
+        message: `Access denied. Required one of: ${roles.join(', ')}` 
+      });
+    }
+
+    next();
+  };
+}
+
+// Leadership roles (admin, president, project manager)
+export function requireLeadership(req: Request, res: Response, next: NextFunction) {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+
+  const leadershipRoles = [USER_ROLES.ADMIN, USER_ROLES.PRESIDENT, USER_ROLES.PROJECT_MANAGER];
+  if (!leadershipRoles.includes(req.user.role as any)) {
+    return res.status(403).json({ message: 'Leadership access required' });
   }
 
   next();

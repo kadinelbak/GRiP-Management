@@ -22,6 +22,10 @@ import {
   signup
 } from "./auth-routes.js";
 import { generateSimpleAdminCode, getCurrentSimpleAdminCode } from "./ultra-simple-admin.js";
+import { 
+  USER_ROLES, getAllRoles, requireRole, requirePermission, requireMinimumRole,
+  getUserPermissions, hasPermission, type UserRole 
+} from "./roles.js";
 
 interface AssignmentResult {
   applicationId: string;
@@ -157,8 +161,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/change-password", authenticateToken, changePassword);
   app.post("/api/auth/request-password-reset", requestPasswordReset);
   app.post("/api/auth/reset-password", resetPassword);
-  app.get("/api/auth/users", authenticateToken, requireAdmin, getAllUsers);
-  app.put("/api/auth/users/:id", authenticateToken, requireAdmin, updateUser);
+  app.get("/api/auth/users", authenticateToken, requireMinimumRole(USER_ROLES.PROJECT_MANAGER), getAllUsers);
+  app.put("/api/auth/users/:id", authenticateToken, requireMinimumRole(USER_ROLES.PROJECT_MANAGER), updateUser);
   
   // Ultra-simple admin signup code management (no auth - admin page handles protection)
   app.post("/api/auth/admin-code/generate", generateSimpleAdminCode);
@@ -169,8 +173,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ message: "Ultra-simple admin routes are active", timestamp: new Date().toISOString() });
   });
 
+  // Role Management API
+  app.get("/api/roles", (req, res) => {
+    try {
+      const roles = getAllRoles();
+      res.json(roles);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch roles" });
+    }
+  });
+
+  app.get("/api/auth/user-permissions", authenticateToken, (req, res) => {
+    try {
+      const user = (req as any).user;
+      const permissions = getUserPermissions(user.role);
+      res.json({ 
+        role: user.role,
+        permissions: Array.from(permissions),
+        hasFullAccess: user.role === USER_ROLES.ADMIN
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch user permissions" });
+    }
+  });
+
+  // Update user role (admin only)
+  app.put("/api/auth/users/:id/role", authenticateToken, requireRole(USER_ROLES.ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { role } = req.body;
+
+      // Validate role
+      if (!Object.values(USER_ROLES).includes(role)) {
+        return res.status(400).json({ message: "Invalid role specified" });
+      }
+
+      const updatedUser = await storage.updateUserRole(id, role);
+      res.json({ 
+        message: "User role updated successfully",
+        user: updatedUser 
+      });
+    } catch (error) {
+      console.error("Failed to update user role:", error);
+      res.status(500).json({ message: "Failed to update user role" });
+    }
+  });
+
   // Apply authentication middleware to all admin routes
-  app.use("/api/admin/*", authenticateToken, requireAdmin);
+  app.use("/api/admin/*", authenticateToken, requireRole(USER_ROLES.ADMIN, USER_ROLES.PRESIDENT, USER_ROLES.PROJECT_MANAGER));
 
   // Teams API
   app.get("/api/teams", async (_req, res) => {
@@ -305,9 +355,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/accepted-members", async (_req, res) => {
     try {
       const members = await storage.getAcceptedMembers();
-      res.json(members);
+      // Map assignedTeamId to teamId for frontend compatibility
+      const mappedMembers = members.map(member => ({
+        ...member,
+        teamId: member.assignedTeamId
+      }));
+      res.json(mappedMembers);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch accepted members" });
+    }
+  });
+
+  // Update member team assignment
+  app.put("/api/accepted-members/:id/team", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { teamId } = req.body;
+      
+      await storage.updateApplication(id, { assignedTeamId: teamId });
+      res.json({ success: true, message: "Team assignment updated successfully" });
+    } catch (error) {
+      console.error("Failed to update team assignment:", error);
+      res.status(500).json({ message: "Failed to update team assignment" });
+    }
+  });
+
+  // Remove member (delete accepted member)
+  app.delete("/api/accepted-members/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      await storage.deleteApplication(id);
+      res.json({ success: true, message: "Member removed successfully" });
+    } catch (error) {
+      console.error("Failed to remove member:", error);
+      res.status(500).json({ message: "Failed to remove member" });
     }
   });
 
@@ -477,12 +559,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auto-sort existing members endpoint
   app.post("/api/admin/auto-sort-members", async (req, res) => {
     try {
-      // Get all accepted members without teams
+      // Get all assigned members without teams
       const unassignedMembers = await db
         .select()
         .from(applications)
         .where(and(
-          eq(applications.status, 'accepted'),
+          eq(applications.status, 'assigned'),
           isNull(applications.assignedTeamId)
         ));
 
@@ -496,7 +578,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .from(applications)
           .where(and(
             eq(applications.assignedTeamId, team.id),
-            eq(applications.status, 'accepted')
+            eq(applications.status, 'assigned')
           ));
 
         const memberCount = Number(currentMemberCount[0]?.count || 0);
@@ -725,20 +807,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allProjectRequests = await db.select().from(projectRequests);
       const allAdditionalSignups = await db.select().from(additionalTeamSignups);
 
-      // Calculate accurate stats
-      const acceptedApplications = allApplications.filter(app => app.status === 'accepted');
-      const assignedApplications = acceptedApplications.filter(app => app.assignedTeamId);
+      // Calculate accurate stats - use 'assigned' status to match what Members section shows
+      const assignedApplications = allApplications.filter(app => app.status === 'assigned');
+      const membersWithTeams = assignedApplications.filter(app => app.assignedTeamId);
       const waitlistedApplications = allApplications.filter(app => app.status === 'waitlisted');
 
-      // Calculate filled teams (teams at or near capacity)
+      // Calculate filled teams (teams at or near capacity) - use assigned applications
       const filledTeamsCount = allTeams.filter(team => {
-        const teamMemberCount = acceptedApplications.filter(app => app.assignedTeamId === team.id).length;
+        const teamMemberCount = assignedApplications.filter(app => app.assignedTeamId === team.id).length;
         return teamMemberCount >= team.maxCapacity;
       }).length;
 
       const stats = {
         totalApplications: allApplications.length,
-        assignedApplications: assignedApplications.length,
+        assignedApplications: membersWithTeams.length,
         waitlistedApplications: waitlistedApplications.length,
         totalTeams: allTeams.length,
         filledTeams: filledTeamsCount,
@@ -1002,7 +1084,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Print Submissions API
-  app.get("/api/print-submissions", async (_req, res) => {
+  // Anyone can view print submissions, but only printer managers and above can manage them
+  app.get("/api/print-submissions", authenticateToken, async (_req, res) => {
     try {
       const submissions = await storage.getPrintSubmissions();
       res.json(submissions);
@@ -1011,7 +1094,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/print-submissions", upload.array('files', 10), async (req, res) => {
+  // Anyone can submit print requests
+  app.post("/api/print-submissions", authenticateToken, upload.array('files', 10), async (req, res) => {
     try {
       console.log("Received print submission data:", req.body);
       console.log("Received files:", req.files);
@@ -1056,7 +1140,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/print-submissions/:id", async (req, res) => {
+  // Only printer managers and above can update print submissions
+  app.put("/api/print-submissions/:id", authenticateToken, requireMinimumRole(USER_ROLES.PRINTER_MANAGER), async (req, res) => {
     try {
       const { id } = req.params;
       const updates = req.body;
@@ -1067,8 +1152,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Download files endpoint
-  app.get("/api/print-submissions/:id/download", async (req, res) => {
+  // Download files endpoint - require authentication
+  app.get("/api/print-submissions/:id/download", authenticateToken, async (req, res) => {
     try {
       const { id } = req.params;
 
@@ -1120,7 +1205,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/print-submissions/:id", async (req, res) => {
+  // Only printer managers and above can delete print submissions
+  app.delete("/api/print-submissions/:id", authenticateToken, requireMinimumRole(USER_ROLES.PRINTER_MANAGER), async (req, res) => {
     try {
       const { id } = req.params;
       await storage.deletePrintSubmission(id);
@@ -1267,7 +1353,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Marketing Requests API
-  app.get("/api/marketing-requests", async (_req, res) => {
+  // Marketing coordinators and above can view all marketing requests
+  app.get("/api/marketing-requests", authenticateToken, requireMinimumRole(USER_ROLES.MARKETING_COORDINATOR), async (_req, res) => {
     try {
       const requests = await storage.getMarketingRequests();
       res.json(requests);
@@ -1276,7 +1363,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/marketing-requests", async (req, res) => {
+  // Anyone can submit marketing requests
+  app.post("/api/marketing-requests", authenticateToken, async (req, res) => {
     try {
       const requestData = insertMarketingRequestSchema.parse(req.body);
       const request = await storage.createMarketingRequest(requestData);
@@ -1290,7 +1378,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/marketing-requests/:id", async (req, res) => {
+  // Only marketing coordinators and above can update marketing requests
+  app.put("/api/marketing-requests/:id", authenticateToken, requireMinimumRole(USER_ROLES.MARKETING_COORDINATOR), async (req, res) => {
     try {
       const { id } = req.params;
       const updates = req.body;
@@ -1301,7 +1390,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/marketing-requests/:id", async (req, res) => {
+  // Only marketing coordinators and above can delete marketing requests
+  app.delete("/api/marketing-requests/:id", authenticateToken, requireMinimumRole(USER_ROLES.MARKETING_COORDINATOR), async (req, res) => {
     try {
       const { id } = req.params;
       await storage.deleteMarketingRequest(id);

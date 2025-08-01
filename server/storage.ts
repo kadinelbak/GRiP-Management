@@ -1,9 +1,9 @@
 import { 
   teams, applications, additionalTeamSignups, projectRequests, adminSettings, 
-  absences, events, eventAttendance, printSubmissions, specialRoles, roleApplications, memberRoles, marketingRequests,
+  absences, events, eventAttendance, printSubmissions, specialRoles, roleApplications, memberRoles, marketingRequests, users,
   type Team, type Application, type AdditionalTeamSignup, type ProjectRequest, 
   type AdminSetting, type Absence, type Event, type EventAttendance, type PrintSubmission,
-  type SpecialRole, type RoleApplication, type MemberRole, type MarketingRequest,
+  type SpecialRole, type RoleApplication, type MemberRole, type MarketingRequest, type User,
   type InsertTeam, type InsertApplication, type InsertAdditionalTeamSignup, 
   type InsertProjectRequest, type InsertAdminSetting, type InsertAbsence, 
   type InsertEvent, type InsertEventAttendance, type InsertPrintSubmission,
@@ -106,6 +106,12 @@ export interface IStorage {
   createMarketingRequest(data: InsertMarketingRequest): Promise<MarketingRequest>;
   updateMarketingRequest(id: string, updates: Partial<MarketingRequest>): Promise<MarketingRequest>;
   deleteMarketingRequest(id: string): Promise<void>;
+
+  // User Management
+  getUserById(id: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  updateUserRole(id: string, role: string): Promise<User>;
+  getAllUsers(): Promise<User[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1074,6 +1080,32 @@ export class DatabaseStorage implements IStorage {
 
   async deleteMarketingRequest(id: string): Promise<void> {
     await db.delete(marketingRequests).where(eq(marketingRequests.id, id));
+  }
+
+  // User Management Methods
+  async getUserById(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user || undefined;
+  }
+
+  async updateUserRole(id: string, role: string): Promise<User> {
+    const [updatedUser] = await db.update(users)
+      .set({ 
+        role: role,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, id))
+      .returning();
+    return updatedUser;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users).orderBy(asc(users.email));
   }
 }
 

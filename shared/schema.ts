@@ -180,7 +180,7 @@ export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
-  role: text("role").notNull().default("member"), // 'admin', 'member'
+  role: text("role").notNull().default("member"), // 'admin', 'project_manager', 'printer_manager', 'president', 'recipient_coordinator', 'outreach_coordinator', 'marketing_coordinator', 'art_coordinator', 'member'
   firstName: text("first_name"),
   lastName: text("last_name"),
   isActive: boolean("is_active").notNull().default(true),
