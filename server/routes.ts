@@ -1404,6 +1404,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // === NEWS STORIES ROUTES ===
 
+  // Get news statistics (public access)
+  app.get("/api/news/stats", async (req, res) => {
+    try {
+      const publishedCount = await storage.getNewsStoriesCount('published');
+      const pendingCount = await storage.getNewsStoriesCount('pending');
+      const contributorsCount = await storage.getNewsContributorsCount();
+      
+      res.json({
+        publishedCount,
+        pendingCount,
+        contributorsCount
+      });
+    } catch (error) {
+      console.error("Error fetching news stats:", error);
+      res.status(500).json({ message: "Failed to fetch news statistics" });
+    }
+  });
+
   // Get all published news stories (public access)
   app.get("/api/news", async (req, res) => {
     try {
@@ -1445,17 +1463,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create new news story (non-members only)
+  // Create new news story (authenticated users with special roles)
   app.post("/api/news", authenticateToken, requireMinimumRole(USER_ROLES.ART_COORDINATOR), async (req, res) => {
     try {
-      const storyData = req.body;
-      storyData.authorId = (req as any).user.id;
+      const storyData = {
+        ...req.body,
+        authorId: (req as any).user.id,
+        publishDate: req.body.publishDate ? new Date(req.body.publishDate) : null
+      };
       
       const story = await storage.createNewsStory(storyData);
       res.status(201).json(story);
     } catch (error) {
       console.error("Error creating news story:", error);
       res.status(500).json({ message: "Failed to create news story" });
+    }
+  });
+
+  // Submit news story for review (public access, no auth required)
+  app.post("/api/news/submit", async (req, res) => {
+    try {
+      const { title, content, summary, type, imageUrl, linkUrl, tags, submitterName, submitterEmail } = req.body;
+      
+      // Create a guest user entry for this submission
+      const guestUser = await storage.createGuestUser(submitterName, submitterEmail);
+      
+      const storyData = {
+        title,
+        content,
+        summary,
+        type: type || 'story',
+        imageUrl,
+        linkUrl,
+        tags: Array.isArray(tags) ? tags : [],
+        status: 'pending', // Always pending for public submissions
+        authorId: guestUser.id
+      };
+      
+      const story = await storage.createNewsStory(storyData);
+      res.status(201).json({ 
+        success: true, 
+        message: "News story submitted for review",
+        story 
+      });
+    } catch (error) {
+      console.error("Error submitting news story:", error);
+      res.status(500).json({ message: "Failed to submit news story" });
     }
   });
 

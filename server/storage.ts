@@ -130,6 +130,13 @@ export interface IStorage {
   getNewsApprovals(storyId: string): Promise<NewsApproval[]>;
   getNewsApprovalsWithDetails(storyId: string): Promise<any[]>;
   getExistingApproval(storyId: string, approverId: string): Promise<NewsApproval | undefined>;
+  
+  // News Statistics
+  getNewsStoriesCount(status?: string): Promise<number>;
+  getNewsContributorsCount(): Promise<number>;
+  
+  // Guest Users
+  createGuestUser(name: string, email: string): Promise<User>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1294,6 +1301,54 @@ export class DatabaseStorage implements IStorage {
         eq(newsApprovals.approverId, approverId)
       ));
     return approval || undefined;
+  }
+
+  async getNewsStoriesCount(status?: string): Promise<number> {
+    const baseCondition = eq(newsStories.isActive, true);
+    
+    if (status) {
+      const [result] = await db.select({ count: sql<number>`count(*)` })
+        .from(newsStories)
+        .where(and(baseCondition, eq(newsStories.status, status)));
+      return result.count;
+    } else {
+      const [result] = await db.select({ count: sql<number>`count(*)` })
+        .from(newsStories)
+        .where(baseCondition);
+      return result.count;
+    }
+  }
+
+  async getNewsContributorsCount(): Promise<number> {
+    const [result] = await db.select({ count: sql<number>`count(distinct ${newsStories.authorId})` })
+      .from(newsStories)
+      .where(eq(newsStories.isActive, true));
+    
+    return result.count;
+  }
+
+  async createGuestUser(name: string, email: string): Promise<User> {
+    // Check if guest user with this email already exists
+    const existingUser = await db.select()
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+    
+    if (existingUser.length > 0) {
+      return existingUser[0];
+    }
+    
+    // Create new guest user
+    const [user] = await db.insert(users).values({
+      email,
+      firstName: name.split(' ')[0] || name,
+      lastName: name.split(' ').slice(1).join(' ') || '',
+      role: 'member', // Guest users are treated as members
+      isActive: true,
+      passwordHash: '', // No password for guest users
+    }).returning();
+    
+    return user;
   }
 }
 

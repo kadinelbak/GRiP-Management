@@ -78,7 +78,7 @@ export default function NewsManagementSection() {
     try {
       const response = await fetch(`/api/news/admin${filter !== 'all' ? `?status=${filter}` : ''}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
       });
       
@@ -97,7 +97,7 @@ export default function NewsManagementSection() {
     try {
       const response = await fetch(`/api/news/${storyId}/approvals`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
       });
       
@@ -117,14 +117,14 @@ export default function NewsManagementSection() {
       const storyData = {
         ...formData,
         tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag),
-        publishDate: formData.publishDate || undefined
+        publishDate: formData.publishDate ? new Date(formData.publishDate).toISOString() : null
       };
 
       const response = await fetch('/api/news', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify(storyData)
       });
@@ -148,14 +148,14 @@ export default function NewsManagementSection() {
       const storyData = {
         ...formData,
         tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag),
-        publishDate: formData.publishDate || undefined
+        publishDate: formData.publishDate ? new Date(formData.publishDate).toISOString() : null
       };
 
       const response = await fetch(`/api/news/${selectedStory.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify(storyData)
       });
@@ -176,7 +176,7 @@ export default function NewsManagementSection() {
       const response = await fetch(`/api/news/${storyId}/submit`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
       });
 
@@ -194,7 +194,7 @@ export default function NewsManagementSection() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({ approved, comments })
       });
@@ -213,7 +213,7 @@ export default function NewsManagementSection() {
       const response = await fetch(`/api/news/${storyId}/publish`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
       });
 
@@ -232,7 +232,7 @@ export default function NewsManagementSection() {
       const response = await fetch(`/api/news/${storyId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
       });
 

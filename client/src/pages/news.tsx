@@ -1,10 +1,40 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import NewsFeed from "../components/news-feed";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Newspaper, Users, Clock, TrendingUp } from "lucide-react";
 import { Badge } from "../components/ui/badge";
 
+interface NewsStats {
+  publishedCount: number;
+  pendingCount: number;
+  contributorsCount: number;
+}
+
 export default function NewsPage() {
+  const [stats, setStats] = useState<NewsStats>({
+    publishedCount: 0,
+    pendingCount: 0,
+    contributorsCount: 0
+  });
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchNewsStats();
+  }, []);
+
+  const fetchNewsStats = async () => {
+    try {
+      const response = await fetch('/api/news/stats');
+      if (response.ok) {
+        const data = await response.json();
+        setStats(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch news stats:', error);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -28,7 +58,9 @@ export default function NewsPage() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-600">Published Stories</p>
-                  <p className="text-2xl font-bold text-gray-900">12</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {statsLoading ? '...' : stats.publishedCount}
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -40,7 +72,9 @@ export default function NewsPage() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-600">Pending Review</p>
-                  <p className="text-2xl font-bold text-gray-900">3</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {statsLoading ? '...' : stats.pendingCount}
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -52,7 +86,9 @@ export default function NewsPage() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-600">Contributors</p>
-                  <p className="text-2xl font-bold text-gray-900">8</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {statsLoading ? '...' : stats.contributorsCount}
+                  </p>
                 </div>
               </CardContent>
             </Card>

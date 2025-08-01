@@ -3,7 +3,7 @@ import TeamCreationForm from "../components/team-creation-form";
 import EventCreationForm from "../components/event-creation-form";
 import PrintSubmissionForm from "../components/print-submission-form";
 import MarketingRequestForm from "../components/marketing-request-form";
-import NewsStoryForm from "../components/news-story-form";
+import NewsSubmissionForm from "../components/news-submission-form";
 import { useAuth } from "../hooks/use-auth";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -63,12 +63,12 @@ export default function ToolsPage() {
     },
     {
       id: "news-story" as const,
-      title: "Create News Story",
-      description: "Write and submit new news stories for publication",
+      title: "Submit News Story",
+      description: "Submit news stories, events, and announcements for review",
       icon: Newspaper,
       color: "from-indigo-100 to-indigo-200",
       iconColor: "text-indigo-600",
-      roles: ["admin", "president", "project_manager", "outreach_coordinator", "coordinator", "manager"]
+      roles: ["admin", "president", "project_manager", "outreach_coordinator", "marketing_coordinator", "art_coordinator", "printer_manager", "recipient_coordinator"]
     }
   ];
 
@@ -88,7 +88,7 @@ export default function ToolsPage() {
       case "marketing-request":
         return <MarketingRequestForm />;
       case "news-story":
-        return <NewsStoryForm />;
+        return <NewsSubmissionForm />;
       default:
         return null;
     }
