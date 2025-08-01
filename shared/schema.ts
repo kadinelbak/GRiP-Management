@@ -510,7 +510,7 @@ export const signupSchema = z.object({
   confirmPassword: z.string().min(1, "Please confirm your password"),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
-  role: z.enum(["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator", "member"]).default("member"),
+  role: z.enum(["admin", "president", "captain", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator", "member"]).default("member"),
   adminCode: z.string().min(1, "Admin signup code is required"),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",

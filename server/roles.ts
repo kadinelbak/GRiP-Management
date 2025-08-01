@@ -6,6 +6,7 @@ export const USER_ROLES = {
   PROJECT_MANAGER: 'project_manager',
   PRINTER_MANAGER: 'printer_manager',
   PRESIDENT: 'president',
+  CAPTAIN: 'captain',
   RECIPIENT_COORDINATOR: 'recipient_coordinator',
   OUTREACH_COORDINATOR: 'outreach_coordinator',
   MARKETING_COORDINATOR: 'marketing_coordinator',
@@ -23,13 +24,59 @@ export const ROLE_HIERARCHY: Record<UserRole, number> = {
   [USER_ROLES.OUTREACH_COORDINATOR]: 2,
   [USER_ROLES.RECIPIENT_COORDINATOR]: 2,
   [USER_ROLES.PRINTER_MANAGER]: 3,
+  [USER_ROLES.CAPTAIN]: 4,
   [USER_ROLES.PROJECT_MANAGER]: 4,
   [USER_ROLES.PRESIDENT]: 5,
   [USER_ROLES.ADMIN]: 6
 };
 
+// Define permission type
+type Permission = 
+  | 'view_own_profile'
+  | 'update_own_profile'
+  | 'view_teams'
+  | 'view_events'
+  | 'submit_applications'
+  | 'submit_event_attendance'
+  | 'view_own_applications'
+  | 'manage_print_submissions'
+  | 'view_print_queue'
+  | 'manage_marketing_requests'
+  | 'view_marketing_submissions'
+  | 'manage_outreach_events'
+  | 'view_outreach_data'
+  | 'manage_recipients'
+  | 'view_recipient_data'
+  | 'view_member_data'
+  | 'manage_team_assignments'
+  | 'manage_special_roles'
+  | 'view_team_metrics'
+  | 'manage_teams'
+  | 'view_application_data'
+  | 'manage_applications'
+  | 'manage_projects'
+  | 'view_project_data'
+  | 'manage_users'
+  | 'manage_roles'
+  | 'view_all_data'
+  | 'manage_all_settings'
+  | 'manage_art_requests'
+  | 'view_art_submissions'
+  | 'view_all_print_requests'
+  | 'approve_print_requests'
+  | 'manage_printer_settings'
+  | 'view_all_applications'
+  | 'assign_team_members'
+  | 'view_project_reports'
+  | 'full_access'
+  | 'system_administration'
+  | 'manage_all_teams'
+  | 'view_all_reports'
+  | 'approve_role_applications'
+  | 'manage_organization_settings';
+
 // Define permissions for each role
-export const ROLE_PERMISSIONS = {
+export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   [USER_ROLES.MEMBER]: [
     'view_own_profile',
     'update_own_profile',
@@ -110,6 +157,14 @@ export const ROLE_PERMISSIONS = {
     'manage_team_assignments',
     'view_project_reports'
   ],
+  [USER_ROLES.CAPTAIN]: [
+    'full_access',
+    'manage_users',
+    'manage_roles',
+    'system_administration',
+    'view_all_data',
+    'manage_all_settings'
+  ],
   [USER_ROLES.PRESIDENT]: [
     'view_own_profile',
     'update_own_profile',
@@ -138,14 +193,14 @@ export const ROLE_PERMISSIONS = {
 } as const;
 
 // Permission checking functions
-export function hasPermission(userRole: UserRole, permission: string): boolean {
+export function hasPermission(userRole: UserRole, permission: Permission): boolean {
   // Admin has full access
   if (userRole === USER_ROLES.ADMIN) {
     return true;
   }
   
   const rolePermissions = ROLE_PERMISSIONS[userRole];
-  return rolePermissions.includes(permission as any);
+  return rolePermissions.includes(permission);
 }
 
 export function hasRoleLevel(userRole: UserRole, requiredLevel: number): boolean {
@@ -177,7 +232,7 @@ export function requireRole(...allowedRoles: UserRole[]) {
   };
 }
 
-export function requirePermission(permission: string) {
+export function requirePermission(permission: Permission) {
   return (req: Request, res: Response, next: NextFunction) => {
     const user = (req as any).user;
     
