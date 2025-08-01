@@ -1,5 +1,4 @@
 import { useState } from "react";
-import Header from "../components/header";
 import MemberForm from "../components/member-form";
 import ProjectRequestForm from "../components/project-request-form";
 import EventAttendanceForm from "../components/event-attendance-form";
@@ -92,7 +91,6 @@ export default function MemberServicesPage() {
 
   return (
     <div>
-      <Header />
       <div className="container mx-auto p-6">
         {activeService ? (
           <div className="space-y-6">

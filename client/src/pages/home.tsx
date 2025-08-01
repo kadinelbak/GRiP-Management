@@ -1,340 +1,201 @@
-
 import { useState } from "react";
-import Header from "../components/header";
-import MemberForm from "../components/member-form";
-import ProjectRequestForm from "../components/project-request-form";
-import AdminDashboard from "../components/admin-dashboard";
-import TeamCreationForm from "../components/team-creation-form";
-import EventCreationForm from "../components/event-creation-form";
-import EventAttendanceForm from "../components/event-attendance-form";
-import PrintSubmissionForm from "../components/print-submission-form";
-import SpecialRoleForm from "../components/special-role-form";
-import MarketingRequestForm from "../components/marketing-request-form";
+import NewsFeed from "../components/news-feed";
 import { useAuth } from "../hooks/use-auth";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "../components/ui/dropdown-menu";
 import { 
-  UserPlus, 
   Users, 
-  Lightbulb, 
+  Wrench, 
   Settings, 
-  Plus, 
-  CalendarDays, 
-  Camera, 
-  Printer, 
-  Star,
-  ChevronDown,
-  Home,
-  UserCheck,
-  Wrench,
-  Send,
-  LogIn,
-  LogOut,
-  User
+  Newspaper,
+  ArrowRight,
+  Target,
+  Heart,
+  Lightbulb
 } from "lucide-react";
+import { Link } from "wouter";
 
-type TabType = "home" | "member" | "project" | "admin" | "team" | "create-event" | "event-attendance" | "print-submission" | "special-role" | "marketing-request";
+export default function Home() {
+  const { isAuthenticated, user } = useAuth();
 
-function LandingPage() {
-  return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold text-slate-900 mb-4">
-          Welcome to <span className="text-blue-600">GRiP</span>
-        </h1>
-        <p className="text-xl text-blue-600 font-semibold mb-2">
-          Generational Relief in Prosthetics
-        </p>
-        <p className="text-lg text-slate-500 max-w-3xl mx-auto">
-          GRiP is dedicated to creating innovative prosthetic solutions through collaborative design, 
-          3D printing technology, and community engagement. Our mission is to provide accessible, 
-          customizable prosthetic devices that improve quality of life.
-        </p>
-      </div>
+  // Check if user has admin/special role privileges
+  const isAdmin = user?.role === 'coordinator' || user?.role === 'manager' || user?.role === 'president' || user?.role === 'admin';
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="w-full h-64 bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center">
-            <svg className="w-16 h-16 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <div className="p-6">
-            <h3 className="text-xl font-semibold mb-2 text-slate-900">Design & Innovation</h3>
-            <p className="text-slate-600">
-              Our team works on cutting-edge prosthetic designs using the latest technology 
-              and materials to create functional, comfortable solutions.
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="w-full h-64 bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center">
-            <svg className="w-16 h-16 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z" />
-            </svg>
-          </div>
-          <div className="p-6">
-            <h3 className="text-xl font-semibold mb-2 text-slate-900">Community Collaboration</h3>
-            <p className="text-slate-600">
-              We work together as a community, sharing knowledge and resources to 
-              make prosthetics more accessible to those in need.
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="w-full h-64 bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center">
-            <svg className="w-16 h-16 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <div className="p-6">
-            <h3 className="text-xl font-semibold mb-2 text-slate-900">Technical Excellence</h3>
-            <p className="text-slate-600">
-              Using advanced 3D printing and engineering techniques, we develop 
-              high-quality prosthetic devices tailored to individual needs.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-8 text-center border border-blue-200">
-        <h2 className="text-2xl font-bold text-slate-900 mb-4">
-          Get Involved
-        </h2>
-        <p className="text-slate-600 mb-6 max-w-2xl mx-auto">
-          Whether you're interested in joining our team, requesting a prosthetic device, 
-          or supporting our mission, there are many ways to get involved with GRiP.
-        </p>
-        <div className="flex flex-wrap justify-center gap-4">
-          <div className="bg-white px-6 py-3 rounded-lg shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-            <span className="text-sm font-medium text-slate-700">Join Our Team</span>
-          </div>
-          <div className="bg-white px-6 py-3 rounded-lg shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-            <span className="text-sm font-medium text-slate-700">Request a Project</span>
-          </div>
-          <div className="bg-white px-6 py-3 rounded-lg shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-            <span className="text-sm font-medium text-slate-700">Attend Events</span>
-          </div>
-          <div className="bg-white px-6 py-3 rounded-lg shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-            <span className="text-sm font-medium text-slate-700">Apply for Special Roles</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default function HomePage() {
-  const [activeTab, setActiveTab] = useState<TabType>("home");
-  const { isAuthenticated, user, logout, isAdmin } = useAuth();
-
-  const handleAuthAction = () => {
-    if (isAuthenticated) {
-      logout();
-    } else {
-      window.location.href = "/login";
+  const quickActions = [
+    {
+      title: "Latest News",
+      description: "Stay updated with announcements and stories",
+      icon: Newspaper,
+      href: "/news",
+      color: "bg-blue-500",
+      available: true
+    },
+    {
+      title: "Member Services",
+      description: "Join teams, submit projects, and participate",
+      icon: Users,
+      href: "/member-services", 
+      color: "bg-green-500",
+      available: isAuthenticated
+    },
+    {
+      title: "Tools",
+      description: "Access administrative tools and forms",
+      icon: Wrench,
+      href: "/tools",
+      color: "bg-purple-500",
+      available: isAuthenticated && isAdmin
+    },
+    {
+      title: "Admin Dashboard",
+      description: "Manage the organization and review submissions",
+      icon: Settings,
+      href: "/admin",
+      color: "bg-orange-500",
+      available: isAuthenticated && isAdmin
     }
-  };
+  ];
 
-  // Redirect non-admin users away from restricted tabs
-  const handleTabChange = (tab: TabType) => {
-    // Check if the tab requires admin access
-    const adminOnlyTabs: TabType[] = ["admin", "create-event", "team", "print-submission", "marketing-request"];
-    
-    if (adminOnlyTabs.includes(tab) && (!isAuthenticated || !isAdmin)) {
-      // Redirect to home if trying to access admin-only tabs without proper access
-      setActiveTab("home");
-      return;
-    }
-    
-    setActiveTab(tab);
-  };
+  const availableActions = quickActions.filter(action => action.available);
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <Header />
-
-      {/* Navigation */}
-      <nav className="bg-white shadow-sm border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-1">
-              {/* Home Tab */}
-              <Button
-                variant="ghost"
-                onClick={() => handleTabChange("home")}
-                className={`tab-button px-4 py-3 text-sm font-medium rounded-t-lg ${
-                  activeTab === "home" ? "active" : ""
-                }`}
-              >
-                <Home className="w-4 h-4 mr-2" />
-                Home
-              </Button>
-
-              {/* Member Services Dropdown - Always visible */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className={`tab-button px-4 py-3 text-sm font-medium rounded-t-lg ${
-                      ["project", "member", "event-attendance", "special-role"].includes(activeTab) ? "active" : ""
-                    }`}
-                  >
-                    <UserCheck className="w-4 h-4 mr-2" />
-                    Member Services
-                    <ChevronDown className="w-4 h-4 ml-1" />
+      {/* Hero Section */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="text-center">
+            <h1 className="text-4xl md:text-6xl font-bold mb-4">
+              Generational Relief in Prosthetics
+            </h1>
+            <p className="text-xl md:text-2xl mb-8 text-blue-100">
+              Empowering communities through innovative prosthetic solutions
+            </p>
+            {!isAuthenticated && (
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link href="/signup">
+                  <Button size="lg" className="bg-white text-blue-600 hover:bg-gray-100">
+                    Join Our Mission
                   </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  <DropdownMenuItem onClick={() => handleTabChange("project")}>
-                    <Lightbulb className="w-4 h-4 mr-2" />
-                    Project Request
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleTabChange("member")}>
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Join Team
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleTabChange("event-attendance")}>
-                    <Camera className="w-4 h-4 mr-2" />
-                    Event Attendance
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleTabChange("special-role")}>
-                    <Star className="w-4 h-4 mr-2" />
-                    Apply for Role
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {/* Administrative Tools Dropdown - Only for authenticated admin users */}
-              {isAuthenticated && isAdmin && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      className={`tab-button px-4 py-3 text-sm font-medium rounded-t-lg ${
-                        ["create-event", "team", "print-submission", "marketing-request"].includes(activeTab) ? "active" : ""
-                      }`}
-                    >
-                      <Wrench className="w-4 h-4 mr-2" />
-                      Tools
-                      <ChevronDown className="w-4 h-4 ml-1" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    <DropdownMenuItem onClick={() => handleTabChange("create-event")}>
-                      <CalendarDays className="w-4 h-4 mr-2" />
-                      Create Event
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleTabChange("team")}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create Team
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleTabChange("print-submission")}>
-                      <Printer className="w-4 h-4 mr-2" />
-                      Print Request
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleTabChange("marketing-request")}>
-                      <Send className="w-4 h-4 mr-2" />
-                      Marketing Request
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-
-              {/* Admin Tab - Only for authenticated admin users */}
-              {isAuthenticated && isAdmin && (
-                <Button
-                  variant="ghost"
-                  onClick={() => handleTabChange("admin")}
-                  className={`tab-button px-4 py-3 text-sm font-medium rounded-t-lg ${
-                    activeTab === "admin" ? "active" : ""
-                  }`}
-                >
-                  <Settings className="w-4 h-4 mr-2" />
-                  Admin
-                </Button>
-              )}
-            </div>
-
-            {/* Authentication Section */}
-            <div className="flex items-center space-x-2">
-              {isAuthenticated && user && (
-                <span className="text-sm text-slate-600">
-                  <User className="w-4 h-4 inline mr-1" />
-                  {user.firstName || user.email}
-                </span>
-              )}
-              
-              {!isAuthenticated && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.location.href = "/signup"}
-                  className="flex items-center"
-                >
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  Sign Up
-                </Button>
-              )}
-              
-              <Button
-                variant={isAuthenticated ? "outline" : "default"}
-                size="sm"
-                onClick={handleAuthAction}
-                className="flex items-center"
-              >
-                {isAuthenticated ? (
-                  <>
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Logout
-                  </>
-                ) : (
-                  <>
-                    <LogIn className="w-4 h-4 mr-2" />
-                    Login
-                  </>
-                )}
-              </Button>
-            </div>
+                </Link>
+                <Link href="/login">
+                  <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-blue-600">
+                    Member Login
+                  </Button>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
-      </nav>
+      </div>
 
-      {/* Tab Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {activeTab === "home" && <LandingPage />}
-        {activeTab === "member" && <MemberForm />}
-        {activeTab === "project" && <ProjectRequestForm />}
-        {activeTab === "special-role" && <SpecialRoleForm />}
-        {activeTab === "event-attendance" && <EventAttendanceForm />}
-        
-        {/* Admin-only content */}
-        {isAuthenticated && isAdmin && activeTab === "print-submission" && <PrintSubmissionForm />}
-        {isAuthenticated && isAdmin && activeTab === "create-event" && <EventCreationForm />}
-        {isAuthenticated && isAdmin && activeTab === "admin" && <AdminDashboard />}
-        {isAuthenticated && isAdmin && activeTab === "team" && <TeamCreationForm />}
-        {isAuthenticated && isAdmin && activeTab === "marketing-request" && <MarketingRequestForm />}
-        
-        {/* Show access denied message for admin tabs when not authenticated as admin */}
-        {(!isAuthenticated || !isAdmin) && ["print-submission", "create-event", "admin", "team", "marketing-request"].includes(activeTab) && (
-          <div className="flex items-center justify-center min-h-96">
-            <div className="text-center">
-              <h1 className="text-2xl font-bold text-red-600 mb-2">Access Denied</h1>
-              <p className="text-gray-600 mb-4">You need admin privileges to access this page.</p>
-              <Button onClick={() => handleTabChange("home")} variant="outline">
-                Return to Home
-              </Button>
-            </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Mission Section */}
+        <div className="mb-12">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Our Mission</h2>
+            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+              We're dedicated to creating innovative prosthetic solutions that improve lives and build stronger communities.
+            </p>
           </div>
-        )}
-      </main>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <Card className="text-center">
+              <CardHeader>
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                  <Target className="w-6 h-6 text-blue-600" />
+                </div>
+                <CardTitle>Innovation</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-600">
+                  Developing cutting-edge prosthetic technology to meet diverse needs and improve accessibility.
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card className="text-center">
+              <CardHeader>
+                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                  <Heart className="w-6 h-6 text-green-600" />
+                </div>
+                <CardTitle>Community</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-600">
+                  Building connections between individuals, families, and communities affected by limb differences.
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card className="text-center">
+              <CardHeader>
+                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                  <Lightbulb className="w-6 h-6 text-purple-600" />
+                </div>
+                <CardTitle>Impact</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-600">
+                  Creating lasting change through research, development, and direct community support.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Quick Access for All Users */}
+        <div className="mb-12">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Quick Access</h2>
+            <p className="text-lg text-gray-600">
+              Explore our platform and discover what we have to offer
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {quickActions.map((action) => {
+              const Icon = action.icon;
+              return (
+                <Card key={action.href} className={`hover:shadow-lg transition-shadow ${action.available ? 'cursor-pointer' : 'opacity-50'}`}>
+                  <CardHeader className="text-center">
+                    <div className={`w-12 h-12 ${action.color} rounded-lg flex items-center justify-center mx-auto mb-4`}>
+                      <Icon className="w-6 h-6 text-white" />
+                    </div>
+                    <CardTitle className="text-xl">{action.title}</CardTitle>
+                    <CardDescription>{action.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {action.available ? (
+                      <Link href={action.href}>
+                        <Button className="w-full">
+                          Access <ArrowRight className="w-4 h-4 ml-2" />
+                        </Button>
+                      </Link>
+                    ) : (
+                      <Button className="w-full" disabled>
+                        {isAuthenticated ? 'Requires Special Access' : 'Login Required'}
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Latest News Section */}
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-3xl font-bold text-gray-900">Latest News</h2>
+            <Link href="/news">
+              <Button variant="outline">
+                View All News <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
+          </div>
+          <NewsFeed />
+        </div>
+      </div>
     </div>
   );
 }

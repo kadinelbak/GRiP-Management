@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
-import Header from "../components/header";
 import { 
   ExternalLink, Calendar, MessageSquare, User, Eye, Clock, ArrowRight
 } from "lucide-react";
@@ -88,20 +87,15 @@ export default function NewsFeed() {
 
   if (loading) {
     return (
-      <div>
-        <Header />
-        <div className="container mx-auto p-6">
-          <div className="text-center py-8">Loading news...</div>
-        </div>
+      <div className="container mx-auto p-6">
+        <div className="text-center py-8">Loading news...</div>
       </div>
     );
   }
 
   if (selectedStory) {
     return (
-      <div>
-        <Header />
-        <div className="container mx-auto p-6 max-w-4xl">
+      <div className="container mx-auto p-6 max-w-4xl">
         <Button 
           variant="outline" 
           onClick={() => setSelectedStory(null)}
@@ -182,15 +176,12 @@ export default function NewsFeed() {
             </div>
           )}
         </article>
-        </div>
       </div>
     );
   }
 
   return (
-    <div>
-      <Header />
-      <div className="container mx-auto p-6">
+    <div className="container mx-auto p-6">
       <div className="space-y-6">
         <header className="text-center space-y-2">
           <h1 className="text-3xl font-bold text-slate-900">GRiP News & Updates</h1>
@@ -287,7 +278,6 @@ export default function NewsFeed() {
             ))}
           </div>
         )}
-      </div>
       </div>
     </div>
   );

@@ -215,6 +215,18 @@ export const adminSignupCodes = pgTable("admin_signup_codes", {
   createdBy: varchar("created_by").references(() => users.id),
 });
 
+export const inviteCodes = pgTable("invite_codes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: text("code").notNull().unique(),
+  role: text("role").notNull(),
+  maxUses: integer("max_uses").notNull().default(1),
+  currentUses: integer("current_uses").notNull().default(0),
+  expiresAt: timestamp("expires_at"),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // News Stories
 export const newsStories = pgTable("news_stories", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -614,6 +626,7 @@ export type InsertNewsApproval = z.infer<typeof insertNewsApprovalSchema>;
 export type User = typeof users.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
 export type AdminSignupCode = typeof adminSignupCodes.$inferSelect;
+export type InviteCode = typeof inviteCodes.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type LoginData = z.infer<typeof loginSchema>;
 export type SignupData = z.infer<typeof signupSchema>;

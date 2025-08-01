@@ -1,8 +1,9 @@
 import { useState } from "react";
-import Header from "../components/header";
 import TeamCreationForm from "../components/team-creation-form";
 import EventCreationForm from "../components/event-creation-form";
 import PrintSubmissionForm from "../components/print-submission-form";
+import MarketingRequestForm from "../components/marketing-request-form";
+import NewsStoryForm from "../components/news-story-form";
 import { useAuth } from "../hooks/use-auth";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -12,10 +13,12 @@ import {
   Printer, 
   Settings,
   Wand2,
-  Plus
+  Plus,
+  Send,
+  Newspaper
 } from "lucide-react";
 
-type ToolType = "team-creation" | "event-creation" | "print-submission";
+type ToolType = "team-creation" | "event-creation" | "print-submission" | "marketing-request" | "news-story";
 
 export default function ToolsPage() {
   const [activeTool, setActiveTool] = useState<ToolType | null>(null);
@@ -48,6 +51,24 @@ export default function ToolsPage() {
       color: "from-purple-100 to-purple-200",
       iconColor: "text-purple-600",
       roles: ["admin", "president", "project_manager", "printer_manager", "captain"]
+    },
+    {
+      id: "marketing-request" as const,
+      title: "Marketing Request",
+      description: "Request marketing materials and promotional content",
+      icon: Send,
+      color: "from-orange-100 to-orange-200",
+      iconColor: "text-orange-600",
+      roles: ["admin", "president", "project_manager", "outreach_coordinator", "coordinator"]
+    },
+    {
+      id: "news-story" as const,
+      title: "Create News Story",
+      description: "Write and submit new news stories for publication",
+      icon: Newspaper,
+      color: "from-indigo-100 to-indigo-200",
+      iconColor: "text-indigo-600",
+      roles: ["admin", "president", "project_manager", "outreach_coordinator", "coordinator", "manager"]
     }
   ];
 
@@ -64,6 +85,10 @@ export default function ToolsPage() {
         return <EventCreationForm />;
       case "print-submission":
         return <PrintSubmissionForm />;
+      case "marketing-request":
+        return <MarketingRequestForm />;
+      case "news-story":
+        return <NewsStoryForm />;
       default:
         return null;
     }
@@ -71,7 +96,6 @@ export default function ToolsPage() {
 
   return (
     <div>
-      <Header />
       <div className="container mx-auto p-6">
         {activeTool ? (
           <div className="space-y-6">

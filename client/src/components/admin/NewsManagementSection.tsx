@@ -63,7 +63,7 @@ export default function NewsManagementSection() {
     title: '',
     content: '',
     summary: '',
-    type: 'story' as const,
+    type: 'story' as 'story' | 'event' | 'link' | 'announcement',
     imageUrl: '',
     linkUrl: '',
     tags: '',
