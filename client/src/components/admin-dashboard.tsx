@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { 
   BarChart3, Users, Inbox, Settings, Wand2, Camera, 
-  Printer, Star, Send, Menu, X, Key, UserCheck, Shield
+  Printer, Star, Send, Menu, X, Key, UserCheck, Shield, Newspaper
 } from "lucide-react";
 import { useAuth } from "../hooks/use-auth";
 import AdminCodeManager from "./admin-code-manager";
@@ -14,10 +14,11 @@ import ProjectsSection from "./admin/ProjectsSection";
 import PrintManagementSection from "./admin/PrintManagementSection";
 import SettingsSection from "./admin/SettingsSection";
 import { UserManagementSection } from "./admin/UserManagementSection";
+import NewsManagementSection from "./admin/NewsManagementSection";
 
 type ActiveSection = "overview" | "applications" | "teams" | "members" | "projects" | 
   "settings" | "event-attendance" | "print-management" | "special-roles" | 
-  "marketing-requests" | "admin-codes" | "user-management";
+  "marketing-requests" | "admin-codes" | "user-management" | "news-management";
 
 export default function AdminDashboard() {
   const [activeSection, setActiveSection] = useState<ActiveSection>("overview");
@@ -31,6 +32,7 @@ export default function AdminDashboard() {
     { id: "members" as const, label: "Members", icon: UserCheck, roles: ["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator"] },
     { id: "projects" as const, label: "Projects", icon: Wand2, roles: ["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator"] },
     { id: "print-management" as const, label: "Print Management", icon: Printer, roles: ["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator"] },
+    { id: "news-management" as const, label: "News Management", icon: Newspaper, roles: ["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator"] },
     { id: "user-management" as const, label: "User Management", icon: Shield, roles: ["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator"] },
     { id: "admin-codes" as const, label: "Admin Codes", icon: Key, roles: ["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator"] },
     { id: "settings" as const, label: "Settings", icon: Settings, roles: ["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator"] },
@@ -55,6 +57,8 @@ export default function AdminDashboard() {
         return <ProjectsSection />;
       case "print-management":
         return <PrintManagementSection />;
+      case "news-management":
+        return <NewsManagementSection />;
       case "user-management":
         return <UserManagementSection />;
       case "admin-codes":

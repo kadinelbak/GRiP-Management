@@ -5,13 +5,14 @@ import {
   insertTeamSchema, insertApplicationSchema, insertAdditionalTeamSignupSchema, 
   insertProjectRequestSchema, insertAdminSettingSchema, insertAbsenceSchema,
   insertEventSchema, insertEventAttendanceSchema, insertPrintSubmissionSchema,
-  insertSpecialRoleSchema, insertRoleApplicationSchema, insertMarketingRequestSchema
+  insertSpecialRoleSchema, insertRoleApplicationSchema, insertMarketingRequestSchema,
+  insertNewsStorySchema, insertNewsApprovalSchema
 } from "../shared/schema.js";
 import { z } from "zod";
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { applications, teams, projectRequests, events, eventAttendance, printSubmissions, absences, specialRoles, roleApplications, memberRoles, marketingRequests, additionalTeamSignups } from "./db";
+import { applications, teams, projectRequests, events, eventAttendance, printSubmissions, absences, specialRoles, roleApplications, memberRoles, marketingRequests, additionalTeamSignups, newsStories, newsApprovals } from "./db";
 import { eq, and, isNull, sql, gt } from "drizzle-orm";
 import crypto from "crypto";
 import { db } from "./db";
@@ -1398,6 +1399,227 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete marketing request" });
+    }
+  });
+
+  // === NEWS STORIES ROUTES ===
+
+  // Get all published news stories (public access)
+  app.get("/api/news", async (req, res) => {
+    try {
+      const stories = await storage.getPublishedNewsStories();
+      res.json(stories);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch news stories" });
+    }
+  });
+
+  // Get all news stories with status filtering (admin access)
+  app.get("/api/news/admin", authenticateToken, requireMinimumRole(USER_ROLES.ART_COORDINATOR), async (req, res) => {
+    try {
+      const { status } = req.query;
+      const stories = await storage.getAllNewsStories(status as string);
+      res.json(stories);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch news stories" });
+    }
+  });
+
+  // Get single news story by ID
+  app.get("/api/news/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const story = await storage.getNewsStoryById(id);
+      if (!story) {
+        return res.status(404).json({ message: "News story not found" });
+      }
+      
+      // Increment view count for published stories
+      if (story.status === 'published') {
+        await storage.incrementNewsStoryViews(id);
+      }
+      
+      res.json(story);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch news story" });
+    }
+  });
+
+  // Create new news story (non-members only)
+  app.post("/api/news", authenticateToken, requireMinimumRole(USER_ROLES.ART_COORDINATOR), async (req, res) => {
+    try {
+      const storyData = req.body;
+      storyData.authorId = (req as any).user.id;
+      
+      const story = await storage.createNewsStory(storyData);
+      res.status(201).json(story);
+    } catch (error) {
+      console.error("Error creating news story:", error);
+      res.status(500).json({ message: "Failed to create news story" });
+    }
+  });
+
+  // Update news story (author or admin)
+  app.put("/api/news/:id", authenticateToken, requireMinimumRole(USER_ROLES.ART_COORDINATOR), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const user = (req as any).user;
+      const updates = req.body;
+
+      // Check if user can edit this story
+      const story = await storage.getNewsStoryById(id);
+      if (!story) {
+        return res.status(404).json({ message: "News story not found" });
+      }
+
+      const canEdit = story.authorId === user.id || hasPermission(user.role, 'manage_all_settings');
+      if (!canEdit) {
+        return res.status(403).json({ message: "You can only edit your own stories" });
+      }
+
+      const updatedStory = await storage.updateNewsStory(id, updates);
+      res.json(updatedStory);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update news story" });
+    }
+  });
+
+  // Delete news story (author or admin)
+  app.delete("/api/news/:id", authenticateToken, requireMinimumRole(USER_ROLES.ART_COORDINATOR), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const user = (req as any).user;
+
+      const story = await storage.getNewsStoryById(id);
+      if (!story) {
+        return res.status(404).json({ message: "News story not found" });
+      }
+
+      const canDelete = story.authorId === user.id || hasPermission(user.role, 'manage_all_settings');
+      if (!canDelete) {
+        return res.status(403).json({ message: "You can only delete your own stories" });
+      }
+
+      await storage.deleteNewsStory(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete news story" });
+    }
+  });
+
+  // Submit story for approval (move from draft to pending)
+  app.post("/api/news/:id/submit", authenticateToken, requireMinimumRole(USER_ROLES.ART_COORDINATOR), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const user = (req as any).user;
+
+      const story = await storage.getNewsStoryById(id);
+      if (!story) {
+        return res.status(404).json({ message: "News story not found" });
+      }
+
+      if (story.authorId !== user.id && !hasPermission(user.role, 'manage_all_settings')) {
+        return res.status(403).json({ message: "You can only submit your own stories" });
+      }
+
+      if (story.status !== 'draft') {
+        return res.status(400).json({ message: "Only draft stories can be submitted for approval" });
+      }
+
+      await storage.updateNewsStory(id, { status: 'pending' });
+      res.json({ message: "Story submitted for approval" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to submit story for approval" });
+    }
+  });
+
+  // Approve or reject news story
+  app.post("/api/news/:id/review", authenticateToken, requireMinimumRole(USER_ROLES.ART_COORDINATOR), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { approved, comments } = req.body;
+      const user = (req as any).user;
+
+      const story = await storage.getNewsStoryById(id);
+      if (!story) {
+        return res.status(404).json({ message: "News story not found" });
+      }
+
+      if (story.status !== 'pending') {
+        return res.status(400).json({ message: "Only pending stories can be reviewed" });
+      }
+
+      // Check if user already reviewed this story
+      const existingApproval = await storage.getExistingApproval(id, user.id);
+      if (existingApproval) {
+        return res.status(400).json({ message: "You have already reviewed this story" });
+      }
+
+      // Add the approval/rejection
+      await storage.addNewsApproval({
+        storyId: id,
+        approverId: user.id,
+        approved,
+        comments
+      });
+
+      // Check if we have enough approvals
+      const approvals = await storage.getNewsApprovals(id);
+      const approvalCount = approvals.filter(a => a.approved).length;
+      const rejectionCount = approvals.filter(a => !a.approved).length;
+
+      let newStatus = story.status;
+      if (rejectionCount > 0) {
+        // Any rejection means the story is rejected
+        newStatus = 'rejected';
+      } else if (approvalCount >= 2) {
+        // Two approvals means it's approved
+        newStatus = 'approved';
+      }
+
+      if (newStatus !== story.status) {
+        await storage.updateNewsStory(id, { status: newStatus });
+      }
+
+      res.json({ message: "Review submitted successfully", newStatus });
+    } catch (error) {
+      console.error("Error reviewing news story:", error);
+      res.status(500).json({ message: "Failed to review news story" });
+    }
+  });
+
+  // Publish approved story
+  app.post("/api/news/:id/publish", authenticateToken, requireMinimumRole(USER_ROLES.PROJECT_MANAGER), async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const story = await storage.getNewsStoryById(id);
+      if (!story) {
+        return res.status(404).json({ message: "News story not found" });
+      }
+
+      if (story.status !== 'approved') {
+        return res.status(400).json({ message: "Only approved stories can be published" });
+      }
+
+      await storage.updateNewsStory(id, { 
+        status: 'published',
+        publishDate: new Date()
+      });
+      res.json({ message: "Story published successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to publish story" });
+    }
+  });
+
+  // Get approvals for a story
+  app.get("/api/news/:id/approvals", authenticateToken, requireMinimumRole(USER_ROLES.ART_COORDINATOR), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const approvals = await storage.getNewsApprovalsWithDetails(id);
+      res.json(approvals);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch story approvals" });
     }
   });
 

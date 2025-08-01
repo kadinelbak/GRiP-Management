@@ -215,6 +215,35 @@ export const adminSignupCodes = pgTable("admin_signup_codes", {
   createdBy: varchar("created_by").references(() => users.id),
 });
 
+// News Stories
+export const newsStories = pgTable("news_stories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  content: text("content"), // Rich text content for full stories
+  summary: text("summary"), // Brief summary/excerpt
+  type: text("type").notNull(), // 'story', 'event', 'link', 'announcement'
+  imageUrl: text("image_url"), // URL to image/photo
+  linkUrl: text("link_url"), // External link for link-type posts
+  tags: json("tags").$type<string[]>().notNull().default([]), // Tags for categorization
+  status: text("status").notNull().default("draft"), // 'draft', 'pending', 'approved', 'published', 'rejected'
+  authorId: varchar("author_id").notNull().references(() => users.id),
+  publishDate: timestamp("publish_date"), // When to publish (can be future date)
+  isActive: boolean("is_active").notNull().default(true),
+  viewCount: integer("view_count").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// News Story Approvals (two-person approval system)
+export const newsApprovals = pgTable("news_approvals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  storyId: varchar("story_id").notNull().references(() => newsStories.id),
+  approverId: varchar("approver_id").notNull().references(() => users.id),
+  approved: boolean("approved").notNull(), // true for approval, false for rejection
+  comments: text("comments"), // Optional feedback from approver
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Relations
 export const teamsRelations = relations(teams, ({ many }) => ({
   applications: many(applications),
@@ -287,6 +316,25 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
 export const adminSignupCodesRelations = relations(adminSignupCodes, ({ one }) => ({
   createdByUser: one(users, {
     fields: [adminSignupCodes.createdBy],
+    references: [users.id],
+  }),
+}));
+
+export const newsStoriesRelations = relations(newsStories, ({ one, many }) => ({
+  author: one(users, {
+    fields: [newsStories.authorId],
+    references: [users.id],
+  }),
+  approvals: many(newsApprovals),
+}));
+
+export const newsApprovalsRelations = relations(newsApprovals, ({ one }) => ({
+  story: one(newsStories, {
+    fields: [newsApprovals.storyId],
+    references: [newsStories.id],
+  }),
+  approver: one(users, {
+    fields: [newsApprovals.approverId],
     references: [users.id],
   }),
 }));
@@ -526,6 +574,41 @@ export type InsertSpecialRole = z.infer<typeof insertSpecialRoleSchema>;
 export type InsertRoleApplication = z.infer<typeof insertRoleApplicationSchema>;
 export type InsertMemberRole = z.infer<typeof insertMemberRoleSchema>;
 export type InsertMarketingRequest = z.infer<typeof insertMarketingRequestSchema>;
+
+// News Types
+export type NewsStory = typeof newsStories.$inferSelect;
+export type NewsApproval = typeof newsApprovals.$inferSelect;
+
+export const insertNewsStorySchema = createInsertSchema(newsStories).omit({
+  id: true,
+  status: true,
+  viewCount: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  title: z.string().min(1, "Title is required").max(200, "Title must be under 200 characters"),
+  content: z.string().optional(),
+  summary: z.string().optional(),
+  type: z.enum(["story", "event", "link", "announcement"]),
+  imageUrl: z.string().url().optional().or(z.literal("")),
+  linkUrl: z.string().url().optional().or(z.literal("")),
+  tags: z.array(z.string()).optional().default([]),
+  authorId: z.string().min(1, "Author ID is required"),
+  publishDate: z.string().optional().transform((val) => val ? new Date(val) : undefined),
+});
+
+export const insertNewsApprovalSchema = createInsertSchema(newsApprovals).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  storyId: z.string().min(1, "Story ID is required"),
+  approverId: z.string().min(1, "Approver ID is required"),
+  approved: z.boolean(),
+  comments: z.string().optional(),
+});
+
+export type InsertNewsStory = z.infer<typeof insertNewsStorySchema>;
+export type InsertNewsApproval = z.infer<typeof insertNewsApprovalSchema>;
 
 // Auth Types
 export type User = typeof users.$inferSelect;

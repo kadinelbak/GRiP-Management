@@ -1,13 +1,16 @@
 import { 
   teams, applications, additionalTeamSignups, projectRequests, adminSettings, 
   absences, events, eventAttendance, printSubmissions, specialRoles, roleApplications, memberRoles, marketingRequests, users,
+  newsStories, newsApprovals,
   type Team, type Application, type AdditionalTeamSignup, type ProjectRequest, 
   type AdminSetting, type Absence, type Event, type EventAttendance, type PrintSubmission,
   type SpecialRole, type RoleApplication, type MemberRole, type MarketingRequest, type User,
+  type NewsStory, type NewsApproval,
   type InsertTeam, type InsertApplication, type InsertAdditionalTeamSignup, 
   type InsertProjectRequest, type InsertAdminSetting, type InsertAbsence, 
   type InsertEvent, type InsertEventAttendance, type InsertPrintSubmission,
-  type InsertSpecialRole, type InsertRoleApplication, type InsertMemberRole, type InsertMarketingRequest
+  type InsertSpecialRole, type InsertRoleApplication, type InsertMemberRole, type InsertMarketingRequest,
+  type InsertNewsStory, type InsertNewsApproval
 } from "../shared/schema.js";
 import { db } from "./db.js";
 import { eq, desc, asc, and, isNull, sql, or } from "drizzle-orm";
@@ -112,6 +115,21 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   updateUserRole(id: string, role: string): Promise<User>;
   getAllUsers(): Promise<User[]>;
+
+  // News Stories
+  getPublishedNewsStories(): Promise<any[]>;
+  getAllNewsStories(status?: string): Promise<any[]>;
+  getNewsStoryById(id: string): Promise<any | undefined>;
+  createNewsStory(story: InsertNewsStory): Promise<NewsStory>;
+  updateNewsStory(id: string, updates: Partial<NewsStory>): Promise<NewsStory>;
+  deleteNewsStory(id: string): Promise<void>;
+  incrementNewsStoryViews(id: string): Promise<void>;
+  
+  // News Approvals
+  addNewsApproval(approval: InsertNewsApproval): Promise<NewsApproval>;
+  getNewsApprovals(storyId: string): Promise<NewsApproval[]>;
+  getNewsApprovalsWithDetails(storyId: string): Promise<any[]>;
+  getExistingApproval(storyId: string, approverId: string): Promise<NewsApproval | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1106,6 +1124,176 @@ export class DatabaseStorage implements IStorage {
 
   async getAllUsers(): Promise<User[]> {
     return await db.select().from(users).orderBy(asc(users.email));
+  }
+
+  // News Stories Methods
+  async getPublishedNewsStories(): Promise<any[]> {
+    return await db.select({
+      id: newsStories.id,
+      title: newsStories.title,
+      content: newsStories.content,
+      summary: newsStories.summary,
+      type: newsStories.type,
+      imageUrl: newsStories.imageUrl,
+      linkUrl: newsStories.linkUrl,
+      tags: newsStories.tags,
+      status: newsStories.status,
+      authorId: newsStories.authorId,
+      publishDate: newsStories.publishDate,
+      viewCount: newsStories.viewCount,
+      createdAt: newsStories.createdAt,
+      updatedAt: newsStories.updatedAt,
+      author: {
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email
+      }
+    })
+      .from(newsStories)
+      .innerJoin(users, eq(newsStories.authorId, users.id))
+      .where(and(eq(newsStories.status, 'published'), eq(newsStories.isActive, true)))
+      .orderBy(desc(newsStories.publishDate));
+  }
+
+  async getAllNewsStories(status?: string): Promise<any[]> {
+    let whereClause = eq(newsStories.isActive, true);
+    
+    if (status) {
+      whereClause = and(whereClause, eq(newsStories.status, status)) as any;
+    }
+
+    return await db.select({
+      id: newsStories.id,
+      title: newsStories.title,
+      content: newsStories.content,
+      summary: newsStories.summary,
+      type: newsStories.type,
+      imageUrl: newsStories.imageUrl,
+      linkUrl: newsStories.linkUrl,
+      tags: newsStories.tags,
+      status: newsStories.status,
+      authorId: newsStories.authorId,
+      publishDate: newsStories.publishDate,
+      viewCount: newsStories.viewCount,
+      createdAt: newsStories.createdAt,
+      updatedAt: newsStories.updatedAt,
+      author: {
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email
+      }
+    })
+      .from(newsStories)
+      .innerJoin(users, eq(newsStories.authorId, users.id))
+      .where(whereClause)
+      .orderBy(desc(newsStories.createdAt));
+  }
+
+  async getNewsStoryById(id: string): Promise<any | undefined> {
+    const result = await db.select({
+      id: newsStories.id,
+      title: newsStories.title,
+      content: newsStories.content,
+      summary: newsStories.summary,
+      type: newsStories.type,
+      imageUrl: newsStories.imageUrl,
+      linkUrl: newsStories.linkUrl,
+      tags: newsStories.tags,
+      status: newsStories.status,
+      authorId: newsStories.authorId,
+      publishDate: newsStories.publishDate,
+      viewCount: newsStories.viewCount,
+      createdAt: newsStories.createdAt,
+      updatedAt: newsStories.updatedAt,
+      author: {
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email
+      }
+    })
+      .from(newsStories)
+      .innerJoin(users, eq(newsStories.authorId, users.id))
+      .where(and(eq(newsStories.id, id), eq(newsStories.isActive, true)));
+    
+    return result[0] || undefined;
+  }
+
+  async createNewsStory(insertStory: InsertNewsStory): Promise<NewsStory> {
+    const [story] = await db.insert(newsStories).values({
+      ...insertStory,
+      status: 'draft'
+    }).returning();
+    return story;
+  }
+
+  async updateNewsStory(id: string, updates: Partial<NewsStory>): Promise<NewsStory> {
+    const [updatedStory] = await db.update(newsStories)
+      .set({
+        ...updates,
+        updatedAt: new Date()
+      })
+      .where(eq(newsStories.id, id))
+      .returning();
+    return updatedStory;
+  }
+
+  async deleteNewsStory(id: string): Promise<void> {
+    await db.update(newsStories)
+      .set({ isActive: false })
+      .where(eq(newsStories.id, id));
+  }
+
+  async incrementNewsStoryViews(id: string): Promise<void> {
+    await db.update(newsStories)
+      .set({ viewCount: sql`${newsStories.viewCount} + 1` })
+      .where(eq(newsStories.id, id));
+  }
+
+  // News Approvals Methods
+  async addNewsApproval(insertApproval: InsertNewsApproval): Promise<NewsApproval> {
+    const [approval] = await db.insert(newsApprovals).values(insertApproval).returning();
+    return approval;
+  }
+
+  async getNewsApprovals(storyId: string): Promise<NewsApproval[]> {
+    return await db.select()
+      .from(newsApprovals)
+      .where(eq(newsApprovals.storyId, storyId))
+      .orderBy(desc(newsApprovals.createdAt));
+  }
+
+  async getNewsApprovalsWithDetails(storyId: string): Promise<any[]> {
+    return await db.select({
+      id: newsApprovals.id,
+      storyId: newsApprovals.storyId,
+      approverId: newsApprovals.approverId,
+      approved: newsApprovals.approved,
+      comments: newsApprovals.comments,
+      createdAt: newsApprovals.createdAt,
+      approver: {
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email
+      }
+    })
+      .from(newsApprovals)
+      .innerJoin(users, eq(newsApprovals.approverId, users.id))
+      .where(eq(newsApprovals.storyId, storyId))
+      .orderBy(desc(newsApprovals.createdAt));
+  }
+
+  async getExistingApproval(storyId: string, approverId: string): Promise<NewsApproval | undefined> {
+    const [approval] = await db.select()
+      .from(newsApprovals)
+      .where(and(
+        eq(newsApprovals.storyId, storyId),
+        eq(newsApprovals.approverId, approverId)
+      ));
+    return approval || undefined;
   }
 }
 

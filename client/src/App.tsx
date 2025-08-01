@@ -12,9 +12,12 @@ import TeamCreationForm from "./components/team-creation-form";
 import SpecialRoleForm from "./components/special-role-form";
 import MarketingRequestForm from "./components/marketing-request-form";
 import AdminDashboard from "./components/admin-dashboard";
+import NewsFeed from "./components/news-feed";
+import MemberServicesPage from "./pages/member-services";
+import ToolsPage from "./pages/tools";
 
-function AuthenticatedRoute({ component: Component, requireAdmin = false, ...props }: any) {
-  const { isAuthenticated, isAdmin, isLoading } = useAuth();
+function AuthenticatedRoute({ component: Component, requireAdmin = false, requireSpecialRole = false, ...props }: any) {
+  const { isAuthenticated, isAdmin, isLoading, user } = useAuth();
 
   if (isLoading) {
     return (
@@ -39,6 +42,19 @@ function AuthenticatedRoute({ component: Component, requireAdmin = false, ...pro
     );
   }
 
+  // Check for special roles (non-member roles)
+  if (requireSpecialRole && user?.role === 'member') {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-2">Access Denied</h1>
+          <p className="text-gray-600">You need special privileges to access this page.</p>
+          <p className="text-gray-500 text-sm mt-2">Contact an administrator for access.</p>
+        </div>
+      </div>
+    );
+  }
+
   return <Component {...props} />;
 }
 
@@ -48,6 +64,13 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/news" component={NewsFeed} />
+      <Route path="/member-services" component={() => 
+        <AuthenticatedRoute component={() => <MemberServicesPage />} />
+      } />
+      <Route path="/tools" component={() => 
+        <AuthenticatedRoute component={() => <ToolsPage />} requireSpecialRole={true} />
+      } />
       <Route path="/login" component={() => 
         isAuthenticated ? 
           <div>Already logged in! <a href="/">Go to Home</a></div> : 
