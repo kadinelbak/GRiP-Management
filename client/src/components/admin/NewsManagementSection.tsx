@@ -200,11 +200,24 @@ export default function NewsManagementSection() {
       });
 
       if (response.ok) {
+        const result = await response.json();
+        console.log('Review result:', result);
+        
+        // Show success message with status update
+        if (result.newStatus) {
+          console.log(`Story status updated to: ${result.newStatus}`);
+        }
+        
         fetchStories();
         fetchApprovals(storyId);
+      } else {
+        const errorData = await response.json();
+        console.error('Review failed:', errorData);
+        alert(`Failed to review story: ${errorData.message}`);
       }
     } catch (error) {
       console.error('Failed to review story:', error);
+      alert('Failed to review story. Please try again.');
     }
   };
 
