@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { useToast } from "../hooks/use-toast";
 import { Eye, EyeOff, UserPlus } from "lucide-react";
 
@@ -16,6 +17,7 @@ const signupSchema = z.object({
   confirmPassword: z.string().min(1, "Please confirm your password"),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
+  role: z.enum(["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator", "member"]).default("member"),
   adminCode: z.string().min(1, "Admin signup code is required"),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
@@ -36,10 +38,14 @@ export default function SignupForm({ onSignupSuccess }: SignupFormProps) {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
     reset,
   } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
+    defaultValues: {
+      role: "member"
+    }
   });
 
   const signupMutation = useMutation({
@@ -85,20 +91,20 @@ export default function SignupForm({ onSignupSuccess }: SignupFormProps) {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <UserPlus className="mx-auto h-12 w-12 text-blue-600 mb-4" />
-          <CardTitle className="text-2xl font-bold">Create Admin Account</CardTitle>
+          <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
           <p className="text-sm text-slate-600">
-            Enter the admin signup code to create your account
+            Enter the signup code and select your role to create your account
           </p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            {/* Admin Code */}
+            {/* Signup Code */}
             <div className="space-y-2">
-              <Label htmlFor="adminCode">Admin Signup Code</Label>
+              <Label htmlFor="adminCode">Signup Code</Label>
               <Input
                 id="adminCode"
                 type="text"
-                placeholder="Enter admin code"
+                placeholder="Enter signup code"
                 {...register("adminCode")}
                 className={errors.adminCode ? "border-red-500" : ""}
               />
@@ -134,6 +140,36 @@ export default function SignupForm({ onSignupSuccess }: SignupFormProps) {
               />
               {errors.lastName && (
                 <p className="text-sm text-red-500">{errors.lastName.message}</p>
+              )}
+            </div>
+
+            {/* Role Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="role">Role</Label>
+              <Controller
+                name="role"
+                control={control}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger className={errors.role ? "border-red-500" : ""}>
+                      <SelectValue placeholder="Select your role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="member">Member</SelectItem>
+                      <SelectItem value="art_coordinator">Art Coordinator</SelectItem>
+                      <SelectItem value="marketing_coordinator">Marketing Coordinator</SelectItem>
+                      <SelectItem value="outreach_coordinator">Outreach Coordinator</SelectItem>
+                      <SelectItem value="recipient_coordinator">Recipient Coordinator</SelectItem>
+                      <SelectItem value="printer_manager">Printer Manager</SelectItem>
+                      <SelectItem value="project_manager">Project Manager</SelectItem>
+                      <SelectItem value="president">President</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.role && (
+                <p className="text-sm text-red-500">{errors.role.message}</p>
               )}
             </div>
 

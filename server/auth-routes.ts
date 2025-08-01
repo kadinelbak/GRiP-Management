@@ -92,7 +92,7 @@ export async function signup(req: Request, res: Response) {
     // Hash password
     const hashedPassword = await hashPassword(signupData.password);
 
-    // Create user (all signups are admin accounts)
+    // Create user with selected role
     const [newUser] = await db
       .insert(users)
       .values({
@@ -100,7 +100,7 @@ export async function signup(req: Request, res: Response) {
         passwordHash: hashedPassword,
         firstName: signupData.firstName,
         lastName: signupData.lastName,
-        role: "admin", // All signups through this method are admins
+        role: signupData.role, // Use the role selected during signup
       })
       .returning({
         id: users.id,

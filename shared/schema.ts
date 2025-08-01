@@ -180,7 +180,7 @@ export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
-  role: text("role").notNull().default("member"), // 'admin', 'project_manager', 'printer_manager', 'president', 'recipient_coordinator', 'outreach_coordinator', 'marketing_coordinator', 'art_coordinator', 'member'
+  role: text("role").notNull().default("member"), // 'admin', 'project_manager', 'printer_manager', 'president', 'captain', 'recipient_coordinator', 'outreach_coordinator', 'marketing_coordinator', 'art_coordinator', 'member'
   firstName: text("first_name"),
   lastName: text("last_name"),
   isActive: boolean("is_active").notNull().default(true),
@@ -510,6 +510,7 @@ export const signupSchema = z.object({
   confirmPassword: z.string().min(1, "Please confirm your password"),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
+  role: z.enum(["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator", "member"]).default("member"),
   adminCode: z.string().min(1, "Admin signup code is required"),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",

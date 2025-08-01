@@ -25,15 +25,15 @@ export default function AdminDashboard() {
   const { user } = useAuth();
 
   const allNavigationItems = [
-    { id: "overview" as const, label: "Overview", icon: BarChart3, roles: ["admin", "president", "project_manager"] },
-    { id: "applications" as const, label: "Applications", icon: Inbox, roles: ["admin", "president", "project_manager"] },
-    { id: "teams" as const, label: "Teams", icon: Users, roles: ["admin", "president", "project_manager"] },
-    { id: "members" as const, label: "Members", icon: UserCheck, roles: ["admin", "president", "project_manager"] },
-    { id: "projects" as const, label: "Projects", icon: Wand2, roles: ["admin", "president", "project_manager"] },
-    { id: "print-management" as const, label: "Print Management", icon: Printer, roles: ["admin", "printer_manager"] },
-    { id: "user-management" as const, label: "User Management", icon: Shield, roles: ["admin", "president", "project_manager"] },
-    { id: "admin-codes" as const, label: "Admin Codes", icon: Key, roles: ["admin"] },
-    { id: "settings" as const, label: "Settings", icon: Settings, roles: ["admin", "president"] },
+    { id: "overview" as const, label: "Overview", icon: BarChart3, roles: ["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator"] },
+    { id: "applications" as const, label: "Applications", icon: Inbox, roles: ["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator"] },
+    { id: "teams" as const, label: "Teams", icon: Users, roles: ["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator"] },
+    { id: "members" as const, label: "Members", icon: UserCheck, roles: ["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator"] },
+    { id: "projects" as const, label: "Projects", icon: Wand2, roles: ["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator"] },
+    { id: "print-management" as const, label: "Print Management", icon: Printer, roles: ["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator"] },
+    { id: "user-management" as const, label: "User Management", icon: Shield, roles: ["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator"] },
+    { id: "admin-codes" as const, label: "Admin Codes", icon: Key, roles: ["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator"] },
+    { id: "settings" as const, label: "Settings", icon: Settings, roles: ["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator"] },
   ];
 
   // Filter navigation items based on user role
