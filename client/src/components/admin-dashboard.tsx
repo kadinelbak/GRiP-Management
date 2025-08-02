@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { 
   BarChart3, Users, Inbox, Settings, Wand2, Camera, 
-  Printer, Star, Send, Menu, X, Key, UserCheck, Shield, Newspaper
+  Printer, Star, Send, Menu, X, Key, UserCheck, Shield, Newspaper, Palette
 } from "lucide-react";
 import { useAuth } from "../hooks/use-auth";
 import AdminCodeManager from "./admin-code-manager";
@@ -15,10 +15,13 @@ import PrintManagementSection from "./admin/PrintManagementSection";
 import SettingsSection from "./admin/SettingsSection";
 import { UserManagementSection } from "./admin/UserManagementSection";
 import NewsManagementSection from "./admin/NewsManagementSection";
+import MarketingManagementSection from "./admin/MarketingManagementSection";
+import ArtManagementSection from "./admin/ArtManagementSection";
 
 type ActiveSection = "overview" | "applications" | "teams" | "members" | "projects" | 
   "settings" | "event-attendance" | "print-management" | "special-roles" | 
-  "marketing-requests" | "admin-codes" | "user-management" | "news-management";
+  "marketing-requests" | "admin-codes" | "user-management" | "news-management" |
+  "marketing-management" | "art-management";
 
 export default function AdminDashboard() {
   const [activeSection, setActiveSection] = useState<ActiveSection>("overview");
@@ -26,16 +29,18 @@ export default function AdminDashboard() {
   const { user } = useAuth();
 
   const allNavigationItems = [
-    { id: "overview" as const, label: "Overview", icon: BarChart3, roles: ["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator"] },
-    { id: "applications" as const, label: "Applications", icon: Inbox, roles: ["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator"] },
-    { id: "teams" as const, label: "Teams", icon: Users, roles: ["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator"] },
-    { id: "members" as const, label: "Members", icon: UserCheck, roles: ["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator"] },
-    { id: "projects" as const, label: "Projects", icon: Wand2, roles: ["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator"] },
-    { id: "print-management" as const, label: "Print Management", icon: Printer, roles: ["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator"] },
-    { id: "news-management" as const, label: "News Management", icon: Newspaper, roles: ["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator"] },
-    { id: "user-management" as const, label: "User Management", icon: Shield, roles: ["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator"] },
-    { id: "admin-codes" as const, label: "Admin Codes", icon: Key, roles: ["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator"] },
-    { id: "settings" as const, label: "Settings", icon: Settings, roles: ["admin", "president", "project_manager", "printer_manager", "recipient_coordinator", "outreach_coordinator", "marketing_coordinator", "art_coordinator"] },
+    { id: "overview" as const, label: "Overview", icon: BarChart3, roles: ["admin", "president", "vice_president", "project_manager", "printer_manager", "marketing_coordinator", "art_coordinator", "captain"] },
+    { id: "applications" as const, label: "Applications", icon: Inbox, roles: ["admin", "president", "vice_president", "project_manager", "printer_manager", "marketing_coordinator", "art_coordinator", "captain"] },
+    { id: "teams" as const, label: "Teams", icon: Users, roles: ["admin", "president", "vice_president", "project_manager", "printer_manager", "marketing_coordinator", "art_coordinator", "captain"] },
+    { id: "members" as const, label: "Members", icon: UserCheck, roles: ["admin", "president", "vice_president", "project_manager", "printer_manager", "marketing_coordinator", "art_coordinator", "captain"] },
+    { id: "projects" as const, label: "Projects", icon: Wand2, roles: ["admin", "president", "vice_president", "project_manager"] },
+    { id: "print-management" as const, label: "Print Management", icon: Printer, roles: ["admin", "president", "vice_president", "printer_manager"] },
+    { id: "marketing-management" as const, label: "Marketing Management", icon: Send, roles: ["admin", "president", "vice_president", "marketing_coordinator"] },
+    { id: "art-management" as const, label: "Art Management", icon: Palette, roles: ["admin", "president", "vice_president", "art_coordinator"] },
+    { id: "news-management" as const, label: "News Management", icon: Newspaper, roles: ["admin", "president", "vice_president", "project_manager", "printer_manager", "marketing_coordinator", "art_coordinator", "captain"] },
+    { id: "user-management" as const, label: "User Management", icon: Shield, roles: ["admin", "president", "vice_president"] },
+    { id: "admin-codes" as const, label: "Admin Codes", icon: Key, roles: ["admin", "president", "vice_president"] },
+    { id: "settings" as const, label: "Settings", icon: Settings, roles: ["admin", "president", "vice_president", "project_manager", "printer_manager", "marketing_coordinator", "art_coordinator", "captain"] },
   ];
 
   // Filter navigation items based on user role
@@ -57,6 +62,10 @@ export default function AdminDashboard() {
         return <ProjectsSection />;
       case "print-management":
         return <PrintManagementSection />;
+      case "marketing-management":
+        return <MarketingManagementSection />;
+      case "art-management":
+        return <ArtManagementSection />;
       case "news-management":
         return <NewsManagementSection />;
       case "user-management":

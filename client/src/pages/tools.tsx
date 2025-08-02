@@ -4,6 +4,7 @@ import EventCreationForm from "../components/event-creation-form";
 import PrintSubmissionForm from "../components/print-submission-form";
 import MarketingRequestForm from "../components/marketing-request-form";
 import NewsSubmissionForm from "../components/news-submission-form";
+import ArtRequestForm from "../components/art-request-form";
 import { useAuth } from "../hooks/use-auth";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -15,10 +16,11 @@ import {
   Wand2,
   Plus,
   Send,
-  Newspaper
+  Newspaper,
+  Palette
 } from "lucide-react";
 
-type ToolType = "team-creation" | "event-creation" | "print-submission" | "marketing-request" | "news-story";
+type ToolType = "team-creation" | "event-creation" | "print-submission" | "marketing-request" | "news-story" | "art-request";
 
 export default function ToolsPage() {
   const [activeTool, setActiveTool] = useState<ToolType | null>(null);
@@ -32,7 +34,7 @@ export default function ToolsPage() {
       icon: Users,
       color: "from-blue-100 to-blue-200",
       iconColor: "text-blue-600",
-      roles: ["admin", "president", "project_manager"]
+      roles: ["admin", "president", "vice_president", "project_manager", "printer_manager", "marketing_coordinator", "art_coordinator", "captain", "member"]
     },
     {
       id: "event-creation" as const,
@@ -41,7 +43,7 @@ export default function ToolsPage() {
       icon: CalendarDays,
       color: "from-green-100 to-green-200",
       iconColor: "text-green-600",
-      roles: ["admin", "president", "project_manager", "outreach_coordinator"]
+      roles: ["admin", "president", "vice_president", "project_manager", "printer_manager", "marketing_coordinator", "art_coordinator", "captain", "member"]
     },
     {
       id: "print-submission" as const,
@@ -50,7 +52,7 @@ export default function ToolsPage() {
       icon: Printer,
       color: "from-purple-100 to-purple-200",
       iconColor: "text-purple-600",
-      roles: ["admin", "president", "project_manager", "printer_manager", "captain"]
+      roles: ["admin", "president", "vice_president", "project_manager", "printer_manager", "marketing_coordinator", "art_coordinator", "captain", "member"]
     },
     {
       id: "marketing-request" as const,
@@ -59,7 +61,7 @@ export default function ToolsPage() {
       icon: Send,
       color: "from-orange-100 to-orange-200",
       iconColor: "text-orange-600",
-      roles: ["admin", "president", "project_manager", "outreach_coordinator", "coordinator"]
+      roles: ["admin", "president", "vice_president", "project_manager", "printer_manager", "marketing_coordinator", "art_coordinator", "captain", "member"]
     },
     {
       id: "news-story" as const,
@@ -68,7 +70,16 @@ export default function ToolsPage() {
       icon: Newspaper,
       color: "from-indigo-100 to-indigo-200",
       iconColor: "text-indigo-600",
-      roles: ["admin", "president", "project_manager", "outreach_coordinator", "marketing_coordinator", "art_coordinator", "printer_manager", "recipient_coordinator"]
+      roles: ["admin", "president", "vice_president", "project_manager", "printer_manager", "marketing_coordinator", "art_coordinator", "captain", "member"]
+    },
+    {
+      id: "art-request" as const,
+      title: "Art Request",
+      description: "Request custom artwork, graphics, or design work",
+      icon: Palette,
+      color: "from-pink-100 to-pink-200",
+      iconColor: "text-pink-600",
+      roles: ["admin", "president", "vice_president", "project_manager", "printer_manager", "marketing_coordinator", "art_coordinator", "captain", "member"]
     }
   ];
 
@@ -89,6 +100,8 @@ export default function ToolsPage() {
         return <MarketingRequestForm />;
       case "news-story":
         return <NewsSubmissionForm />;
+      case "art-request":
+        return <ArtRequestForm />;
       default:
         return null;
     }

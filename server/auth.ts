@@ -9,42 +9,55 @@ import { eq, and, gt, lt } from 'drizzle-orm';
 export const USER_ROLES = {
   ADMIN: 'admin',
   PROJECT_MANAGER: 'project_manager',
-  PRINTER_MANAGER: 'printer_manager',
   PRESIDENT: 'president',
-  RECIPIENT_COORDINATOR: 'recipient_coordinator',
-  OUTREACH_COORDINATOR: 'outreach_coordinator',
+  VICE_PRESIDENT: 'vice_president',
+  PRINTER_MANAGER: 'printer_manager',
   MARKETING_COORDINATOR: 'marketing_coordinator',
   ART_COORDINATOR: 'art_coordinator',
+  CAPTAIN: 'captain',
   MEMBER: 'member'
 } as const;
 
-// Define role permissions - admin has all permissions
+// Define role permissions
 export const ROLE_PERMISSIONS = {
   [USER_ROLES.ADMIN]: ['*'], // All permissions
-  [USER_ROLES.PRESIDENT]: [
-    'manage_users', 'view_analytics', 'manage_teams', 'manage_projects',
-    'manage_events', 'manage_applications', 'view_member_roles', 'manage_special_roles'
-  ],
   [USER_ROLES.PROJECT_MANAGER]: [
-    'manage_projects', 'view_teams', 'manage_project_requests', 'view_applications'
+    'access_all_admin_tabs', 'manage_users', 'view_analytics', 'manage_teams', 'manage_projects',
+    'manage_events', 'manage_applications', 'view_member_roles', 'manage_special_roles',
+    'manage_news', 'view_overview', 'manage_print_submissions', 'manage_marketing_requests',
+    'manage_art_requests'
+  ],
+  [USER_ROLES.PRESIDENT]: [
+    'access_all_admin_tabs', 'manage_users', 'view_analytics', 'manage_teams', 'manage_projects',
+    'manage_events', 'manage_applications', 'view_member_roles', 'manage_special_roles',
+    'manage_news', 'view_overview', 'manage_print_submissions', 'manage_marketing_requests',
+    'manage_art_requests'
+  ],
+  [USER_ROLES.VICE_PRESIDENT]: [
+    'access_all_admin_tabs', 'manage_users', 'view_analytics', 'manage_teams', 'manage_projects',
+    'manage_events', 'manage_applications', 'view_member_roles', 'manage_special_roles',
+    'manage_news', 'view_overview', 'manage_print_submissions', 'manage_marketing_requests',
+    'manage_art_requests'
   ],
   [USER_ROLES.PRINTER_MANAGER]: [
-    'manage_print_submissions', 'view_print_queue', 'update_print_status'
-  ],
-  [USER_ROLES.RECIPIENT_COORDINATOR]: [
-    'manage_recipients', 'view_applications', 'coordinate_deliveries'
-  ],
-  [USER_ROLES.OUTREACH_COORDINATOR]: [
-    'manage_events', 'view_event_attendance', 'manage_outreach_activities'
+    'manage_print_submissions', 'view_print_queue', 'update_print_status',
+    'manage_news', 'view_overview'
   ],
   [USER_ROLES.MARKETING_COORDINATOR]: [
-    'manage_marketing_requests', 'view_marketing_analytics', 'manage_social_media'
+    'manage_marketing_requests', 'view_marketing_analytics', 'manage_social_media',
+    'manage_news', 'view_overview'
   ],
   [USER_ROLES.ART_COORDINATOR]: [
-    'manage_art_teams', 'view_art_projects', 'coordinate_design_work'
+    'manage_art_requests', 'view_art_projects', 'coordinate_design_work',
+    'manage_news', 'view_overview'
+  ],
+  [USER_ROLES.CAPTAIN]: [
+    'manage_members', 'view_member_roles', 'manage_teams',
+    'manage_news', 'view_overview'
   ],
   [USER_ROLES.MEMBER]: [
-    'view_own_profile', 'submit_applications', 'view_events'
+    'view_own_profile', 'submit_applications', 'view_events',
+    'manage_news', 'view_overview'
   ]
 };
 
@@ -254,6 +267,39 @@ export function requireAnyRole(roles: string[]) {
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({ 
         message: `Access denied. Required one of: ${roles.join(', ')}` 
+      });
+    }
+
+    next();
+  };
+}
+
+// Role hierarchy for minimum role requirements
+const ROLE_HIERARCHY = {
+  [USER_ROLES.MEMBER]: 1,
+  [USER_ROLES.CAPTAIN]: 2,
+  [USER_ROLES.ART_COORDINATOR]: 3,
+  [USER_ROLES.MARKETING_COORDINATOR]: 3,
+  [USER_ROLES.PRINTER_MANAGER]: 4,
+  [USER_ROLES.VICE_PRESIDENT]: 5,
+  [USER_ROLES.PROJECT_MANAGER]: 6,
+  [USER_ROLES.PRESIDENT]: 7,
+  [USER_ROLES.ADMIN]: 8
+};
+
+// Middleware to require minimum role level
+export function requireMinimumRole(minimumRole: string) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    const userRoleLevel = ROLE_HIERARCHY[req.user.role as keyof typeof ROLE_HIERARCHY] || 0;
+    const minimumRoleLevel = ROLE_HIERARCHY[minimumRole as keyof typeof ROLE_HIERARCHY] || 0;
+
+    if (userRoleLevel < minimumRoleLevel) {
+      return res.status(403).json({ 
+        message: `Access denied. Minimum role required: ${minimumRole}` 
       });
     }
 

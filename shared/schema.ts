@@ -167,12 +167,22 @@ export const memberRoles = pgTable("member_roles", {
 // Marketing Requests
 export const marketingRequests = pgTable("marketing_requests", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  type: text("type").notNull().default("marketing-request"), // 'marketing-request' or 'art-request'
+  title: text("title").notNull(),
   name: text("name").notNull(),
   email: text("email").notNull(),
   organization: text("organization"),
   requestType: text("request_type").notNull(),
+  description: text("description"), // Renamed from message for consistency
   message: text("message").notNull(),
+  priority: text("priority").notNull().default("medium"), // 'low', 'medium', 'high', 'urgent'
+  status: text("status").notNull().default("pending"), // 'pending', 'in_progress', 'completed', 'rejected'
+  responseMessage: text("response_message"), // Response from coordinator
+  details: text("details"), // JSON string for additional fields like art request specifics
+  requesterName: text("requester_name"), // For cases where name might be different
+  requesterEmail: text("requester_email"), // For cases where email might be different
   submittedAt: timestamp("submitted_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 // Authentication Tables

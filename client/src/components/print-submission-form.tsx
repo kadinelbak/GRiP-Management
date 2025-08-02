@@ -249,7 +249,7 @@ export default function PrintSubmissionForm() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {technicalTeams.map((team: any) => (
+                            {Array.isArray(technicalTeams) && technicalTeams.map((team: any) => (
                               <SelectItem key={team.id} value={team.name}>
                                 {team.name}
                               </SelectItem>

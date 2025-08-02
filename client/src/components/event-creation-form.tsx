@@ -14,7 +14,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { CalendarDays } from "lucide-react";
 import type { z } from "zod";
 
-type EventFormData = z.infer<typeof insertEventSchema>;
+// Use the input type for the form (before transform)
+type EventFormData = z.input<typeof insertEventSchema>;
 
 export default function EventCreationForm() {
   const { toast } = useToast();
